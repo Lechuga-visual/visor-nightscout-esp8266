@@ -1,9 +1,9 @@
 {
-  "version": "0.5.1",
-  "file": "nightscout-d1-mini-v0.5.1.bin",
-  "sha256": "c9e091012ef8bb2ff10de9452ec2c68ab2ddd162ae7d656c391e07c6e4532b75",
-  "size_bytes": 679072,
-  "source_commit": "e8ef48ef3a4c8c93328e3d09aeec323a954d0f93",
+  "version": "0.5.2",
+  "file": "nightscout-d1-mini-v0.5.2.bin",
+  "sha256": "16a78ce66702e347f84862d538a7896f7cd613315b5b328a11bc3e9ba0b063b9",
+  "size_bytes": 681120,
+  "source_commit": "e8ccbc5376f477c0470f9bc26ec2522176799f2c",
   "board": "d1_mini",
   "mcu": "ESP8266",
   "flash_size_bytes": 4194304,
@@ -20,13 +20,15 @@
     "method": "Original PlatformIO builder with verified upstream packages and local cloud overrides"
   },
   "memory": {
-    "static_ram_bytes": 40720,
-    "application_flash_bytes": 674915,
+    "static_ram_bytes": 37632,
+    "application_flash_bytes": 676971,
     "request_stack_frame_bytes": 336,
     "json_parser_wrapper_stack_frame_bytes": 112,
     "json_parser_core_stack_frame_bytes": 448,
-    "dashboard_state_stack_frame_bytes": 352,
-    "display_stack_frame_bytes": 448
+    "dashboard_state_stack_frame_bytes": 432,
+    "display_stack_frame_bytes": 352,
+    "static_ram_saved_from_v051_bytes": 3088,
+    "dashboard_document_capacity_bytes": 1792
   },
   "private_compile_time_configuration": false,
   "validation": {
@@ -41,11 +43,11 @@
     "clock_checks": "6 native groups: Wi-Fi startup, retry intervals, reconnect/manual retry, millis wraparound, browser epoch validation, HTTP Date validation",
     "pinned_tls": "Real OpenSSL/BearSSL TLS 1.2 handshakes: matching RSA, P-256, P-384 and P-521 keys accepted without clock/CA despite expired self-signed certificates; different keys rejected",
     "pin_export": "Verified TLS export succeeds; expired, untrusted and wrong-host certificates rejected",
-    "request_stack": "Compiled Xtensa prologues inspected: request 336 bytes, streamed parser core 448 plus 112-byte wrapper, dashboard state 352, render 448 bytes; HTTP body buffer is heap allocated",
-    "browser_flow": "Chromium isolated request fixtures: desktop/mobile patient names, accents, empty fallback, safe rendering of markup and long labels; no preview server; device checks pending",
-    "reading_history": "6 native groups: freshness, 25-point sorted/bucketed history, two-hour plot and gaps, streamed 145-entry JSON with large ignored fields, invalid/empty readings, newest entry/trends",
+    "request_stack": "Compiled Xtensa prologues inspected: request 336 bytes, streamed parser core 448 plus 112-byte wrapper, dashboard state 432, render 352 bytes; HTTP body buffer remains heap allocated",
+    "browser_flow": "Previous desktop/mobile patient-name checks unchanged; current generated gzip assets verified against updated 30-minute HTML; physical device checks pending",
+    "reading_history": "6 native groups updated for 30 minutes: freshness, 7-point sorted/bucketed history, plot boundaries and gaps, streamed 31-entry JSON with large ignored fields, invalid/empty readings, newest entry/trends",
     "web_assets": "Checked-in gzip flash assets verified against HTML/CSS/JS sources",
-    "external_api_smoke_test": "Real Nightscout v1 latest-reading and 145-entry responses pass native complete-body decoder and JSON parser, both identity and re-framed chunked transport; no glucose values retained; ESP8266 transport cause remains unconfirmed",
+    "external_api_smoke_test": "Real Nightscout v1 count=31 returned HTTP 200 with 9492 bytes; native complete-body decoder and JSON parser accepted all 31 entries with identity and re-framed chunked transport; no glucose values retained; physical ESP8266 validation pending",
     "http_body": "5 native groups: identity/content length, chunked framing/extensions/trailers, fragmented and short reads, truncation/trailing data, malformed chunks/body limits, raw-chunk regression and precise parser stages",
     "patient_name": "Original 3732-byte settings layout and trust-key offset unchanged; tagged EEPROM name extension, erased storage rejection, bounded UTF-8 validation and Spanish display transliteration tested"
   },
@@ -69,16 +71,17 @@
   },
   "interface": {
     "style": "dark high contrast",
-    "history_hours": 2,
-    "source_entries_max": 145,
-    "history_points_max": 25,
+    "history_hours": 0.5,
+    "source_entries_max": 31,
+    "history_points_max": 7,
     "history_bucket_minutes": 5,
     "web_refresh_seconds": 5,
     "nightscout_poll_seconds": 30,
     "web_authentication": "Existing device administrator credentials",
     "assets": "Gzip in PROGMEM; no filesystem image or external browser dependencies",
     "patient_name_characters_max": 24,
-    "patient_name_storage": "Tagged 104-byte EEPROM extension after the unchanged v3 settings; empty label uses NIGHTSCOUT"
+    "patient_name_storage": "Tagged 104-byte EEPROM extension after the unchanged v3 settings; empty label uses NIGHTSCOUT",
+    "history_minutes": 30
   },
   "http_body": {
     "buffer_bytes": 512,
@@ -88,6 +91,7 @@
       "chunked"
     ],
     "content_encoding": "identity",
-    "fallback": "After full-history decode failure, poll latest-reading API every 30 seconds and retry full history after 5 minutes; keep old history and mark partial"
+    "fallback": "After full-history decode failure, poll latest-reading API every 30 seconds and retry full history after 5 minutes; keep old history and mark partial",
+    "minimum_heap_before_json_bytes": 3072
   }
 }
