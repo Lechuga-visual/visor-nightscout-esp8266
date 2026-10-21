@@ -72,7 +72,7 @@ conectarlo; la retroiluminación no está controlada por un GPIO en esta versió
 
 ### Binario listo para cargar
 
-Descarga [nightscout-d1-mini-v0.4.0.bin](firmware/nightscout-d1-mini-v0.4.0.bin)
+Descarga [nightscout-d1-mini-v0.4.1.bin](firmware/nightscout-d1-mini-v0.4.1.bin)
 desde la carpeta `firmware` (en GitHub utiliza **Download raw file**). Está
 compilado para **Wemos D1 mini ESP8266 con 4 MB de flash**, con los pines de la
 tabla anterior. No contiene datos privados ni requiere configurar el Wi-Fi
@@ -259,7 +259,8 @@ servidor: estarías fijando la identidad equivocada.
 
 En el Wemos, abre **Seguridad HTTPS y opción sin NTP**, pega todo el contenido
 de `clave-servidor.pem` (desde `BEGIN PUBLIC KEY` hasta `END PUBLIC KEY`) y pulsa
-**Guardar servidor**, sin marcar la casilla de borrar. El modo se reconoce por
+**Guardar servidor**, sin marcar la casilla de borrar. Desde 0.4.1 aparece la
+confirmación **Servidor guardado**, con el modo de autenticación elegido. El modo se reconoce por
 el PEM y se conserva después de reiniciar. La clave es pública; nunca pegues
 la clave privada del servidor. Se conserva únicamente para el mismo origen HTTPS.
 
@@ -312,8 +313,32 @@ También se registran estos eventos por USB a 115200 baudios. Algunos motivos:
 200 = se perdió la señal periódica del router; 201 = no se encuentra el punto
 de acceso; 202 = fallo de autenticación; 204 = se agotó el tiempo de negociación.
 
-Al ajustar la hora, la web confirma **Hora ajustada** y deja dos segundos antes
-de consultar HTTPS para que el navegador pueda recibir la respuesta.
+Al ajustar la hora, la web confirma **Hora ajustada**. Desde 0.4.1 se espera a
+que la conexión del navegador se cierre y pasen al menos tres segundos desde
+la última solicitud antes de consultar HTTPS. El arranque deja al menos cinco
+segundos antes de la primera consulta. Así la respuesta de guardar o ajustar
+la hora puede terminar antes de abrir la conexión al servidor.
+
+### Si el formulario dice que ha caducado
+
+El código de sesión de los formularios cambia cada vez que arranca el Wemos.
+Una página abierta antes de un reinicio o una actualización ya no sirve para
+guardar datos. Ese rechazo sucede **antes de validar la clave o el certificado**.
+Abre de nuevo `http://IP_DEL_WEMOS/`, recarga completamente la página y vuelve
+a pegar la clave; no uses Atrás para recuperar el formulario anterior. No se
+desactiva esta protección ni se reenvía automáticamente una solicitud rechazada.
+
+Desde 0.4.1 el aviso incluye un enlace a la página actualizada. El encabezado
+de la web muestra un identificador de sesión y el tiempo encendido. Si sigue
+ocurriendo con una página recién cargada, consulta `/diagnostics`: `boot_id` y
+`uptime_seconds` permiten identificar reinicios; `reset_reason` muestra el motivo
+de arranque, `last_operation` la última fase registrada y `free_stack` el margen
+mínimo de pila registrado durante ese arranque. Un motivo Wi-Fi `0` solo indica
+que aún no se ha registrado una causa de desconexión.
+
+La versión 0.4.1 también separa el análisis JSON de la conexión TLS y pasa el
+documento JSON a memoria dinámica acotada. Esto reduce la reserva de pila durante
+la conexión; no demuestra por sí solo cuál fue la causa en una placa concreta.
 
 ## Verificación
 

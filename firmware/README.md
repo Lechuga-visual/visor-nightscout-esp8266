@@ -1,8 +1,8 @@
 # Firmware para Wemos D1 mini (ESP8266)
 
-Versión **0.4.0**, GC9A01 SPI 240 × 240, D1 mini con **4 MB de flash**.
+Versión **0.4.1**, GC9A01 SPI 240 × 240, D1 mini con **4 MB de flash**.
 
-- [Descargar el .bin](nightscout-d1-mini-v0.4.0.bin) (en GitHub: **Download raw file**).
+- [Descargar el .bin](nightscout-d1-mini-v0.4.1.bin) (en GitHub: **Download raw file**).
 - [SHA-256](SHA256SUMS).
 - [Datos de compilación](build-info.json).
 
@@ -19,7 +19,7 @@ Si utilizas Python y esptool 4.x, por ejemplo:
 
 ```bash
 python -m pip install esptool==4.8.1
-python -m esptool --chip esp8266 --port COM3 --baud 115200 write_flash --flash_mode dio --flash_size 4MB 0x00000 nightscout-d1-mini-v0.4.0.bin
+python -m esptool --chip esp8266 --port COM3 --baud 115200 write_flash --flash_mode dio --flash_size 4MB 0x00000 nightscout-d1-mini-v0.4.1.bin
 ```
 
 Cambia `COM3` por el puerto real. En Linux suele ser `/dev/ttyUSB0` y en macOS
@@ -92,11 +92,24 @@ manteniendo la validación HTTPS. Si reinicias la placa y NTP sigue sin responde
 necesitarás volver a darle la hora desde el navegador.
 
 Puedes subir esta actualización por `/update` incluso sin hora sincronizada;
-al pasar desde 0.3.x se conservan Wi-Fi, URL, token y datos de administración.
+al pasar desde 0.3.x o 0.4.0 se conservan Wi-Fi, URL, token, CA o clave pública y datos de administración.
 
 Si se desconecta del Wi-Fi, la pantalla muestra ahora el motivo numérico.
 Cuando reconecte, `/diagnostics` permite revisar señal, memoria y errores sin
 mostrar credenciales. No se ha determinado aún la causa en tu placa.
+
+## Formulario caducado o fallo al guardar la clave
+
+El aviso de formulario caducado indica que su sesión no coincide con la sesión
+actual del Wemos. Se rechaza antes de validar el PEM, sin cambiar los ajustes.
+Después de actualizar o reiniciar, abre de nuevo la página principal desde la
+IP del dispositivo y vuelve a pegar la clave; no recuperes el formulario con Atrás.
+
+La versión 0.4.1 muestra una confirmación **Servidor guardado** antes de iniciar
+HTTPS. Espera a cerrar la conexión del navegador y al menos tres segundos desde
+la última solicitud. Reduce la reserva de pila durante TLS y añade a
+`/diagnostics` el identificador de arranque, su motivo, la última operación y
+el margen mínimo de pila, para distinguir errores de formulario de reinicios.
 
 ## Actualizaciones siguientes
 

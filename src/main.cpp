@@ -25,7 +25,7 @@
 #endif
 
 namespace {
-constexpr char VERSION[] = "0.4.0";
+constexpr char VERSION[] = "0.4.1";
 constexpr uint32_t POLL_MS = 30000;
 constexpr time_t VALID_CLOCK = device_clock::EARLIEST_UNIX;
 TFT_eSPI display;
@@ -62,6 +62,8 @@ uint32_t lastWebActivity = 0;
 int lastTlsError = 0;
 uint32_t heapBeforeTls = 0;
 uint32_t largestBlockBeforeTls = 0;
+uint32_t bootId = 0;
+const char* lastOperation = "boot";
 
 struct Reading {
   bool available = false;
@@ -127,6 +129,24 @@ bool authenticated() {
   return true;
 }
 
+bool currentForm() {
+  if (web.hasArg("csrf") && web.arg("csrf") == csrf) return true;
+  lastOperation = "stale_form";
+  Serial.printf_P(PSTR("Formulario rechazado antes de validar PEM: sesion=%08x uptime=%lu\n"),
+                  bootId, static_cast<unsigned long>(millis() / 1000));
+  // A stale form must remain rejected. Give the user a fresh page instead of
+  // silently resubmitting old settings or removing CSRF protection.
+  web.sendHeader("Cache-Control", "no-store, max-age=0");
+  web.send_P(403, PSTR("text/html; charset=utf-8"),
+           PSTR("<meta name='viewport' content='width=device-width,initial-scale=1'>"
+           "<h1>Recarga el formulario</h1><p>Esta página ya no corresponde a la sesión del Wemos. "
+           "Puede haber ocurrido un reinicio o una actualización mientras estaba abierta. "
+           "La solicitud fue rechazada antes de validar el certificado o la clave y no cambió la configuración.</p>"
+           "<p><a href='/'>Abrir página actualizada</a></p>"
+           "<p>Vuelve a pegar la clave pública y pulsa Guardar servidor. No uses Atrás para recuperar el formulario.</p>"));
+  return false;
+}
+
 bool startNtp() {
   if (setupMode || WiFi.status() != WL_CONNECTED) return false;
   const unsigned first = ntpAttempts % 3;
@@ -172,10 +192,7 @@ void appendClockControls(String& page) {
 
 bool clockRequestAllowed() {
   if (!authenticated()) return false;
-  if (!web.hasArg("csrf") || web.arg("csrf") != csrf) {
-    web.send(403, "text/plain", "Formulario caducado. Recarga la pagina.");
-    return false;
-  }
+  if (!currentForm()) return false;
   if (setupMode || WiFi.status() != WL_CONNECTED) {
     web.send(409, "text/plain", "Conecta primero el Wemos a tu Wi-Fi.");
     return false;
@@ -267,6 +284,7 @@ bool validCustomTrust(const char* pem) {
 }
 
 bool serverFields(device_config::Settings& candidate, const String& url) {
+  lastOperation = "validating_settings";
   String token = web.arg("token");
   token.trim();
   String ca = web.arg("custom_ca");
@@ -308,10 +326,7 @@ void configurationPage() {
 void saveConfiguration() {
   if (!setupMode && !authenticated()) return;
   web.sendHeader("Cache-Control", "no-store");
-  if (!web.hasArg("csrf") || web.arg("csrf") != csrf) {
-    web.send(403, "text/plain", "Formulario caducado. Recarga la pagina.");
-    return;
-  }
+  if (!currentForm()) return;
   String url = web.arg("url");
   url.trim();
   while (url.endsWith("/")) url.remove(url.length() - 1);
@@ -340,6 +355,7 @@ void saveConfiguration() {
     web.send(400, "text/plain; charset=utf-8", "SSID y usuario obligatorios; clave Wi-Fi de 8 a 63 caracteres (o vacia para red abierta); clave de administracion de 12 a 64.");
     return;
   }
+  lastOperation = "saving_configuration";
   if (!persistSettings(*candidate)) {
     web.send(500, "text/plain", "No se pudo guardar. Intenta nuevamente.");
     return;
@@ -349,6 +365,7 @@ void saveConfiguration() {
            "<h1>Configuración guardada</h1><p>El Wemos se reiniciará. Vuelve a conectar tu teléfono "
            "a tu Wi-Fi y abre la IP que aparecerá en la pantalla del Wemos.</p>");
   restartPending = true;
+  lastOperation = "restart_requested";
   restartRequestedAt = millis();
 }
 
@@ -382,6 +399,7 @@ void homePage() {
                   "max-width:650px;margin:30px auto;padding:20px}input{width:95%;padding:8px}"
                   "button{padding:10px;margin-top:10px}</style><h1>Pantalla de glucosa</h1>");
   page += "<p>Firmware " + String(VERSION) + " · IP " + WiFi.localIP().toString() + "</p>";
+  page += "<p>Sesión " + String(bootId, HEX) + " · encendido hace " + String(millis() / 1000) + " s</p>";
   page += "<p>Estado: " + htmlEscape(message) + "</p>";
   page += "<p>Wi-Fi: " + String(WiFi.RSSI()) + " dBm · desconexiones: " + String(wifiDisconnects) +
           " · último motivo: " + String(lastWifiReason) + "</p>";
@@ -401,10 +419,7 @@ void homePage() {
 
 void saveSettings() {
   if (!authenticated()) return;
-  if (!web.hasArg("csrf") || web.arg("csrf") != csrf) {
-    web.send(403, "text/plain", "Formulario caducado. Recarga la pagina.");
-    return;
-  }
+  if (!currentForm()) return;
   String candidate = web.arg("url");
   candidate.trim();
   while (candidate.endsWith("/")) candidate.remove(candidate.length() - 1);
@@ -419,6 +434,7 @@ void saveSettings() {
     web.send(400, "text/plain; charset=utf-8", "Revisa el token, HTTPS y el PEM de CA o clave pública.");
     return;
   }
+  lastOperation = "saving_settings";
   if (!persistSettings(*saved)) {
     web.send(500, "text/plain", "No se pudo guardar la configuracion.");
     return;
@@ -427,14 +443,23 @@ void saveSettings() {
   reading.available = false;
   attemptedFetch = false;
   message = "Servidor cambiado";
-  web.sendHeader("Location", "/");
-  web.send(303);
+  lastOperation = "settings_saved";
+  String page = F("<meta name='viewport' content='width=device-width,initial-scale=1'>"
+                  "<meta charset='utf-8'><h1>Servidor guardado</h1><p>La configuración se guardó correctamente. "
+                  "El Wi-Fi y los datos de administración se conservan.</p><p>Modo HTTPS: ");
+  page += device_config::pinnedPublicKey(settings.customCa) ? F("clave pública fija, sin NTP") : F("certificados CA, requiere hora");
+  page += F(".</p><p>La consulta se iniciará cuando se cierre esta conexión web, después de unos segundos.</p>"
+            "<p><a href='/'>Volver a la página principal</a> · <a href='/diagnostics'>Ver diagnóstico</a></p>");
+  web.send(200, "text/html; charset=utf-8", page);
 }
 
-void parseReading(HTTPClient& http) {
-  StaticJsonDocument<1536> document;
+__attribute__((noinline)) void parseReading(HTTPClient& http) {
+  // Do not reserve a ~2 KB JSON frame for the entire TLS request. ESP8266's
+  // continuation stack is only 4 KB, shared with DNS, TCP and client wrappers.
+  DynamicJsonDocument document(768);
+  if (document.capacity() == 0) { message = "Sin memoria para JSON"; return; }
   // Other Nightscout plugins may add large fields that the display does not need.
-  StaticJsonDocument<256> filter;
+  StaticJsonDocument<192> filter;
   filter[0]["sgv"] = true;
   filter[0]["date"] = true;
   filter[0]["direction"] = true;
@@ -492,6 +517,7 @@ void fetchReading() {
   http.setTimeout(2500);
   http.setReuse(false);
   if (https) {
+    lastOperation = "preparing_tls";
     heapBeforeTls = ESP.getFreeHeap();
     largestBlockBeforeTls = ESP.getMaxFreeBlockSize();
     secure.reset(new (std::nothrow) BearSSL::WiFiClientSecure);
@@ -505,7 +531,9 @@ void fetchReading() {
       if (!trust || trust->getCount() != 1) { message = "CA propia invalida"; return; }
       secure->setTrustAnchors(trust.get());
     } else secure->setCertStore(&publicRoots);
-    secure->setTimeout(5000);
+    // HTTPClient applies its own timeout before connect(), overriding the
+    // client's value. Set it here so the TLS handshake actually gets 5 s.
+    http.setTimeout(5000);
     Serial.printf("TLS inicio: modo=%s heap=%u bloque=%u RSSI=%d\n",
                   pinned ? "clave" : "CA", heapBeforeTls, largestBlockBeforeTls, WiFi.RSSI());
     if (!http.begin(*secure, endpoint)) {
@@ -519,7 +547,10 @@ void fetchReading() {
   const char* responseHeaders[] = {"Date", "Age"};
   http.collectHeaders(responseHeaders, 2);
   http.addHeader("Cache-Control", "no-cache, no-store");
+  lastOperation = https ? "tls_request" : "http_request";
+  Serial.printf("Consulta inicio: pila=%u\n", ESP.getFreeContStack());
   const int result = http.GET();
+  lastOperation = "server_response";
   lastTlsError = secure ? secure->getLastSSLError() : 0;
   Serial.printf("Consulta: HTTP=%d TLS=%d WiFi=%d heap=%u\n", result, lastTlsError,
                 WiFi.status(), ESP.getFreeHeap());
@@ -544,12 +575,17 @@ void fetchReading() {
     else message = result > 0 ? "Error HTTP " + String(result) : "Error de conexion";
   }
   http.end();
+  lastOperation = "request_finished";
 }
 
 void diagnostics() {
   if (!authenticated()) return;
-  StaticJsonDocument<512> document;
+  DynamicJsonDocument document(1024);
   document["firmware"] = VERSION;
+  document["boot_id"] = String(bootId, HEX);
+  document["reset_reason"] = ESP.getResetReason();
+  document["last_operation"] = lastOperation;
+  document["free_stack"] = ESP.getFreeContStack();
   document["uptime_seconds"] = millis() / 1000;
   document["wifi_connected"] = WiFi.status() == WL_CONNECTED;
   document["wifi_status"] = static_cast<int>(WiFi.status());
@@ -648,6 +684,7 @@ void render() {
 
 void setup() {
   Serial.begin(115200);
+  bootId = ESP.random();
   Serial.printf("\nNightscout %s; reinicio: %s\n", VERSION, ESP.getResetReason().c_str());
   display.init();
   display.setRotation(0);
@@ -725,8 +762,9 @@ void loop() {
     if (!mdnsStarted) mdnsStarted = MDNS.begin(DEVICE_HOSTNAME);
     if (mdnsStarted) MDNS.update();
     // Let the browser receive its clock/settings response before starting TLS.
-    const bool webIdle = !webRecentlyUsed || millis() - lastWebActivity >= 2000;
-    if (webIdle && (!attemptedFetch || millis() - lastFetch >= POLL_MS)) {
+    const bool webIdle = (!webRecentlyUsed || millis() - lastWebActivity >= 3000) &&
+                         !web.client().connected();
+    if (millis() >= 5000 && webIdle && (!attemptedFetch || millis() - lastFetch >= POLL_MS)) {
       attemptedFetch = true;
       fetchReading();
       lastFetch = millis();
