@@ -1,9 +1,9 @@
 {
-  "version": "0.7.0",
-  "file": "nightscout-d1-mini-v0.7.0.bin",
-  "sha256": "d9f7a4dd0ef7328c919032cb08299096227615caee46a6ceae082611afc5cb1b",
-  "size_bytes": 702400,
-  "source_commit": "f02db9f65adcc5f6b32afc6a85c056266ee1df18",
+  "version": "0.7.1",
+  "file": "nightscout-d1-mini-v0.7.1.bin",
+  "sha256": "ad24cd0ffe530928a73e95510bee81aaec989356d8547a767d2fc9bffd2b389e",
+  "size_bytes": 710464,
+  "source_commit": "c26e5fd6fdb60c08544e81e389566bd2253b920d",
   "board": "d1_mini",
   "mcu": "ESP8266",
   "flash_size_bytes": 4194304,
@@ -20,24 +20,28 @@
     "method": "Original PlatformIO builder with verified upstream packages and local cloud overrides"
   },
   "memory": {
-    "static_ram_bytes": 37812,
-    "application_flash_bytes": 698255,
+    "static_ram_bytes": 38084,
+    "application_flash_bytes": 706311,
     "request_stack_frame_bytes": 336,
     "json_parser_wrapper_stack_frame_bytes": 112,
     "json_parser_core_stack_frame_bytes": 448,
     "dashboard_state_stack_frame_bytes": 576,
     "display_stack_frame_bytes": 320,
-    "static_ram_saved_from_v051_bytes": 2908,
+    "static_ram_saved_from_v051_bytes": 2636,
     "dashboard_document_capacity_bytes": 2048,
     "appearance_save_stack_frame_bytes": 208,
-    "static_ram_increase_from_v052_bytes": 180,
-    "static_ram_increase_from_v061_bytes": 48,
+    "static_ram_increase_from_v052_bytes": 452,
+    "static_ram_increase_from_v061_bytes": 320,
     "welcome_stack_frame_bytes": 144,
-    "setup_page_stack_frame_bytes": 64
+    "setup_page_stack_frame_bytes": 64,
+    "static_ram_increase_from_v070_bytes": 272,
+    "night_save_stack_frame_bytes": 192,
+    "local_minute_stack_frame_bytes": 64,
+    "intensity_update_stack_frame_bytes": 16
   },
   "private_compile_time_configuration": false,
   "validation": {
-    "tests_passed": 12,
+    "tests_passed": 13,
     "tests_skipped": 0,
     "boot_checksum": "valid",
     "arduino_full_image_crc": "valid",
@@ -48,18 +52,20 @@
     "clock_checks": "6 native groups: Wi-Fi startup, retry intervals, reconnect/manual retry, millis wraparound, browser epoch validation, HTTP Date validation",
     "pinned_tls": "Real OpenSSL/BearSSL TLS 1.2 handshakes: matching RSA, P-256, P-384 and P-521 keys accepted without clock/CA despite expired self-signed certificates; different keys rejected",
     "pin_export": "Verified TLS export succeeds; expired, untrusted and wrong-host certificates rejected",
-    "request_stack": "Compiled Xtensa prologues inspected: request 336 bytes, streamed parser core 448 plus 112-byte wrapper, dashboard state 576, render 320, appearance save 208, welcome 144, setup-page assembly 64 bytes; no framebuffer",
+    "request_stack": "Compiled Xtensa prologues inspected: request 336 bytes, streamed parser core 448 plus 112-byte wrapper, dashboard state 576, render 320, appearance save 208, welcome 144, setup-page assembly 64, night save 192, local minute 64, intensity update 16 bytes; no framebuffer",
     "browser_flow": "Request interception without HTTP server: 3 modes x 5 themes on desktop/mobile; all seven trend directions and unknown, low/high/old/no-clock/empty/error, custom contrast, authenticated CSRF mode-save payloads and rejected-session handling, safe name text, large-name width limits/ellipsis and offline retention; actual ESP8266 HTTP/EEPROM/SPI/OTA checks pending",
     "reading_history": "6 native groups updated for 30 minutes: freshness, 7-point sorted/bucketed history, plot boundaries and gaps, streamed 31-entry JSON with large ignored fields, invalid/empty readings, newest entry/trends",
     "web_assets": "Checked-in gzip flash assets verified against HTML/CSS/JS sources",
-    "external_api_smoke_test": "Last live API check in v0.5.2: count=31 returned HTTP 200, 9492 bytes accepted by native body/JSON decoder with identity and re-framed chunked transport. TLS/clock/streaming decoding rules unchanged in v0.7.0; welcome progress hooks added, no glucose values retained",
+    "external_api_smoke_test": "Last live API check in v0.5.2: count=31 returned HTTP 200, 9492 bytes accepted by native body/JSON decoder with identity and re-framed chunked transport. TLS authentication, UTC clock and streaming decoding rules retained; local timezone configured through core POSIX-TZ API. Poll deferred during temporary preview until display restoration; no glucose values retained",
     "http_body": "5 native groups: identity/content length, chunked framing/extensions/trailers, fragmented and short reads, truncation/trailing data, malformed chunks/body limits, raw-chunk regression and precise parser stages",
     "patient_name": "Original 3732-byte settings layout and trust-key offset unchanged; tagged EEPROM name extension, erased storage rejection, bounded UTF-8 validation and Spanish display transliteration tested",
     "appearance": "3 native groups: tagged 20-byte extension at EEPROM offset 3836, old server/token/key/name preserved, erased storage defaults, partial mode updates, atomic rejection, presets/custom colors and contrast after RGB565 quantization",
-    "browser_suites_passed": 2,
+    "browser_suites_passed": 3,
     "startup": "Native stage checks: Wi-Fi pending/connected, HTTP and network errors, rejected JSON, valid empty response, first valid reading, non-200 cannot finish startup, live view retained after later failures",
     "browser_setup": "Actual C++ setup page renderer with host String/flash/send adaptations; request interception without HTTP server: mobile/desktop steps, UTF-8 SSID byte limit, Wi-Fi/URL/token/PEM/admin validation, hidden-details error focus, back/Enter without early POST, text-safe secret-free summary, CSRF payload, 400/401/403/500 and network failures retaining fields, duplicate-save guard, success clearing secrets, no-JavaScript fallback",
-    "startup_layout": "Representative longest labels, AP SSID/key/IP and footer checked against TFT_eSPI font 2 widths and 240x240 circular bounds; physical SPI output pending"
+    "startup_layout": "Representative longest labels, AP SSID/key/IP and footer checked against TFT_eSPI font 2 widths and 240x240 circular bounds; physical SPI output pending",
+    "night_schedule": "Native checks: tagged 16-byte EEPROM extension preserves old prefix/tail, erased-storage defaults, atomic field rejection, start-inclusive/end-exclusive intervals including midnight, disabled/no-clock daytime fallback, all 65536 RGB565 values unchanged at 100 percent with channel monotonicity when dimmed, five-second preview rollover/restart, Santiago and Madrid winter/summer and Santiago DST boundaries",
+    "browser_night": "Production C++ form and local assets with intercepted requests, no HTTP server: mobile/desktop, disabled upgrade defaults, sliders, equal-time rejection, CSRF preview payload, five-second UI expiry, 400/403/500 and network errors, duplicate-preview guard, native save excluding preview flags, no-JavaScript form; physical SPI/EEPROM/clock integration pending"
   },
   "setup": {
     "ssid": "glucosa-XXXXXX",
@@ -88,7 +94,7 @@
     "web_refresh_seconds": 5,
     "nightscout_poll_seconds": 30,
     "web_authentication": "Existing administrator credentials; per-boot CSRF nonce required for POST /appearance",
-    "assets": "Five gzip PROGMEM resources plus flash setup-template fragments; no filesystem upload, framebuffer or external browser dependencies",
+    "assets": "Six gzip PROGMEM resources plus flash setup-template fragments; no filesystem upload, framebuffer or external browser dependencies",
     "patient_name_characters_max": 24,
     "patient_name_storage": "Tagged 104-byte EEPROM extension after the unchanged v3 settings; empty label uses NIGHTSCOUT",
     "history_minutes": 30,
@@ -131,7 +137,33 @@
       "no_javascript": "all three sections visible; original native form POST with CSRF",
       "storage_layout_changed": false
     },
-    "night_schedule": "Proposal only; not implemented"
+    "night_schedule": {
+      "implemented": true,
+      "control": "RGB565 content attenuation only; LED backlight not controlled",
+      "enabled_by_default": false,
+      "start": "22:00",
+      "end": "07:00",
+      "day_percent_default": 100,
+      "night_percent_default": 25,
+      "percent_range": [
+        10,
+        100
+      ],
+      "timezone_default": "America/Santiago",
+      "timezone_options": 8,
+      "daylight_saving": "POSIX rules for Santiago and Madrid; other listed zones fixed offsets",
+      "clock_missing": "day intensity with settings notice",
+      "preview": "five seconds, millis rollover safe, no flash writes; restored before blocking Nightscout TLS can start",
+      "setup_screen": "100 percent",
+      "web_dashboard": "unchanged intensity",
+      "storage": {
+        "offset": 3856,
+        "bytes": 16,
+        "tagged": true,
+        "old_settings_unchanged": true
+      },
+      "authentication": "administrator Basic authentication and current boot CSRF nonce for saving and preview"
+    }
   },
   "http_body": {
     "buffer_bytes": 512,
