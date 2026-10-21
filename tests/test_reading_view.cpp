@@ -17,7 +17,7 @@ struct Input {
 };
 std::string entry(int value, int64_t date, const std::string& extra = "") {
   return "{\"sgv\":" + std::to_string(value) + ",\"date\":" + std::to_string(date) +
-         ",\"direction\":\"FortyFiveUp\",\"synthetic\":true" + extra + "}";
+         ",\"direction\":\"FortyFiveUp\"" + extra + "}";
 }
 void testAgeAndStaleness() {
   assert(ageSeconds(false, NOW * 1000, NOW) == -1);
@@ -64,7 +64,7 @@ void testStreamsFullHistoryWithoutRetainingLargeFields() {
   Input input(json); ParsedReadings result;
   assert(parseEntries(input, NOW, result) == ParseResult::Ok);
   assert(result.available && result.history.count == 25 && result.value == 120);
-  assert(result.synthetic && std::string(result.direction) == "FortyFiveUp");
+  assert(std::string(result.direction) == "FortyFiveUp");
   assert(result.history.points[0].date <= (NOW - 115 * 60) * 1000);
 }
 void testEmptyAndInvalidResponses() {

@@ -7,16 +7,16 @@ constexpr char WIFI_SSID[] = "";
 constexpr char WIFI_PASSWORD[] = "";
 constexpr char DEVICE_HOSTNAME[] = "glucosa-display";
 
-// Computer running simulator/server.py, on the same Wi-Fi as the Wemos.
+// Base URL of your Nightscout server. Leave empty for first-boot web setup.
 // No trailing /api/v1 path. The URL can later be changed through the device web UI.
-constexpr char DEFAULT_NIGHTSCOUT_URL[] = "http://192.168.1.100:8000";
+constexpr char DEFAULT_NIGHTSCOUT_URL[] = "";
 
 constexpr char WEB_USERNAME[] = "admin";
 // 12+ characters. Leave empty to choose a password through first-boot setup.
 constexpr char WEB_PASSWORD[] = "";
 
 // Optional compile-time default. Normally enter this in the device web form.
-// Sent only over HTTPS; never sent to an HTTP simulator or copied into the UI.
+// Sent only over HTTPS; never copied into the UI.
 constexpr char NIGHTSCOUT_TOKEN[] = "";
 
 // Optional private CA default (PEM). Normally leave empty to use the public root

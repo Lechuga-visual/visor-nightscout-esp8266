@@ -1,51 +1,14 @@
 # Pantalla de glucosa con Wemos D1 mini y GC9A01
 
 Primera versión para **ESP8266**, aunque el repositorio se llame `nightscout-esp32`.
-Incluye un simulador de una parte de la API de Nightscout, una pantalla circular
-de 240 × 240 y un servidor web en el Wemos para cambiar la URL y actualizar el
-firmware por Wi-Fi (OTA). Todos los datos del simulador son ficticios.
+Muestra las lecturas de tu servidor Nightscout en una pantalla circular de
+240 × 240. El servidor web del Wemos permite consultar las mismas lecturas,
+cambiar la configuración y actualizar el firmware por Wi-Fi (OTA).
 
-## 1. Ejecutar el simulador en tu computador
+Necesitas un servidor Nightscout con lecturas disponibles y una red Wi-Fi de
+2,4 GHz. La URL base tiene este formato: `https://tu-nightscout.example`.
 
-Necesitas Python 3.10 o posterior, sin paquetes adicionales. Desde este repositorio:
-
-```bash
-python3 simulator/server.py --host 0.0.0.0 --port 8000
-```
-
-Conecta el computador y el Wemos a la misma red local. El Wemos requiere Wi-Fi de 2,4 GHz. Abre en el navegador
-la IP local del computador, puerto 8000, para cambiar el escenario. Por ejemplo,
-si tu computador tiene IP `192.168.1.100`, la URL base es
-`http://192.168.1.100:8000`. Permite conexiones entrantes al puerto 8000 en el
-firewall de tu computador. Una red de invitados con aislamiento entre clientes
-puede impedir que el Wemos llegue al servidor.
-
-El servidor que se ejecute dentro del entorno en la nube sirve para las pruebas
-automatizadas. Para que lo consulte tu Wemos, ejecuta el simulador en tu
-computador dentro de tu red local; no necesitas publicar un servidor en Internet.
-
-API implementada:
-
-| Ruta | Respuesta |
-| --- | --- |
-| `GET /api/v1/entries.json?count=1` | Última lectura; lista de objetos con `sgv`, `direction` y `date` en milisegundos |
-| `GET /api/v1/entries/sgv.json?count=12` | Historial, de más reciente a más antiguo, hasta 288 puntos |
-| `GET /api/v1/status.json` | Estado básico y unidades `mg/dl` |
-| `GET /` | Selector de escenarios |
-
-Los escenarios son `cycle`, `normal`, `rising`, `falling`, `high`, `low`, `stale`,
-`empty` y `error`. La interfaz controla el escenario de todas las consultas del
-Wemos; también se puede forzar una respuesta con `?scenario=low&count=1`.
-`stale` devuelve una lectura de al menos 30 minutos de antigüedad; `empty`
-devuelve una lista vacía y `error` devuelve HTTP 503. En `cycle` el escenario
-cambia cada minuto para acelerar las pruebas. Las marcas de tiempo de las
-lecturas están espaciadas cinco minutos, como en una fuente típica de glucosa.
-
-El simulador implementa solo las rutas anteriores, no un servidor Nightscout
-completo, ni carga de datos, autenticación o API v3. La interfaz de control está
-pensada para una red local de confianza.
-
-## 2. Cableado de señales
+## 1. Cableado de señales
 
 | GC9A01 SPI | Wemos D1 mini | GPIO |
 | --- | --- | --- |
@@ -68,11 +31,11 @@ Realiza el cableado sin alimentación. Las señales del ESP8266 son de 3,3 V.
 Si utilizas otra variante con un pin BL/BLK, consulta su ficha antes de
 conectarlo; la retroiluminación no está controlada por un GPIO en esta versión.
 
-## 3. Preparar y cargar el firmware
+## 2. Preparar y cargar el firmware
 
 ### Binario listo para cargar
 
-Descarga [nightscout-d1-mini-v0.5.0.bin](firmware/nightscout-d1-mini-v0.5.0.bin)
+Descarga [nightscout-d1-mini-v0.5.1.bin](firmware/nightscout-d1-mini-v0.5.1.bin)
 desde la carpeta `firmware` (en GitHub utiliza **Download raw file**). Está
 compilado para **Wemos D1 mini ESP8266 con 4 MB de flash**, con los pines de la
 tabla anterior. No contiene datos privados ni requiere configurar el Wi-Fi
@@ -91,7 +54,7 @@ dirección **0x00000**. Las instrucciones y el SHA-256 están en
 3. Mantén la conexión aunque el teléfono indique que no hay Internet. Abre
    **`http://192.168.4.1/`** en el navegador; no es necesario esperar un portal automático.
 4. Introduce el nombre y la contraseña de tu Wi-Fi de **2,4 GHz**, la URL base
-   del simulador —por ejemplo `http://192.168.1.100:8000`— y un usuario y
+   de tu Nightscout —por ejemplo `https://tu-nightscout.example`— y un usuario y
    contraseña de administración de al menos 12 caracteres. Si tu Nightscout
    exige autenticación, introduce también su **token de solo lectura**. Para
    un Nightscout público con HTTPS no necesitas pegar un certificado.
@@ -99,8 +62,7 @@ dirección **0x00000**. Las instrucciones y el SHA-256 están en
    apagará la red de configuración al reiniciarse. Reconecta el teléfono a tu
    Wi-Fi habitual y abre la IP que ahora muestra la pantalla del Wemos.
 
-La URL debe usar la IP del computador donde ejecutas el simulador. No uses
-`localhost`, que para el Wemos sería el propio dispositivo.
+Introduce solo la URL base, sin `/api/v1`, token ni API secret.
 
 Si al arrancar no consigue conectarse a la red guardada en un minuto, vuelve
 al modo de configuración con una nueva clave en pantalla. Para recuperar el
@@ -124,7 +86,7 @@ introducir valores predeterminados en la compilación, copia
 `include/nightscout_config.example.h` a `include/nightscout_config.h` y completa localmente:
 
 - `WIFI_SSID` y `WIFI_PASSWORD`.
-- `DEFAULT_NIGHTSCOUT_URL`, con la IP local del computador y el puerto 8000.
+- `DEFAULT_NIGHTSCOUT_URL`, con la URL base de tu Nightscout.
 - `WEB_USERNAME` y una `WEB_PASSWORD` propia de al menos 12 caracteres.
 
 `include/nightscout_config.h` está excluido de Git. Si falta, se activa la
@@ -142,7 +104,7 @@ Desde la raíz del repositorio:
 
 La primera carga requiere USB. La pantalla muestra la IP del Wemos al conectarse.
 Consulta la API cada 30 segundos y presenta glucosa en mg/dL, flecha de tendencia,
-antigüedad y estado de conexión. Marca las lecturas simuladas con `DEMO` y las
+antigüedad y estado de conexión. Marca las lecturas
 que tengan diez minutos o más con `ANTIGUA`. Si falla una consulta,
 conserva el último valor con el error visible. Sin una hora válida indica que
 la hora no está sincronizada; no asume que la lectura es reciente.
@@ -153,13 +115,41 @@ rojo por debajo y ámbar por encima. Ese intervalo visual está fijado en esta
 versión y no constituye una alarma personalizada. Las lecturas antiguas y los
 errores se distinguen por texto además del color. No hay alarmas sonoras.
 
+### Corrección de lectura en 0.5.1
+
+El cuerpo HTTP ahora se decodifica antes del JSON: admite `Content-Length`,
+cierre de conexión y `Transfer-Encoding: chunked`, con un búfer fijo de 512
+bytes. Pide contenido sin compresión y rechaza cuerpos incompletos, bloques
+malformados, respuestas demasiado grandes y datos posteriores al JSON antes
+de actualizar la lectura. La respuesta completa no se almacena en RAM.
+
+Si falla el análisis del historial, las siguientes consultas utilizan la ruta
+v1 de última lectura (`entries.json?count=1`), conservando los puntos ya
+obtenidos y marcando el historial como parcial. Se reintenta el historial
+completo después de cinco minutos. Una respuesta vacía sigue significando
+sin lecturas; un error nunca se presenta como un dato nuevo.
+
+`/diagnostics` añade estado HTTP, tamaño, codificación, bytes decodificados,
+primer byte numérico, fase del análisis, error ArduinoJson, número de entradas
+y memoria antes del JSON. No incluye valores de glucosa, tokens ni claves.
+`reset_info` permite investigar el arranque anterior por excepción.
+Se ha eliminado el servidor de pruebas, la previsualización y sus controles.
+La respuesta real consultada es JSON válido y pasa el lector nativo; aún debe
+comprobarse la corrección en el ESP8266 para confirmar la causa del fallo.
+
 ### La misma pantalla en la web
+
+En **Ajustes → Nombre de la persona** puedes escribir hasta 24 caracteres.
+El nombre reemplaza NIGHTSCOUT arriba en la pantalla redonda y en el visor web.
+Se guarda localmente y permanece después de reiniciar. Vacío vuelve a mostrar
+NIGHTSCOUT. La web conserva las tildes; la fuente pequeña de la pantalla adapta
+las letras españolas a sus equivalentes sin tilde y otros caracteres a `?`.
+Los nombres largos se ajustan en la web y se acortan con puntos en la pantalla.
+Los ajustes anteriores de Wi-Fi, servidor y HTTPS mantienen su formato.
 
 Abre `http://IP_DEL_WEMOS/` e inicia sesión con tu usuario y contraseña de
 administración. El panel muestra la misma glucosa, tendencia, antigüedad,
 estado e historial de la pantalla redonda. Se adapta al teléfono y al computador.
-
-![Vista de escritorio con datos ficticios](docs/images/dashboard-desktop.png)
 
 El visor consulta el estado local del Wemos cada cinco segundos; el botón
 **Actualizar visor** también lee ese estado y no fuerza consultas adicionales
@@ -182,14 +172,14 @@ ni contraseñas. Los recursos web están comprimidos en la flash del firmware;
 funcionan sin servicios de fuentes, librerías externas ni cargas de FileSystem.
 La hora de lectura en el navegador se muestra en la zona horaria del teléfono/PC.
 
-## 4. Cambiar el servidor y actualizar por web
+## 3. Cambiar el servidor y actualizar por web
 
 En un navegador de tu misma red, abre `http://IP_DEL_WEMOS/` e ingresa las
 credenciales configuradas. También puedes probar `http://glucosa-display.local/`
 si tu red admite mDNS; usa la IP si no resuelve.
 
 En **Ajustes** (`/settings`) puedes guardar otra **URL base**, sin `/api/v1`, credenciales ni
-parámetros. La URL se conserva en EEPROM emulada y se vuelve a consultar sin
+parámetros. La URL se conserva en la memoria de configuración y se vuelve a consultar sin
 reiniciar. Guardar otra URL descarta la lectura del servidor anterior y conserva
 las claves de Wi-Fi y administración. También permite guardar un token de solo
 lectura y, opcionalmente, una CA privada o una clave pública fija. Los campos de token nunca se rellenan
@@ -229,7 +219,7 @@ Al actualizar desde 0.2.0 se conservan Wi-Fi, URL y claves de administración.
 Introduce el token desde la web: las credenciales antes compiladas a mano no
 se transfieren desde el firmware anterior.
 
-## 5. Usar cualquier Nightscout con HTTPS
+## 4. Usar cualquier Nightscout con HTTPS
 
 El mismo `.bin` sirve para configurar distintas instalaciones. En la web del
 Wemos introduce:
@@ -260,7 +250,7 @@ almacén incluido, marca **Borrar CA o clave fija y usar certificados públicos*
 
 El token y la CA quedan en la configuración local del dispositivo y se cambian
 sin recompilar. El repositorio y el binario distribuido no incluyen tokens ni
-datos de Wi-Fi de usuarios. El simulador sigue funcionando por HTTP, sin token.
+datos de Wi-Fi de usuarios.
 
 La API consultada sigue siendo v1 y las entradas `sgv` se muestran en mg/dL;
 aún no se puede seleccionar mmol/L en pantalla. Ver [certs/README.md](certs/README.md)
@@ -380,8 +370,6 @@ python3 -m unittest discover -s tests -v
 .venv/bin/pio run -e d1_mini
 ```
 
-Las pruebas Python hacen solicitudes HTTP reales a un servidor efímero local
-y comprueban el contrato de la API, fechas, historial y los escenarios de error.
 Si está disponible `g++`, también ejecutan diez grupos de pruebas nativas de
 validación de ajustes, migración del formato anterior y conservación de claves
 al cambiar la URL. Otros seis grupos comprueban el inicio de NTP después del
@@ -398,27 +386,13 @@ certificados no confiables, vencidos o de otro nombre. Cubren P-256, P-384 y P-5
 incluida la reparación del marcador de punto EC que omite el decodificador del
 núcleo 3.1.2. Se añaden seis grupos nativos para historial acotado, muestras de
 un minuto, antigüedad, huecos y lectura incremental de JSON, y una prueba que
-comprueba que los recursos gzip del firmware coincidan con sus fuentes. En la
-nube se usa el Python del venv para las dieciséis pruebas completas.
+comprueba que los recursos gzip del firmware coincidan con sus fuentes. Otras dos
+pruebas cubren el cuerpo HTTP (fragmentación, bloques, truncamiento y límites) y
+el almacenamiento del nombre, la validación UTF-8 y los offsets anteriores. En la
+nube se usa el Python del venv para las diez pruebas completas.
 La compilación verifica las bibliotecas para ESP8266; la prueba física de SPI,
 Wi-Fi, configuración desde el teléfono, persistencia en flash y OTA debe hacerse
 con el Wemos conectado.
 
-Para editar o previsualizar la interfaz web con datos ficticios:
-
-```bash
-python3 tools/preview_web.py
-# http://127.0.0.1:8766 · usuario preview · contraseña preview-only
-python3 tools/embed_web_assets.py
-```
-
-Después de modificar `web/`, regenera y guarda `include/generated/web_assets.h`
-antes de compilar. Con Node, Playwright y Chromium instalados, las pruebas de
-navegador arrancan su propio servidor de previsualización y comprueban escritorio,
-móvil, lecturas antiguas, falta de hora, errores y conservación del último dato:
-
-```bash
-CHROMIUM_PATH=/usr/bin/chromium node tools/test_web_ui.js
-```
-
-Estas pruebas usan datos ficticios y no acceden a tu Nightscout ni a una placa.
+Después de modificar `web/`, ejecuta `python3 tools/embed_web_assets.py` y guarda
+`include/generated/web_assets.h` antes de compilar.

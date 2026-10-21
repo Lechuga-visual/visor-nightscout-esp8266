@@ -1,17 +1,27 @@
 # Firmware para Wemos D1 mini (ESP8266)
 
-Versión **0.5.0**, GC9A01 SPI 240 × 240, D1 mini con **4 MB de flash**.
+Versión **0.5.1**, GC9A01 SPI 240 × 240, D1 mini con **4 MB de flash**.
 
-- [Descargar el .bin](nightscout-d1-mini-v0.5.0.bin) (en GitHub: **Download raw file**).
+- [Descargar el .bin](nightscout-d1-mini-v0.5.1.bin) (en GitHub: **Download raw file**).
 - [SHA-256](SHA256SUMS).
 - [Datos de compilación](build-info.json).
 
 El binario no contiene credenciales de Wi-Fi ni de administración. En el primer
 arranque pide estos datos por web. Usa el cableado del [README principal](../README.md).
 
+La versión 0.5.1 decodifica cuerpos HTTP divididos en bloques, detecta respuestas
+incompletas y ofrece diagnóstico del análisis JSON. Si falla el historial,
+consulta la última lectura y reintenta la gráfica completa después de cinco
+minutos. Se ha retirado el servidor de pruebas y sus controles. La configuración
+guardada se conserva. La corrección necesita confirmación en la placa.
+
+En **Ajustes → Nombre de la persona** puedes guardar hasta 24 caracteres para
+reemplazar NIGHTSCOUT en la pantalla y el visor web. Vacío recupera el título
+predeterminado. El nombre permanece al reiniciar sin cambiar las credenciales.
+
 ## Pantalla y visor web
 
-La versión 0.5.0 incluye una interfaz oscura con glucosa grande, tendencia,
+La versión 0.5.1 incluye una interfaz oscura con glucosa grande, tendencia,
 antigüedad y una mini gráfica de dos horas. En `http://IP_DEL_WEMOS/` verás una
 copia de la pantalla, adaptada al teléfono o computador, con los mismos datos.
 Inicia sesión con tus credenciales de administración. El visor se actualiza
@@ -32,7 +42,7 @@ Si utilizas Python y esptool 4.x, por ejemplo:
 
 ```bash
 python -m pip install esptool==4.8.1
-python -m esptool --chip esp8266 --port COM3 --baud 115200 write_flash --flash_mode dio --flash_size 4MB 0x00000 nightscout-d1-mini-v0.5.0.bin
+python -m esptool --chip esp8266 --port COM3 --baud 115200 write_flash --flash_mode dio --flash_size 4MB 0x00000 nightscout-d1-mini-v0.5.1.bin
 ```
 
 Cambia `COM3` por el puerto real. En Linux suele ser `/dev/ttyUSB0` y en macOS
@@ -53,7 +63,7 @@ La clave de la red inicial permite conectar el teléfono al Wemos. La contraseñ
 de tu Wi-Fi habitual se introduce después en el formulario; son claves distintas.
 Mantén la conexión aunque el teléfono avise que esta red no tiene Internet.
 
-Guarda tu Wi-Fi de 2,4 GHz, su contraseña, la URL del simulador y los datos de
+Guarda tu Wi-Fi de 2,4 GHz, su contraseña, la URL base de tu Nightscout y los datos de
 administración. El Wemos reinicia y muestra su nueva IP en la red de tu casa.
 Si no puede conectar en un minuto tras arrancar, vuelve a crear la red de
 configuración. Sin la pantalla no podrás leer la clave inicial.

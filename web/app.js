@@ -54,11 +54,17 @@
     text('dial-ip',s.ip || 'Sin Wi-Fi');
     text('device-ip',s.ip || '—');
     text('version',s.firmware);
+    text('dial-brand',s.patient_name || 'NIGHTSCOUT');
+    $('dial-brand').style.letterSpacing = s.patient_name ? '.6px' : '2px';
+    $('dial-brand').removeAttribute('textLength');
+    const nameWidth = $('dial-brand').getComputedTextLength();
+    if (nameWidth > 128) {
+      $('dial-brand').setAttribute('textLength','128');
+      $('dial-brand').setAttribute('lengthAdjust','spacingAndGlyphs');
+    }
     text('wifi',s.wifi_connected ? `Conectado · ${s.rssi_dbm} dBm` : 'Desconectado');
     text('checked-age',Number.isFinite(s.checked_seconds_ago) ? ageText(s.checked_seconds_ago + elapsed()) : 'Aún sin consultar');
     text('reading-time',hasReading ? new Date(s.reading_date_ms).toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'}) : '—');
-    text('dial-brand',s.synthetic ? 'DEMO · DATOS FICTICIOS' : 'NIGHTSCOUT');
-    $('demo').hidden = !s.synthetic;
     $('dial').setAttribute('aria-label',hasReading ? `${s.glucose} miligramos por decilitro. ${s.trend_label}. ${ageLabel}` : 'Sin lecturas');
     const connection = $('connection');
     connection.className = 'connection-pill ' + (browserOnline ? 'online' : 'offline');
