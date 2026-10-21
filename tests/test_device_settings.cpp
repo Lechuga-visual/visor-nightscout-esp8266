@@ -79,10 +79,13 @@ void testLegacyMigrationPreservesDefaults() {
   legacy.magic = LEGACY_MAGIC;
   strcpy(legacy.url, "http://192.168.1.5:9000");
   Settings settings = sample();
+  strcpy(settings.token, "discard-legacy-default-token");
+  strcpy(settings.customCa, "discard-legacy-default-ca");
   assert(migrateLegacy(legacy, settings));
   assert(strcmp(settings.url, legacy.url) == 0);
   assert(strcmp(settings.ssid, "test-network") == 0);
   assert(strcmp(settings.webPassword, "test-admin-fixture-only") == 0);
+  assert(!settings.token[0] && !settings.customCa[0]);
   assert(configured(settings));
   legacy.magic = 0;
   assert(!migrateLegacy(legacy, settings));
@@ -102,6 +105,61 @@ void testUrlChangePreservesCredentials() {
   assert(strcmp(after.url, "http://192.168.1.7:8000") == 0);
 }
 
+void testTokenIsBoundToHttpsOrigin() {
+  Settings before = sample();
+  strcpy(before.url, "https://my-nightscout.example");
+  strcpy(before.token, "test-readonly-token");
+  strcpy(before.customCa, "test-CA-placeholder");
+  Settings after{};
+  assert(withUpdatedUrl(before, "https://MY-nightscout.example/path", after));
+  assert(strcmp(after.token, before.token) == 0);
+  assert(strcmp(after.customCa, before.customCa) == 0);
+  assert(withUpdatedUrl(before, "https://another-nightscout.example", after));
+  assert(!after.token[0] && !after.customCa[0]);
+  assert(strcmp(after.wifiPassword, before.wifiPassword) == 0);
+  assert(withUpdatedUrl(before, "http://my-nightscout.example", after));
+  assert(!after.token[0]);
+  assert(!sameHttpsOrigin(before.url, "https://my-nightscout.example:8443"));
+  assert(!sameHttpsOrigin(before.url, "https://my-nightscout.example.attacker.invalid"));
+}
+
+void testServerTokenUpdateAndClear() {
+  Settings current = sample();
+  Settings updated{};
+  assert(!updateServer(current, "http://192.168.1.100:8000", "token-fixture", false, "", false, updated));
+  assert(updateServer(current, "https://nightscout.example", "token-fixture", false, "", false, updated));
+  assert(strcmp(updated.token, "token-fixture") == 0);
+  current = updated;
+  assert(updateServer(current, current.url, "", false, "", false, updated));
+  assert(strcmp(updated.token, "token-fixture") == 0);
+  assert(updateServer(current, current.url, "", true, "", false, updated));
+  assert(!updated.token[0]);
+  assert(!updateServer(current, current.url, "new", true, "", false, updated));
+  assert(!updateServer(current, current.url, "bad\r\ntoken", false, "", false, updated));
+  assert(!updateServer(current, current.url, "", false, "-----BEGIN PRIVATE KEY-----", false, updated));
+}
+
+void testVersionTwoMigrationKeepsWifiAndAdmin() {
+  V2Settings old{};
+  old.magic = V2_MAGIC;
+  strcpy(old.url, "https://nightscout.example");
+  strcpy(old.ssid, "old-network");
+  strcpy(old.wifiPassword, "old-fixture-password");
+  strcpy(old.webUsername, "old-admin");
+  strcpy(old.webPassword, "old-admin-fixture-password");
+  Settings migrated = sample();
+  strcpy(migrated.token, "discard-compile-default");
+  strcpy(migrated.customCa, "discard-old-default");
+  assert(migrateV2(old, migrated));
+  assert(configured(migrated));
+  assert(strcmp(migrated.url, old.url) == 0 && strcmp(migrated.ssid, old.ssid) == 0);
+  assert(strcmp(migrated.wifiPassword, old.wifiPassword) == 0);
+  assert(strcmp(migrated.webPassword, old.webPassword) == 0);
+  assert(!migrated.token[0] && !migrated.customCa[0]);
+  memset(old.webPassword, 'x', sizeof(old.webPassword));
+  assert(!migrateV2(old, migrated));
+}
+
 int main() {
   testFirstBootNeedsProvisioning();
   testWifiValidation();
@@ -109,5 +167,8 @@ int main() {
   testCorruptStorageRejected();
   testLegacyMigrationPreservesDefaults();
   testUrlChangePreservesCredentials();
-  puts("6 settings test groups passed");
+  testTokenIsBoundToHttpsOrigin();
+  testServerTokenUpdateAndClear();
+  testVersionTwoMigrationKeepsWifiAndAdmin();
+  puts("9 settings test groups passed");
 }

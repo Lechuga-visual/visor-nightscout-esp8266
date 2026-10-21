@@ -10,6 +10,7 @@
 #include <WiFiClientSecureBearSSL.h>
 #include <time.h>
 #include "device_settings.h"
+#include "public_ca_store.h"
 
 #if __has_include("nightscout_config.h")
 #include "nightscout_config.h"
@@ -18,12 +19,13 @@
 #endif
 
 namespace {
-constexpr char VERSION[] = "0.2.0";
+constexpr char VERSION[] = "0.3.0";
 constexpr uint32_t POLL_MS = 30000;
 constexpr time_t VALID_CLOCK = 1704067200;  // 2024-01-01 UTC
 TFT_eSPI display;
 ESP8266WebServer web(80);
 ESP8266HTTPUpdateServer updater;
+PublicCaStore publicRoots;
 String baseUrl;
 String message = "Iniciando";
 String csrf;
@@ -102,6 +104,50 @@ bool authenticated() {
   return true;
 }
 
+void appendServerFields(String& page) {
+  page += F("<label>URL base del simulador o Nightscout"
+            "<input name='url' type='url' maxlength='200' required value='");
+  page += htmlEscape(baseUrl);
+  page += F("'></label><p>Solo la URL, sin /api/v1 ni API secret.</p>"
+            "<label>Token Nightscout de solo lectura (opcional)"
+            "<input name='token' type='password' maxlength='256' autocomplete='off'></label>");
+  page += settings.token[0] ? F("<p>Hay un token guardado; dejar vacío lo conserva para el mismo servidor.</p>")
+                            : F("<p>Sin token guardado. El simulador no lo necesita.</p>");
+  page += F("<label><input name='clear_token' type='checkbox' value='1' style='width:auto'>"
+            " Borrar token guardado</label><p>El token solo se envía por HTTPS. "
+            "Al cambiar de servidor se borra el anterior; introduce el token del nuevo servidor.</p>"
+            "<details><summary>Certificados HTTPS (opcional)</summary><p>El firmware incluye ");
+  page += String(PublicCaStore::rootCount());
+  page += F(" autoridades de confianza. Para servidores públicos normalmente no necesitas pegar un certificado.</p>"
+            "<label>CA propia en formato PEM, solo para servidores privados"
+            "<textarea name='custom_ca' maxlength='3072' rows='6' style='width:100%;box-sizing:border-box' "
+            "placeholder='-----BEGIN CERTIFICATE-----'></textarea></label>");
+  page += settings.customCa[0] ? F("<p>Hay una CA propia guardada. Dejar vacío la conserva para el mismo servidor.</p>")
+                               : F("<p>Se utilizarán los certificados públicos incluidos.</p>");
+  page += F("<label><input name='clear_ca' type='checkbox' value='1' style='width:auto'>"
+            " Borrar CA propia y usar certificados públicos</label>"
+            "<p>Solo certificados públicos de CA; nunca claves privadas. Se verifican certificado, "
+            "nombre del servidor y hora.</p></details>");
+}
+
+bool validCustomCa(const char* pem) {
+  if (!pem[0]) return true;
+  BearSSL::X509List certificate;
+  return certificate.append(pem) && certificate.getCount() == 1 &&
+         (certificate.getTrustAnchors()[0].flags & BR_X509_TA_CA);
+}
+
+bool serverFields(device_config::Settings& candidate, const String& url) {
+  String token = web.arg("token");
+  token.trim();
+  String ca = web.arg("custom_ca");
+  ca.trim();
+  return device_config::updateServer(settings, url.c_str(), token.c_str(),
+                                    web.arg("clear_token") == "1", ca.c_str(),
+                                    web.arg("clear_ca") == "1", candidate) &&
+         validCustomCa(candidate.customCa);
+}
+
 void configurationPage() {
   if (!setupMode && !authenticated()) return;
   web.sendHeader("Cache-Control", "no-store");
@@ -116,11 +162,9 @@ void configurationPage() {
   page += htmlEscape(settings.ssid);
   page += F("'></label><label>Contraseña de tu Wi-Fi"
             "<input name='wifi_password' type='password' maxlength='64' autocomplete='off'>"
-            "</label><p>Introduce de nuevo la clave al guardar. Déjala vacía solo si la red es abierta.</p>"
-            "<label>URL base del simulador o Nightscout"
-            "<input name='url' type='url' maxlength='200' required value='");
-  page += htmlEscape(baseUrl);
-  page += F("'></label><p>Por ejemplo: http://192.168.1.100:8000 (IP de tu computador).</p>"
+            "</label><p>Introduce de nuevo la clave al guardar. Déjala vacía solo si la red es abierta.</p>");
+  appendServerFields(page);
+  page += F("<p>Simulador: http://192.168.1.100:8000 (IP de tu computador).</p>"
             "<label>Usuario de administración<input name='web_username' maxlength='32' required value='");
   page += htmlEscape(settings.webUsername);
   page += F("'></label><label>Contraseña para administrar y actualizar el Wemos"
@@ -152,18 +196,22 @@ void saveConfiguration() {
     web.send(400, "text/plain; charset=utf-8", "Revisa la URL y la longitud de los campos.");
     return;
   }
-  device_config::Settings candidate{};
-  candidate.magic = device_config::MAGIC;
-  url.toCharArray(candidate.url, sizeof(candidate.url));
-  ssid.toCharArray(candidate.ssid, sizeof(candidate.ssid));
-  wifiPassword.toCharArray(candidate.wifiPassword, sizeof(candidate.wifiPassword));
-  username.toCharArray(candidate.webUsername, sizeof(candidate.webUsername));
-  password.toCharArray(candidate.webPassword, sizeof(candidate.webPassword));
-  if (!device_config::configured(candidate)) {
+  // CA settings are several KB; allocate candidates on the heap, not the ESP's 4 KB stack.
+  std::unique_ptr<device_config::Settings> candidate(new (std::nothrow) device_config::Settings);
+  if (!candidate) { web.send(503, "text/plain", "Memoria insuficiente. Intenta nuevamente."); return; }
+  if (!serverFields(*candidate, url)) {
+    web.send(400, "text/plain; charset=utf-8", "Revisa el token y la CA. El token requiere HTTPS; la CA debe ser un certificado de autoridad válido. No combines borrar con introducir un valor nuevo.");
+    return;
+  }
+  ssid.toCharArray(candidate->ssid, sizeof(candidate->ssid));
+  wifiPassword.toCharArray(candidate->wifiPassword, sizeof(candidate->wifiPassword));
+  username.toCharArray(candidate->webUsername, sizeof(candidate->webUsername));
+  password.toCharArray(candidate->webPassword, sizeof(candidate->webPassword));
+  if (!device_config::configured(*candidate)) {
     web.send(400, "text/plain; charset=utf-8", "SSID y usuario obligatorios; clave Wi-Fi de 8 a 63 caracteres (o vacia para red abierta); clave de administracion de 12 a 64.");
     return;
   }
-  if (!persistSettings(candidate)) {
+  if (!persistSettings(*candidate)) {
     web.send(500, "text/plain", "No se pudo guardar. Intenta nuevamente.");
     return;
   }
@@ -206,10 +254,9 @@ void homePage() {
                   "button{padding:10px;margin-top:10px}</style><h1>Pantalla de glucosa</h1>");
   page += "<p>Firmware " + String(VERSION) + " · IP " + WiFi.localIP().toString() + "</p>";
   page += "<p>Estado: " + htmlEscape(message) + "</p>";
-  page += F("<form method='post' action='/settings'><label>URL base de Nightscout o simulador"
-            "<input name='url' type='url' maxlength='200' required value='");
-  page += htmlEscape(baseUrl);
-  page += "'></label><input type='hidden' name='csrf' value='" + csrf + "'>";
+  page += F("<form method='post' action='/settings'>");
+  appendServerFields(page);
+  page += "<input type='hidden' name='csrf' value='" + csrf + "'>";
   page += F("<button>Guardar servidor</button></form>"
             "<p>Usa la IP del computador que ejecuta el simulador, por ejemplo "
             "<code>http://192.168.1.100:8000</code>.</p>");
@@ -234,12 +281,13 @@ void saveSettings() {
     return;
   }
   // Changing only the URL must preserve the Wi-Fi and administrator credentials.
-  device_config::Settings saved{};
-  if (!device_config::withUpdatedUrl(settings, candidate.c_str(), saved)) {
-    web.send(400, "text/plain", "Configuracion invalida.");
+  std::unique_ptr<device_config::Settings> saved(new (std::nothrow) device_config::Settings);
+  if (!saved) { web.send(503, "text/plain", "Memoria insuficiente."); return; }
+  if (!serverFields(*saved, candidate)) {
+    web.send(400, "text/plain; charset=utf-8", "Revisa el token, HTTPS y el certificado de CA.");
     return;
   }
-  if (!persistSettings(saved)) {
+  if (!persistSettings(*saved)) {
     web.send(500, "text/plain", "No se pudo guardar la configuracion.");
     return;
   }
@@ -253,7 +301,13 @@ void saveSettings() {
 
 void parseReading(HTTPClient& http) {
   StaticJsonDocument<1536> document;
-  const auto error = deserializeJson(document, http.getStream());
+  // Other Nightscout plugins may add large fields that the display does not need.
+  StaticJsonDocument<256> filter;
+  filter[0]["sgv"] = true;
+  filter[0]["date"] = true;
+  filter[0]["direction"] = true;
+  filter[0]["synthetic"] = true;
+  const auto error = deserializeJson(document, http.getStream(), DeserializationOption::Filter(filter));
   if (error || !document.is<JsonArray>()) {
     message = "JSON invalido";
     return;
@@ -283,31 +337,31 @@ void parseReading(HTTPClient& http) {
 void fetchReading() {
   String endpoint = baseUrl + "/api/v1/entries.json?count=1";
   const bool https = baseUrl.startsWith("https://");
-  if (NIGHTSCOUT_TOKEN[0]) {
+  if (settings.token[0]) {
     if (!https) {
       message = "Token requiere HTTPS";
       return;
     }
-    endpoint += "&token=" + urlEncode(NIGHTSCOUT_TOKEN);
+    endpoint += "&token=" + urlEncode(settings.token);
   }
+  // Destruction order matters: HTTPClient -> TLS client -> optional trust anchors.
+  WiFiClient plain;
+  std::unique_ptr<BearSSL::X509List> trust;
+  BearSSL::WiFiClientSecure secure;
   HTTPClient http;
   http.useHTTP10(true);  // A non-chunked body can be parsed straight from the stream.
   http.setTimeout(2500);
   http.setReuse(false);
-  WiFiClient plain;
-  BearSSL::WiFiClientSecure secure;
-  // Both the TLS client and its trust anchors must outlive GET and JSON parsing.
-  BearSSL::X509List trust(NIGHTSCOUT_ROOT_CA);
   if (https) {
-    if (strlen_P(NIGHTSCOUT_ROOT_CA) == 0) {
-      message = "Configura CA para HTTPS";
-      return;
-    }
     if (time(nullptr) < VALID_CLOCK) {
       message = "Esperando hora NTP";
       return;
     }
-    secure.setTrustAnchors(&trust);
+    if (settings.customCa[0]) {
+      trust.reset(new (std::nothrow) BearSSL::X509List(settings.customCa));
+      if (!trust || trust->getCount() != 1) { message = "CA propia invalida"; return; }
+      secure.setTrustAnchors(trust.get());
+    } else secure.setCertStore(&publicRoots);
     secure.setTimeout(2500);
     if (!http.begin(secure, endpoint)) {
       message = "URL HTTPS invalida";
@@ -322,7 +376,9 @@ void fetchReading() {
     parseReading(http);
   } else {
     // Never print the endpoint or token to Serial or the web UI.
-    message = result > 0 ? "Error HTTP " + String(result) : "Error de conexion";
+    if (result == 401 || result == 403) message = "Revisa token (" + String(result) + ")";
+    else if (result < 0 && https && secure.getLastSSLError() != 0) message = "Error TLS " + String(secure.getLastSSLError());
+    else message = result > 0 ? "Error HTTP " + String(result) : "Error de conexion";
   }
   http.end();
 }
@@ -412,14 +468,22 @@ void setup() {
   strlcpy(settings.wifiPassword, WIFI_PASSWORD, sizeof(settings.wifiPassword));
   strlcpy(settings.webUsername, WEB_USERNAME, sizeof(settings.webUsername));
   strlcpy(settings.webPassword, WEB_PASSWORD, sizeof(settings.webPassword));
+  strlcpy(settings.token, NIGHTSCOUT_TOKEN, sizeof(settings.token));
+  strncpy_P(settings.customCa, NIGHTSCOUT_ROOT_CA, sizeof(settings.customCa) - 1);
   if (storageReady) {
-    device_config::Settings saved{};
-    EEPROM.get(0, saved);
-    if (device_config::validStoredSettings(saved)) settings = saved;
-    else {
-      device_config::LegacySettings legacy{};
-      EEPROM.get(0, legacy);
-      device_config::migrateLegacy(legacy, settings);
+    std::unique_ptr<device_config::Settings> saved(new (std::nothrow) device_config::Settings);
+    if (saved) {
+      EEPROM.get(0, *saved);
+      if (device_config::validStoredSettings(*saved)) settings = *saved;
+      else {
+        device_config::V2Settings previous{};
+        EEPROM.get(0, previous);
+        if (!device_config::migrateV2(previous, settings)) {
+          device_config::LegacySettings legacy{};
+          EEPROM.get(0, legacy);
+          device_config::migrateLegacy(legacy, settings);
+        }
+      }
     }
   }
   baseUrl = settings.url;

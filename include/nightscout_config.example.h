@@ -15,10 +15,10 @@ constexpr char WEB_USERNAME[] = "admin";
 // 12+ characters. Leave empty to choose a password through first-boot setup.
 constexpr char WEB_PASSWORD[] = "";
 
-// Optional read-only Nightscout access token. Leave blank for the simulator.
-// Sent as a query parameter only over HTTPS; never sent to an HTTP server.
+// Optional compile-time default. Normally enter this in the device web form.
+// Sent only over HTTPS; never sent to an HTTP simulator or copied into the UI.
 constexpr char NIGHTSCOUT_TOKEN[] = "";
 
-// For a real HTTPS server, paste its trusted root CA PEM here. Certificate and
-// hostname verification stay enabled. An empty CA intentionally rejects HTTPS.
+// Optional private CA default (PEM). Normally leave empty to use the public root
+// store. A custom CA can also be entered in the device web form without rebuilding.
 static const char NIGHTSCOUT_ROOT_CA[] PROGMEM = R"PEM()PEM";

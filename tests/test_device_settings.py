@@ -17,4 +17,4 @@ class DeviceSettingsTests(unittest.TestCase):
                 "-o", str(binary),
             ], check=True, capture_output=True, text=True)
             result = subprocess.run([str(binary)], check=True, capture_output=True, text=True)
-            self.assertIn("6 settings test groups passed", result.stdout)
+            self.assertIn("9 settings test groups passed", result.stdout)

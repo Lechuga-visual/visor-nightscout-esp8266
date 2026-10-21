@@ -1,8 +1,8 @@
 # Firmware para Wemos D1 mini (ESP8266)
 
-Versión **0.2.0**, GC9A01 SPI 240 × 240, D1 mini con **4 MB de flash**.
+Versión **0.3.0**, GC9A01 SPI 240 × 240, D1 mini con **4 MB de flash**.
 
-- [Descargar el .bin](nightscout-d1-mini-v0.2.0.bin) (en GitHub: **Download raw file**).
+- [Descargar el .bin](nightscout-d1-mini-v0.3.0.bin) (en GitHub: **Download raw file**).
 - [SHA-256](SHA256SUMS).
 - [Datos de compilación](build-info.json).
 
@@ -19,7 +19,7 @@ Si utilizas Python y esptool 4.x, por ejemplo:
 
 ```bash
 python -m pip install esptool==4.8.1
-python -m esptool --chip esp8266 --port COM3 --baud 115200 write_flash --flash_mode dio --flash_size 4MB 0x00000 nightscout-d1-mini-v0.2.0.bin
+python -m esptool --chip esp8266 --port COM3 --baud 115200 write_flash --flash_mode dio --flash_size 4MB 0x00000 nightscout-d1-mini-v0.3.0.bin
 ```
 
 Cambia `COM3` por el puerto real. En Linux suele ser `/dev/ttyUSB0` y en macOS
@@ -45,6 +45,24 @@ administración. El Wemos reinicia y muestra su nueva IP en la red de tu casa.
 Si no puede conectar en un minuto tras arrancar, vuelve a crear la red de
 configuración. Sin la pantalla no podrás leer la clave inicial.
 
+## Nightscout y HTTPS
+
+Puedes configurar tu propio Nightscout desde la misma web: URL base y token de
+solo lectura, si es necesario. El token no se muestra al volver a abrir la
+página y no se envía por HTTP. Dejar vacío lo conserva para el mismo origen
+HTTPS; al cambiar de servidor se borra el anterior. El `API_SECRET` de
+administrador no es necesario.
+
+Hay 120 certificados raíz públicos incluidos, sin pasos extra de instalación.
+Normalmente deja vacía la sección de certificados. Si tu servidor usa una CA
+privada, puedes introducir su PEM público desde esa sección. La cadena, el
+nombre y la hora se verifican siempre; el dispositivo no necesita un certificado
+de cliente. El token y cualquier CA propia permanecen solo en el Wemos.
+
+Al actualizar desde 0.2.0 se conservan la red Wi-Fi, la URL y los datos de
+administración. Introduce el token en la web después de actualizar. La imagen
+0.2.0 anterior permanece disponible para referencia, pero no tiene estos campos.
+
 ## Actualizaciones siguientes
 
 Con el Wemos conectado a tu Wi-Fi, abre `http://IP_DEL_WEMOS/update`, inicia
@@ -53,5 +71,6 @@ subas en **FileSystem**. La configuración guardada se conserva al actualizar
 normalmente; un borrado completo de flash la elimina.
 
 El archivo se ha compilado y se han probado las validaciones de configuración
-en el entorno de desarrollo. La conexión Wi-Fi, el panel SPI, la grabación de
-ajustes y la actualización OTA todavía necesitan validación física en la placa.
+y certificados con la biblioteca BearSSL del núcleo ESP8266 en el entorno de
+desarrollo. La conexión Wi-Fi, HTTPS en el dispositivo, el panel SPI, la grabación
+de ajustes y la actualización OTA necesitan validación física en la placa.

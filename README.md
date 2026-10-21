@@ -72,7 +72,7 @@ conectarlo; la retroiluminación no está controlada por un GPIO en esta versió
 
 ### Binario listo para cargar
 
-Descarga [nightscout-d1-mini-v0.2.0.bin](firmware/nightscout-d1-mini-v0.2.0.bin)
+Descarga [nightscout-d1-mini-v0.3.0.bin](firmware/nightscout-d1-mini-v0.3.0.bin)
 desde la carpeta `firmware` (en GitHub utiliza **Download raw file**). Está
 compilado para **Wemos D1 mini ESP8266 con 4 MB de flash**, con los pines de la
 tabla anterior. No contiene datos privados ni requiere configurar el Wi-Fi
@@ -92,7 +92,9 @@ dirección **0x00000**. Las instrucciones y el SHA-256 están en
    **`http://192.168.4.1/`** en el navegador; no es necesario esperar un portal automático.
 4. Introduce el nombre y la contraseña de tu Wi-Fi de **2,4 GHz**, la URL base
    del simulador —por ejemplo `http://192.168.1.100:8000`— y un usuario y
-   contraseña de administración de al menos 12 caracteres.
+   contraseña de administración de al menos 12 caracteres. Si tu Nightscout
+   exige autenticación, introduce también su **token de solo lectura**. Para
+   un Nightscout público con HTTPS no necesitas pegar un certificado.
 5. Pulsa **Guardar y reiniciar**. El Wemos guardará los datos en su flash y
    apagará la red de configuración al reiniciarse. Reconecta el teléfono a tu
    Wi-Fi habitual y abre la IP que ahora muestra la pantalla del Wemos.
@@ -157,7 +159,15 @@ si tu red admite mDNS; usa la IP si no resuelve.
 La página permite guardar otra **URL base**, sin `/api/v1`, credenciales ni
 parámetros. La URL se conserva en EEPROM emulada y se vuelve a consultar sin
 reiniciar. Guardar otra URL descarta la lectura del servidor anterior y conserva
-las claves de Wi-Fi y administración.
+las claves de Wi-Fi y administración. También permite guardar un token de solo
+lectura y, opcionalmente, una CA privada. Los campos de token nunca se rellenan
+con el valor guardado.
+
+Dejar el token vacío conserva el anterior **solo para el mismo origen HTTPS**
+(protocolo, dominio y puerto). Al cambiar de origen se borran el token y la CA
+propia anteriores para no enviarlos a otro servidor. Puedes introducir el token
+del nuevo servidor en ese mismo formulario. Para eliminar uno existente, marca
+**Borrar token guardado**; no escribas a la vez un token nuevo.
 
 En **Configurar Wi-Fi y contraseñas** puedes cambiar todos los datos sin
 recompilar. Introduce de nuevo la contraseña de Wi-Fi y elige una contraseña
@@ -182,21 +192,44 @@ el puerto del Wemos sin exposición a Internet. El ESP8266 no ofrece reversión
 automática en este proyecto: un firmware que no arranque puede requerir USB.
 Las actualizaciones normales de firmware conservan la configuración guardada.
 Un borrado completo de flash elimina también esa configuración.
+Al actualizar desde 0.2.0 se conservan Wi-Fi, URL y claves de administración.
+Introduce el token desde la web: las credenciales antes compiladas a mano no
+se transfieren desde el firmware anterior.
 
-## 5. Conectar después con Nightscout real
+## 5. Usar cualquier Nightscout con HTTPS
 
-La misma pantalla consulta el endpoint v1 de un Nightscout real. Antes de
-cambiar la URL a HTTPS, configura en `include/nightscout_config.h` la raíz CA de confianza
-que corresponda al certificado del servidor, dentro de `NIGHTSCOUT_ROOT_CA`.
-La conexión valida el certificado y el nombre del servidor, y requiere hora NTP.
-Esta versión no incorpora un almacén general de certificados: una CA vacía
-rechaza HTTPS; no se desactiva la validación TLS.
+El mismo `.bin` sirve para configurar distintas instalaciones. En la web del
+Wemos introduce:
 
-Si el servidor exige autenticación, configura un token Nightscout de **solo
-lectura** en `NIGHTSCOUT_TOKEN`. No se enviará por HTTP. La CA y el token se
-actualizan compilando y cargando el firmware. La contraseña administrativa de
-Nightscout no es necesaria para consultar lecturas. Esta primera versión asume
-entradas `sgv` en mg/dL; aún no permite seleccionar mmol/L en pantalla.
+1. **URL base:** por ejemplo `https://tu-nightscout.example`, sin API secret,
+   token, parámetros ni `/api/v1`.
+2. **Token de solo lectura:** generado en la administración de tu Nightscout,
+   si el servidor exige autenticación. No uses el `API_SECRET` de administrador.
+   El firmware rechaza guardar/enviar tokens con una URL HTTP.
+3. **Certificados HTTPS:** normalmente deja esta sección sin modificar.
+
+El firmware incluye **120 raíces públicas de confianza** de Mozilla, distribuidas
+por certifi 2026.10.19. Están en flash y solo se carga en RAM la raíz necesaria.
+No se necesita un certificado propio para el Wemos ni subir una imagen de
+filesystem. Se verifican la cadena, el nombre del servidor y la hora; el reloj
+se sincroniza por NTP. Hasta tener una hora válida se espera antes de consultar
+HTTPS. Las renovaciones del certificado del servidor funcionan mientras la
+cadena siga siendo válida bajo una raíz admitida. Nuevas raíces se distribuyen
+con actualizaciones del firmware.
+
+Si tu instalación utiliza una **CA privada**, abre la sección opcional y pega
+un certificado público de esa autoridad en PEM (máximo 3072 bytes). Debe ser
+un único certificado CA válido, sin claves privadas. Esa CA reemplaza el
+almacén público para ese servidor; no desactiva la validación. Para volver al
+almacén incluido, marca **Borrar CA propia y usar certificados públicos**.
+
+El token y la CA quedan en la configuración local del dispositivo y se cambian
+sin recompilar. El repositorio y el binario distribuido no incluyen tokens ni
+datos de Wi-Fi de usuarios. El simulador sigue funcionando por HTTP, sin token.
+
+La API consultada sigue siendo v1 y las entradas `sgv` se muestran en mg/dL;
+aún no se puede seleccionar mmol/L en pantalla. Ver [certs/README.md](certs/README.md)
+para la procedencia y reproducción del almacén de confianza.
 
 ## Verificación
 
@@ -207,9 +240,15 @@ python3 -m unittest discover -s tests -v
 
 Las pruebas Python hacen solicitudes HTTP reales a un servidor efímero local
 y comprueban el contrato de la API, fechas, historial y los escenarios de error.
-Si está disponible `g++`, también ejecutan seis grupos de pruebas nativas de
+Si está disponible `g++`, también ejecutan nueve grupos de pruebas nativas de
 validación de ajustes, migración del formato anterior y conservación de claves
 al cambiar la URL. Sin `g++`, esa prueba se informa como omitida.
+Con `cryptography`, `make`, compiladores nativos y las fuentes de BearSSL del
+núcleo ESP8266 instalado, otras dos pruebas verifican las 120 raíces con el
+propio decodificador BearSSL y comprueban cadenas válidas, nombres incorrectos,
+certificados vencidos, emisores no confiables y firmas manipuladas. Si faltan
+esas herramientas, las pruebas TLS se informan como omitidas. En la nube se usa
+el Python del venv preparado para ejecutar las once pruebas completas.
 La compilación verifica las bibliotecas para ESP8266; la prueba física de SPI,
 Wi-Fi, configuración desde el teléfono, persistencia en flash y OTA debe hacerse
 con el Wemos conectado.
