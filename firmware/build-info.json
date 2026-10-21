@@ -1,9 +1,9 @@
 {
-  "version": "0.6.0",
-  "file": "nightscout-d1-mini-v0.6.0.bin",
-  "sha256": "4cbd3e67ced47f00185a7740db5f9382bd9e56f1c882cfd5315ed4724f58e1f8",
-  "size_bytes": 695056,
-  "source_commit": "628c7ad769f387b9ddc4c0dfebc8bda19e7d7966",
+  "version": "0.6.1",
+  "file": "nightscout-d1-mini-v0.6.1.bin",
+  "sha256": "60ced6a341099222699d571c23fe804e6451271fc36af2a50377b209329f41a1",
+  "size_bytes": 695184,
+  "source_commit": "351461d0e87809d1d12c379ab78241e2a815b822",
   "board": "d1_mini",
   "mcu": "ESP8266",
   "flash_size_bytes": 4194304,
@@ -21,7 +21,7 @@
   },
   "memory": {
     "static_ram_bytes": 37764,
-    "application_flash_bytes": 690907,
+    "application_flash_bytes": 691035,
     "request_stack_frame_bytes": 336,
     "json_parser_wrapper_stack_frame_bytes": 112,
     "json_parser_core_stack_frame_bytes": 448,
@@ -46,10 +46,10 @@
     "pinned_tls": "Real OpenSSL/BearSSL TLS 1.2 handshakes: matching RSA, P-256, P-384 and P-521 keys accepted without clock/CA despite expired self-signed certificates; different keys rejected",
     "pin_export": "Verified TLS export succeeds; expired, untrusted and wrong-host certificates rejected",
     "request_stack": "Compiled Xtensa prologues inspected: request 336 bytes, streamed parser core 448 plus 112-byte wrapper, dashboard state 576, render 320, appearance save 208 bytes; no framebuffer",
-    "browser_flow": "Request interception without HTTP server: 3 modes x 5 themes on desktop/mobile; all seven trend directions and unknown, low/high/old/no-clock/empty/error, custom contrast, authenticated CSRF mode-save payloads and rejected-session handling, safe name text and offline retention; actual ESP8266 HTTP/EEPROM/SPI/OTA checks pending",
+    "browser_flow": "Request interception without HTTP server: 3 modes x 5 themes on desktop/mobile; all seven trend directions and unknown, low/high/old/no-clock/empty/error, custom contrast, authenticated CSRF mode-save payloads and rejected-session handling, safe name text, large-name width limits/ellipsis and offline retention; actual ESP8266 HTTP/EEPROM/SPI/OTA checks pending",
     "reading_history": "6 native groups updated for 30 minutes: freshness, 7-point sorted/bucketed history, plot boundaries and gaps, streamed 31-entry JSON with large ignored fields, invalid/empty readings, newest entry/trends",
     "web_assets": "Checked-in gzip flash assets verified against HTML/CSS/JS sources",
-    "external_api_smoke_test": "Last live API check in v0.5.2: count=31 returned HTTP 200, 9492 bytes accepted by native body/JSON decoder with identity and re-framed chunked transport. Fetch/TLS/parser behavior unchanged in v0.6.0; no glucose values retained",
+    "external_api_smoke_test": "Last live API check in v0.5.2: count=31 returned HTTP 200, 9492 bytes accepted by native body/JSON decoder with identity and re-framed chunked transport. Fetch/TLS/parser behavior unchanged in v0.6.1; no glucose values retained",
     "http_body": "5 native groups: identity/content length, chunked framing/extensions/trailers, fragmented and short reads, truncation/trailing data, malformed chunks/body limits, raw-chunk regression and precise parser stages",
     "patient_name": "Original 3732-byte settings layout and trust-key offset unchanged; tagged EEPROM name extension, erased storage rejection, bounded UTF-8 validation and Spanish display transliteration tested",
     "appearance": "3 native groups: tagged 20-byte extension at EEPROM offset 3836, old server/token/key/name preserved, erased storage defaults, partial mode updates, atomic rejection, presets/custom colors and contrast after RGB565 quantization"
@@ -109,7 +109,7 @@
       "tagged": true,
       "existing_settings_layout_unchanged": true
     },
-    "patient_name_header": "Larger and lower in all modes; TFT font 2 centered at y=43; web 14px at baseline y=47; long labels fit available width"
+    "patient_name_header": "Named patient: TFT font 2 size 2 (32px) centered at y=43, width cap 120px; web 28px at baseline y=53, width cap 128px; ellipsis preserves large text and full stored name; empty-name fallback unchanged"
   },
   "http_body": {
     "buffer_bytes": 512,
