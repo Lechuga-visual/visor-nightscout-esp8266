@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1340" viewBox="0 0 1200 1340" role="img" aria-labelledby="title desc">
+<title id="title">B · Configuración paso a paso</title>
+<desc id="desc">Tres pasos cortos en el teléfono, con una revisión antes de guardar.</desc>
+<rect width="1200" height="1340" fill="#0b1012"/>
+<g font-family="Arial,Helvetica,sans-serif">
+<text x="54" y="54" font-size="12" fill="#74edbc" font-weight="700" text-anchor="start" letter-spacing="2">GLUCOSA / SIGUIENTE ETAPA</text>
+<text x="1146" y="54" font-size="11" fill="#9aabb0" font-weight="600" text-anchor="end" >PROPUESTA · ANTES DE IMPLEMENTAR</text>
+<text x="54" y="115" font-size="36" fill="#f2f7f6" font-weight="700" text-anchor="start" >B · Configuración paso a paso</text>
+<text x="54" y="151" font-size="17" fill="#9aabb0" font-weight="400" text-anchor="start" >Tres pasos cortos en el teléfono, con una revisión antes de guardar.</text>
+<rect x="54" y="207" width="348" height="846" rx="20" fill="#121a1e" stroke="#26343a"/>
+<text x="78" y="251" font-size="24" fill="#f2f7f6" font-weight="700" text-anchor="start" >glucosa.</text>
+<text x="78" y="294" font-size="10" fill="#74edbc" font-weight="700" text-anchor="start" letter-spacing="1">PASO 1 DE 3</text>
+<text x="78" y="338" font-size="25" fill="#f2f7f6" font-weight="700" text-anchor="start" >Tu Wi-Fi</text>
+<text x="78" y="370" font-size="13" fill="#9aabb0" font-weight="400" text-anchor="start" >Conecta el Wemos a tu red.</text>
+<rect x="78" y="391" width="94" height="4" rx="2" fill="#74edbc" stroke="none"/>
+<rect x="180" y="391" width="94" height="4" rx="2" fill="#26343a" stroke="none"/>
+<rect x="282" y="391" width="94" height="4" rx="2" fill="#26343a" stroke="none"/>
+<text x="78" y="446" font-size="13" fill="#d3e0dd" font-weight="600" text-anchor="start" >Nombre de tu Wi-Fi</text>
+<rect x="78" y="457" width="300" height="44" rx="8" fill="#0b1114" stroke="#35484e"/>
+<text x="91" y="485" font-size="14" fill="#d3e0dd" font-weight="400" text-anchor="start" >Casa Wi-Fi</text>
+<text x="78" y="547" font-size="13" fill="#d3e0dd" font-weight="600" text-anchor="start" >Contraseña de tu Wi-Fi</text>
+<rect x="78" y="558" width="300" height="44" rx="8" fill="#0b1114" stroke="#35484e"/>
+<text x="91" y="586" font-size="14" fill="#d3e0dd" font-weight="400" text-anchor="start" >************</text>
+<rect x="78" y="638" width="300" height="108" rx="10" fill="#182328" stroke="#26343a"/>
+<text x="94" y="667" font-size="13" fill="#d3e0dd" font-weight="600" text-anchor="start" >Usa una red de 2,4 GHz.</text>
+<text x="94" y="694" font-size="12" fill="#9aabb0" font-weight="400" text-anchor="start" >Aquí va la contraseña de tu casa,</text>
+<text x="94" y="718" font-size="12" fill="#9aabb0" font-weight="400" text-anchor="start" >no la clave temporal del Wemos.</text>
+<rect x="78" y="897" width="300" height="52" rx="9" fill="#74edbc" stroke="none"/>
+<text x="228" y="930" font-size="14" fill="#08251a" font-weight="700" text-anchor="middle" >Continuar</text>
+<rect x="426" y="207" width="348" height="846" rx="20" fill="#121a1e" stroke="#26343a"/>
+<text x="450" y="251" font-size="24" fill="#f2f7f6" font-weight="700" text-anchor="start" >glucosa.</text>
+<text x="450" y="294" font-size="10" fill="#74edbc" font-weight="700" text-anchor="start" letter-spacing="1">PASO 2 DE 3</text>
+<text x="450" y="338" font-size="25" fill="#f2f7f6" font-weight="700" text-anchor="start" >Tu Nightscout</text>
+<text x="450" y="370" font-size="13" fill="#9aabb0" font-weight="400" text-anchor="start" >Elige de dónde llegan los datos.</text>
+<rect x="450" y="391" width="94" height="4" rx="2" fill="#74edbc" stroke="none"/>
+<rect x="552" y="391" width="94" height="4" rx="2" fill="#74edbc" stroke="none"/>
+<rect x="654" y="391" width="94" height="4" rx="2" fill="#26343a" stroke="none"/>
+<text x="450" y="446" font-size="13" fill="#d3e0dd" font-weight="600" text-anchor="start" >Nombre · opcional</text>
+<rect x="450" y="457" width="300" height="44" rx="8" fill="#0b1114" stroke="#35484e"/>
+<text x="463" y="485" font-size="14" fill="#d3e0dd" font-weight="400" text-anchor="start" >Alex</text>
+<text x="450" y="547" font-size="13" fill="#d3e0dd" font-weight="600" text-anchor="start" >URL base de Nightscout</text>
+<rect x="450" y="558" width="300" height="44" rx="8" fill="#0b1114" stroke="#35484e"/>
+<text x="463" y="586" font-size="14" fill="#d3e0dd" font-weight="400" text-anchor="start" >https://tu-nightscout.example</text>
+<text x="450" y="648" font-size="13" fill="#d3e0dd" font-weight="600" text-anchor="start" >Token de lectura · opcional</text>
+<rect x="450" y="659" width="300" height="44" rx="8" fill="#0b1114" stroke="#35484e"/>
+<text x="463" y="687" font-size="14" fill="#d3e0dd" font-weight="400" text-anchor="start" >Solo si hace falta</text>
+<text x="450" y="751" font-size="13" fill="#74edbc" font-weight="600" text-anchor="start" >Opciones HTTPS</text>
+<text x="450" y="778" font-size="12" fill="#9aabb0" font-weight="400" text-anchor="start" >CA o clave pública fija del servidor.</text>
+<text x="450" y="825" font-size="12" fill="#9aabb0" font-weight="400" text-anchor="start" >Sin /api/v1 ni API secret en la URL.</text>
+<rect x="450" y="897" width="300" height="52" rx="9" fill="#74edbc" stroke="none"/>
+<text x="600" y="930" font-size="14" fill="#08251a" font-weight="700" text-anchor="middle" >Continuar</text>
+<text x="600" y="986" font-size="12" fill="#9aabb0" font-weight="400" text-anchor="middle" >Volver al paso anterior</text>
+<rect x="798" y="207" width="348" height="846" rx="20" fill="#121a1e" stroke="#26343a"/>
+<text x="822" y="251" font-size="24" fill="#f2f7f6" font-weight="700" text-anchor="start" >glucosa.</text>
+<text x="822" y="294" font-size="10" fill="#74edbc" font-weight="700" text-anchor="start" letter-spacing="1">PASO 3 DE 3</text>
+<text x="822" y="338" font-size="25" fill="#f2f7f6" font-weight="700" text-anchor="start" >Tu acceso</text>
+<text x="822" y="370" font-size="13" fill="#9aabb0" font-weight="400" text-anchor="start" >Protege tu pantalla y revisa.</text>
+<rect x="822" y="391" width="94" height="4" rx="2" fill="#74edbc" stroke="none"/>
+<rect x="924" y="391" width="94" height="4" rx="2" fill="#74edbc" stroke="none"/>
+<rect x="1026" y="391" width="94" height="4" rx="2" fill="#74edbc" stroke="none"/>
+<text x="822" y="446" font-size="13" fill="#d3e0dd" font-weight="600" text-anchor="start" >Usuario de administración</text>
+<rect x="822" y="457" width="300" height="44" rx="8" fill="#0b1114" stroke="#35484e"/>
+<text x="835" y="485" font-size="14" fill="#d3e0dd" font-weight="400" text-anchor="start" >admin</text>
+<text x="822" y="547" font-size="13" fill="#d3e0dd" font-weight="600" text-anchor="start" >Contraseña de administración</text>
+<rect x="822" y="558" width="300" height="44" rx="8" fill="#0b1114" stroke="#35484e"/>
+<text x="835" y="586" font-size="14" fill="#d3e0dd" font-weight="400" text-anchor="start" >Mínimo 12 caracteres</text>
+<rect x="822" y="638" width="300" height="180" rx="10" fill="#182328" stroke="#26343a"/>
+<text x="838" y="669" font-size="10" fill="#9aabb0" font-weight="700" text-anchor="start" >REVISA ANTES DE GUARDAR</text>
+<text x="838" y="703" font-size="13" fill="#d3e0dd" font-weight="400" text-anchor="start" >Red: Casa Wi-Fi</text>
+<text x="838" y="733" font-size="13" fill="#d3e0dd" font-weight="400" text-anchor="start" >Persona: Alex</text>
+<text x="838" y="763" font-size="12" fill="#d3e0dd" font-weight="400" text-anchor="start" >Nightscout: tu-nightscout.example</text>
+<text x="838" y="794" font-size="11" fill="#9aabb0" font-weight="400" text-anchor="start" >Contraseñas y token ocultos</text>
+<rect x="822" y="897" width="300" height="52" rx="9" fill="#74edbc" stroke="none"/>
+<text x="972" y="930" font-size="14" fill="#08251a" font-weight="700" text-anchor="middle" >Guardar y reiniciar</text>
+<text x="972" y="986" font-size="12" fill="#9aabb0" font-weight="400" text-anchor="middle" >Volver al paso anterior</text>
+<text x="54" y="1114" font-size="22" fill="#f2f7f6" font-weight="600" text-anchor="start" >Guardar una sola vez, al terminar</text>
+<text x="54" y="1150" font-size="15" fill="#9aabb0" font-weight="400" text-anchor="start" >Volver entre pasos conservaría los campos. Los ajustes se escribirían al confirmar el último paso.</text>
+<text x="54" y="1184" font-size="15" fill="#9aabb0" font-weight="400" text-anchor="start" >Después del reinicio, el dispositivo mostraría su IP en la red de tu casa.</text>
+<text x="54" y="1230" font-size="15" fill="#9aabb0" font-weight="400" text-anchor="start" >Ambas propuestas conservan los campos y las opciones de seguridad de la configuración actual.</text>
+<text x="54" y="1308" font-size="11" fill="#6f858c" font-weight="400" text-anchor="start" >Maqueta estática · Nombres, redes y claves de ejemplo · Firmware de esta propuesta pendiente de elección</text>
+</g></svg>

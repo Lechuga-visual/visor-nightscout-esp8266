@@ -7,6 +7,8 @@ cambiar la configuración y actualizar el firmware por Wi-Fi (OTA).
 
 **Diseños y comparación:** [propuestas de número grande, selector de modo y colores](docs/propuestas-visor/README.md).
 
+**Para revisar antes de implementar:** [bienvenida, configuración inicial y horario nocturno](docs/propuestas-inicio/README.md).
+
 Necesitas un servidor Nightscout con lecturas disponibles y una red Wi-Fi de
 2,4 GHz. La URL base tiene este formato: `https://tu-nightscout.example`.
 
@@ -37,7 +39,7 @@ conectarlo; la retroiluminación no está controlada por un GPIO en esta versió
 
 ### Binario listo para cargar
 
-Descarga [nightscout-d1-mini-v0.6.0.bin](firmware/nightscout-d1-mini-v0.6.0.bin)
+Descarga [nightscout-d1-mini-v0.6.1.bin](firmware/nightscout-d1-mini-v0.6.1.bin)
 desde la carpeta `firmware` (en GitHub utiliza **Download raw file**). Está
 compilado para **Wemos D1 mini ESP8266 con 4 MB de flash**, con los pines de la
 tabla anterior. No contiene datos privados ni requiere configurar el Wi-Fi
@@ -128,8 +130,10 @@ En el panel web, usa **Modo del visor** para elegir:
 El cambio se guarda en el Wemos y se aplica a la pantalla y al visor web.
 La gráfica conserva siete puntos y las consultas siguen cada 30 segundos.
 Cambiar de modo no borra el historial ni fuerza una consulta a Nightscout.
-El nombre aparece más abajo y con letra mayor en los tres modos; los nombres
-largos se ajustan al ancho disponible. La lectura adapta su tamaño para cuatro
+Desde 0.6.1, el nombre duplica su tamaño en los tres modos: fuente de 32 píxeles
+en la pantalla y de 28 en el visor web. Los nombres largos se acortan con puntos
+para mantener esa letra grande; el nombre completo guardado no cambia.
+Se conserva la posición del nombre y del resto de los elementos. La lectura adapta su tamaño para cuatro
 cifras. Las flechas web son trazos SVG, incluidas las tendencias dobles.
 
 En **Ajustes → Apariencia** puedes elegir **menta, rojo, azul, rosado, celeste**
@@ -197,9 +201,10 @@ comprobarse la corrección en el ESP8266 para confirmar la causa del fallo.
 En **Ajustes → Nombre de la persona** puedes escribir hasta 24 caracteres.
 El nombre reemplaza NIGHTSCOUT arriba en la pantalla redonda y en el visor web.
 Se guarda localmente y permanece después de reiniciar. Vacío vuelve a mostrar
-NIGHTSCOUT. La web conserva las tildes; la fuente pequeña de la pantalla adapta
+NIGHTSCOUT. La web conserva las tildes; la fuente de la pantalla adapta
 las letras españolas a sus equivalentes sin tilde y otros caracteres a `?`.
-Los nombres largos se ajustan en la web y se acortan con puntos en la pantalla.
+Los nombres largos se acortan con puntos en ambos visores; el nombre completo
+sigue guardado y está disponible como etiqueta accesible en la web.
 Los ajustes anteriores de Wi-Fi, servidor y HTTPS mantienen su formato.
 
 Abre `http://IP_DEL_WEMOS/` e inicia sesión con tu usuario y contraseña de

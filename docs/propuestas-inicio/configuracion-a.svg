@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1510" viewBox="0 0 1200 1510" role="img" aria-labelledby="title desc">
+<title id="title">A · Configuración en una página</title>
+<desc id="desc">Todos los campos a mano, agrupados por conexión, servidor y acceso.</desc>
+<rect width="1200" height="1510" fill="#0b1012"/>
+<g font-family="Arial,Helvetica,sans-serif">
+<text x="54" y="54" font-size="12" fill="#74edbc" font-weight="700" text-anchor="start" letter-spacing="2">GLUCOSA / SIGUIENTE ETAPA</text>
+<text x="1146" y="54" font-size="11" fill="#9aabb0" font-weight="600" text-anchor="end" >PROPUESTA · ANTES DE IMPLEMENTAR</text>
+<text x="54" y="115" font-size="36" fill="#f2f7f6" font-weight="700" text-anchor="start" >A · Configuración en una página</text>
+<text x="54" y="151" font-size="17" fill="#9aabb0" font-weight="400" text-anchor="start" >Todos los campos a mano, agrupados por conexión, servidor y acceso.</text>
+<rect x="206" y="193" width="788" height="1237" rx="20" fill="#121a1e" stroke="#26343a"/>
+<text x="240" y="237" font-size="27" fill="#f2f7f6" font-weight="700" text-anchor="start" >glucosa.</text>
+<rect x="792" y="214" width="168" height="31" rx="16" fill="#1b352a" stroke="none"/>
+<text x="876" y="235" font-size="10" fill="#74edbc" font-weight="700" text-anchor="middle" >PRIMER INICIO</text>
+<text x="240" y="291" font-size="30" fill="#f2f7f6" font-weight="700" text-anchor="start" >Configura tu pantalla</text>
+<text x="240" y="326" font-size="15" fill="#9aabb0" font-weight="400" text-anchor="start" >Necesitas tu red de 2,4 GHz y la dirección de tu Nightscout.</text>
+<text x="240" y="375" font-size="11" fill="#74edbc" font-weight="700" text-anchor="start" letter-spacing="1.3">1 / TU CONEXIÓN</text>
+<text x="240" y="625" font-size="11" fill="#74edbc" font-weight="700" text-anchor="start" letter-spacing="1.3">2 / PERSONA Y NIGHTSCOUT</text>
+<text x="240" y="1028" font-size="11" fill="#74edbc" font-weight="700" text-anchor="start" letter-spacing="1.3">3 / ACCESO AL WEMOS</text>
+<text x="240" y="415" font-size="13" fill="#d3e0dd" font-weight="600" text-anchor="start" >Nombre de tu Wi-Fi</text>
+<rect x="240" y="426" width="720" height="44" rx="8" fill="#0b1114" stroke="#35484e"/>
+<text x="253" y="454" font-size="14" fill="#d3e0dd" font-weight="400" text-anchor="start" >Casa Wi-Fi</text>
+<text x="240" y="506" font-size="13" fill="#d3e0dd" font-weight="600" text-anchor="start" >Contraseña de tu Wi-Fi</text>
+<rect x="240" y="517" width="720" height="44" rx="8" fill="#0b1114" stroke="#35484e"/>
+<text x="253" y="545" font-size="14" fill="#d3e0dd" font-weight="400" text-anchor="start" >************</text>
+<text x="240" y="590" font-size="12" fill="#9aabb0" font-weight="400" text-anchor="start" >Es tu red habitual; la clave temporal del Wemos ya no se introduce aquí.</text>
+<text x="240" y="665" font-size="13" fill="#d3e0dd" font-weight="600" text-anchor="start" >Nombre de la persona · opcional</text>
+<rect x="240" y="676" width="720" height="44" rx="8" fill="#0b1114" stroke="#35484e"/>
+<text x="253" y="704" font-size="14" fill="#d3e0dd" font-weight="400" text-anchor="start" >Alex</text>
+<text x="240" y="752" font-size="13" fill="#d3e0dd" font-weight="600" text-anchor="start" >URL base de Nightscout</text>
+<rect x="240" y="763" width="720" height="44" rx="8" fill="#0b1114" stroke="#35484e"/>
+<text x="253" y="791" font-size="14" fill="#d3e0dd" font-weight="400" text-anchor="start" >https://tu-nightscout.example</text>
+<text x="240" y="832" font-size="12" fill="#9aabb0" font-weight="400" text-anchor="start" >Solo la URL base, sin /api/v1 ni API secret.</text>
+<text x="240" y="870" font-size="13" fill="#d3e0dd" font-weight="600" text-anchor="start" >Token de solo lectura · opcional</text>
+<rect x="240" y="881" width="720" height="44" rx="8" fill="#0b1114" stroke="#35484e"/>
+<text x="253" y="909" font-size="14" fill="#d3e0dd" font-weight="400" text-anchor="start" >Solo si tu Nightscout lo necesita</text>
+<text x="240" y="968" font-size="13" fill="#74edbc" font-weight="600" text-anchor="start" >Opciones HTTPS · certificados CA o clave pública fija</text>
+<text x="240" y="1068" font-size="13" fill="#d3e0dd" font-weight="600" text-anchor="start" >Usuario de administración</text>
+<rect x="240" y="1079" width="330" height="44" rx="8" fill="#0b1114" stroke="#35484e"/>
+<text x="253" y="1107" font-size="14" fill="#d3e0dd" font-weight="400" text-anchor="start" >admin</text>
+<text x="594" y="1068" font-size="13" fill="#d3e0dd" font-weight="600" text-anchor="start" >Contraseña de administración</text>
+<rect x="594" y="1079" width="366" height="44" rx="8" fill="#0b1114" stroke="#35484e"/>
+<text x="607" y="1107" font-size="14" fill="#d3e0dd" font-weight="400" text-anchor="start" >Mínimo 12 caracteres</text>
+<text x="240" y="1152" font-size="12" fill="#9aabb0" font-weight="400" text-anchor="start" >Esta contraseña protege el visor, los ajustes y las actualizaciones.</text>
+<rect x="240" y="1190" width="720" height="72" rx="10" fill="#182328" stroke="#26343a"/>
+<text x="260" y="1216" font-size="13" fill="#d3e0dd" font-weight="400" text-anchor="start" >Al guardar, el Wemos se reinicia y se conecta a tu Wi-Fi.</text>
+<text x="260" y="1241" font-size="12" fill="#9aabb0" font-weight="400" text-anchor="start" >Reconecta tu teléfono a esa red y abre la IP que muestre la pantalla.</text>
+<rect x="240" y="1290" width="720" height="54" rx="9" fill="#74edbc" stroke="none"/>
+<text x="600" y="1324" font-size="16" fill="#08251a" font-weight="700" text-anchor="middle" >Guardar y reiniciar</text>
+<text x="240" y="1388" font-size="12" fill="#9aabb0" font-weight="400" text-anchor="start" >Los colores y el horario nocturno se ajustarían después, desde Ajustes.</text>
+<text x="54" y="1478" font-size="11" fill="#6f858c" font-weight="400" text-anchor="start" >Maqueta estática · Nombres, redes y claves de ejemplo · Firmware de esta propuesta pendiente de elección</text>
+</g></svg>

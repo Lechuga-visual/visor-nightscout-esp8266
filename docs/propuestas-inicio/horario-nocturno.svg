@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1320" viewBox="0 0 1200 1320" role="img" aria-labelledby="title desc">
+<title id="title">Horario nocturno desde la web</title>
+<desc id="desc">Propuesta para Ajustes · Atenuación del contenido de la pantalla.</desc>
+<rect width="1200" height="1320" fill="#0b1012"/>
+<g font-family="Arial,Helvetica,sans-serif">
+<text x="54" y="54" font-size="12" fill="#74edbc" font-weight="700" text-anchor="start" letter-spacing="2">GLUCOSA / SIGUIENTE ETAPA</text>
+<text x="1146" y="54" font-size="11" fill="#9aabb0" font-weight="600" text-anchor="end" >PROPUESTA · ANTES DE IMPLEMENTAR</text>
+<text x="54" y="115" font-size="36" fill="#f2f7f6" font-weight="700" text-anchor="start" >Horario nocturno desde la web</text>
+<text x="54" y="151" font-size="17" fill="#9aabb0" font-weight="400" text-anchor="start" >Propuesta para Ajustes · Atenuación del contenido de la pantalla.</text>
+<rect x="156" y="205" width="888" height="984" rx="20" fill="#121a1e" stroke="#26343a"/>
+<text x="192" y="253" font-size="11" fill="#9aabb0" font-weight="700" text-anchor="start" letter-spacing="1.4">AJUSTES / PANTALLA</text>
+<text x="192" y="298" font-size="29" fill="#f2f7f6" font-weight="600" text-anchor="start" >Un brillo más suave por la noche</text>
+<text x="192" y="335" font-size="15" fill="#9aabb0" font-weight="400" text-anchor="start" >El horario se aplicaría en la zona horaria seleccionada.</text>
+<text x="192" y="391" font-size="17" fill="#f2f7f6" font-weight="600" text-anchor="start" >Activar horario nocturno</text>
+<rect x="938" y="367" width="68" height="34" rx="17" fill="#74edbc" stroke="none"/>
+<circle cx="987" cy="384" r="12" fill="#08251a"/>
+<text x="192" y="454" font-size="13" fill="#d3e0dd" font-weight="600" text-anchor="start" >Desde</text>
+<rect x="192" y="465" width="376" height="44" rx="8" fill="#0b1114" stroke="#35484e"/>
+<text x="205" y="493" font-size="14" fill="#d3e0dd" font-weight="400" text-anchor="start" >22:00</text>
+<text x="594" y="454" font-size="13" fill="#d3e0dd" font-weight="600" text-anchor="start" >Hasta</text>
+<rect x="594" y="465" width="412" height="44" rx="8" fill="#0b1114" stroke="#35484e"/>
+<text x="607" y="493" font-size="14" fill="#d3e0dd" font-weight="400" text-anchor="start" >07:00</text>
+<text x="192" y="558" font-size="13" fill="#d3e0dd" font-weight="600" text-anchor="start" >Zona horaria</text>
+<rect x="192" y="569" width="814" height="44" rx="8" fill="#0b1114" stroke="#35484e"/>
+<text x="205" y="597" font-size="14" fill="#d3e0dd" font-weight="400" text-anchor="start" >Santiago de Chile · America/Santiago</text>
+<text x="192" y="688" font-size="15" fill="#d3e0dd" font-weight="600" text-anchor="start" >Intensidad visual de día</text>
+<text x="1006" y="688" font-size="16" fill="#74edbc" font-weight="700" text-anchor="end" >100 %</text>
+<rect x="204" y="718" width="756" height="7" rx="3" fill="#26343a" stroke="none"/>
+<rect x="204" y="718" width="756" height="7" rx="3" fill="#74edbc" stroke="none"/>
+<circle cx="960" cy="721.5" r="9" fill="#74edbc"/>
+<text x="192" y="801" font-size="15" fill="#d3e0dd" font-weight="600" text-anchor="start" >Intensidad visual de noche</text>
+<text x="1006" y="801" font-size="16" fill="#74edbc" font-weight="700" text-anchor="end" >25 %</text>
+<rect x="204" y="831" width="756" height="7" rx="3" fill="#26343a" stroke="none"/>
+<rect x="204" y="831" width="189" height="7" rx="3" fill="#74edbc" stroke="none"/>
+<circle cx="393" cy="834.5" r="9" fill="#74edbc"/>
+<rect x="192" y="883" width="814" height="112" rx="10" fill="#182328" stroke="#26343a"/>
+<text x="214" y="913" font-size="15" fill="#d3e0dd" font-weight="600" text-anchor="start" >En este módulo se atenuaría lo dibujado.</text>
+<text x="214" y="942" font-size="13" fill="#9aabb0" font-weight="400" text-anchor="start" >La luz de fondo seguiría encendida. Controlarla requiere revisar el hardware.</text>
+<text x="214" y="971" font-size="13" fill="#9aabb0" font-weight="400" text-anchor="start" >Sin hora válida, se mantendría la intensidad de día y se mostraría un aviso.</text>
+<rect x="192" y="1028" width="376" height="54" rx="9" fill="#182328" stroke="#35484e"/>
+<text x="380" y="1062" font-size="14" fill="#d3e0dd" font-weight="600" text-anchor="middle" >Probar durante 5 segundos</text>
+<rect x="594" y="1028" width="412" height="54" rx="9" fill="#74edbc" stroke="none"/>
+<text x="800" y="1062" font-size="14" fill="#08251a" font-weight="700" text-anchor="middle" >Guardar horario</text>
+<text x="192" y="1138" font-size="13" fill="#9aabb0" font-weight="400" text-anchor="start" >El ejemplo 22:00–07:00 cruza medianoche; los horarios y niveles serían editables.</text>
+<text x="54" y="1245" font-size="14" fill="#9aabb0" font-weight="400" text-anchor="start" >Una disminución de la luz de fondo real queda sujeta al control eléctrico disponible en el módulo.</text>
+<text x="54" y="1288" font-size="11" fill="#6f858c" font-weight="400" text-anchor="start" >Maqueta estática · Nombres, redes y claves de ejemplo · Firmware de esta propuesta pendiente de elección</text>
+</g></svg>

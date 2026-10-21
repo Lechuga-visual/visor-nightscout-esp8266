@@ -1,13 +1,21 @@
 # Firmware para Wemos D1 mini (ESP8266)
 
-Versión **0.6.0**, GC9A01 SPI 240 × 240, D1 mini con **4 MB de flash**.
+Versión **0.6.1**, GC9A01 SPI 240 × 240, D1 mini con **4 MB de flash**.
 
-- [Descargar el .bin](nightscout-d1-mini-v0.6.0.bin) (en GitHub: **Download raw file**).
+- [Descargar el .bin](nightscout-d1-mini-v0.6.1.bin) (en GitHub: **Download raw file**).
 - [SHA-256](SHA256SUMS).
 - [Datos de compilación](build-info.json).
 
 El binario no contiene credenciales de Wi-Fi ni de administración. En el primer
 arranque pide estos datos por web. Usa el cableado del [README principal](../README.md).
+
+La versión 0.6.1 duplica el tamaño del nombre: 32 píxeles en la pantalla y 28 en
+el visor web. Los nombres largos se acortan con puntos, sin cambiar el nombre
+guardado. Mantiene la posición del nombre, la lectura, el estado y la IP.
+Conserva Wi-Fi, servidor, token, clave HTTPS y apariencia al actualizar normalmente.
+
+Las [propuestas de bienvenida, configuración inicial y horario nocturno](../docs/propuestas-inicio/README.md)
+están publicadas para revisión; todavía no están implementadas en este binario.
 
 La versión 0.6.0 incorpora los dos diseños de número grande además de la gráfica
 de 30 minutos. El nombre aparece más abajo y con letra mayor. El selector del
@@ -48,7 +56,7 @@ Si utilizas Python y esptool 4.x, por ejemplo:
 
 ```bash
 python -m pip install esptool==4.8.1
-python -m esptool --chip esp8266 --port COM3 --baud 115200 write_flash --flash_mode dio --flash_size 4MB 0x00000 nightscout-d1-mini-v0.6.0.bin
+python -m esptool --chip esp8266 --port COM3 --baud 115200 write_flash --flash_mode dio --flash_size 4MB 0x00000 nightscout-d1-mini-v0.6.1.bin
 ```
 
 Cambia `COM3` por el puerto real. En Linux suele ser `/dev/ttyUSB0` y en macOS

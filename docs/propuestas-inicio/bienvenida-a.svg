@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1200" viewBox="0 0 1200 1200" role="img" aria-labelledby="title desc">
+<title id="title">A · Bienvenida esencial</title>
+<desc id="desc">Nombre protagonista y una indicación clara de lo que está ocurriendo.</desc>
+<rect width="1200" height="1200" fill="#0b1012"/>
+<g font-family="Arial,Helvetica,sans-serif">
+<text x="54" y="54" font-size="12" fill="#74edbc" font-weight="700" text-anchor="start" letter-spacing="2">GLUCOSA / SIGUIENTE ETAPA</text>
+<text x="1146" y="54" font-size="11" fill="#9aabb0" font-weight="600" text-anchor="end" >PROPUESTA · ANTES DE IMPLEMENTAR</text>
+<text x="54" y="115" font-size="36" fill="#f2f7f6" font-weight="700" text-anchor="start" >A · Bienvenida esencial</text>
+<text x="54" y="151" font-size="17" fill="#9aabb0" font-weight="400" text-anchor="start" >Nombre protagonista y una indicación clara de lo que está ocurriendo.</text>
+<text x="54" y="218" font-size="11" fill="#9aabb0" font-weight="700" text-anchor="start" letter-spacing="1.2">AL ENCENDER CON DATOS GUARDADOS</text>
+<text x="648" y="218" font-size="11" fill="#9aabb0" font-weight="700" text-anchor="start" letter-spacing="1.2">CUANDO NECESITA CONFIGURACIÓN</text>
+<svg x="64" y="256" width="460" height="460" viewBox="0 0 240 240"><circle cx="120" cy="120" r="119" fill="#0b1114" stroke="#26343a"/><circle cx="120" cy="120" r="114" fill="none" stroke="#74edbc" stroke-width="1.5"/><g transform="translate(120 48) scale(0.8)" fill="none" stroke="#74edbc" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M-15 0H-8L-3-10 3 10 8 0H15"/></g><text x="120" y="112" font-size="32" fill="#f2f7f6" font-weight="700" text-anchor="middle" >Alex</text><text x="120" y="142" font-size="10" fill="#9aabb0" font-weight="400" text-anchor="middle" >Conectando Wi-Fi</text><path d="M93 171H147" stroke="#26343a" stroke-width="3" stroke-linecap="round"/><path d="M93 171H116" stroke="#74edbc" stroke-width="3" stroke-linecap="round"/><text x="120" y="202" font-size="7" fill="#9aabb0" font-weight="400" text-anchor="middle" >Tu lectura aparecerá aquí</text></svg>
+<svg x="660" y="256" width="460" height="460" viewBox="0 0 240 240"><circle cx="120" cy="120" r="119" fill="#0b1114" stroke="#26343a"/><circle cx="120" cy="120" r="114" fill="none" stroke="#74edbc" stroke-width="1.5"/><text x="120" y="34" font-size="12" fill="#74edbc" font-weight="700" text-anchor="middle" >CONFIGURAR</text><text x="120" y="64" font-size="8" fill="#9aabb0" font-weight="400" text-anchor="middle" >Conecta tu teléfono a</text><text x="120" y="88" font-size="13" fill="#f2f7f6" font-weight="600" text-anchor="middle" >glucosa-ABCDEF</text><text x="120" y="115" font-size="8" fill="#9aabb0" font-weight="400" text-anchor="middle" >Clave de esta red</text><text x="120" y="138" font-size="13" fill="#f2f7f6" font-weight="600" text-anchor="middle" >ABCD1234EFGH</text><text x="120" y="167" font-size="8" fill="#9aabb0" font-weight="400" text-anchor="middle" >Después abre</text><text x="120" y="191" font-size="14" fill="#74edbc" font-weight="600" text-anchor="middle" >192.168.4.1</text><text x="120" y="214" font-size="6.5" fill="#9aabb0" font-weight="400" text-anchor="middle" >Red temporal del Wemos</text></svg>
+<rect x="54" y="764" width="1092" height="182" rx="18" fill="#121a1e" stroke="#26343a"/>
+<text x="80" y="805" font-size="11" fill="#9aabb0" font-weight="700" text-anchor="start" letter-spacing="1.3">COMPORTAMIENTO PROPUESTO</text>
+<text x="80" y="843" font-size="19" fill="#f2f7f6" font-weight="600" text-anchor="start" >El estado avanza al conectar; no muestra progreso ni lecturas inventadas.</text>
+<text x="80" y="877" font-size="15" fill="#9aabb0" font-weight="400" text-anchor="start" >Si una etapa tarda, indica qué está esperando. Si falla, ofrece un mensaje claro.</text>
+<text x="80" y="908" font-size="15" fill="#9aabb0" font-weight="400" text-anchor="start" >La clave de la red temporal y la contraseña de tu Wi-Fi se presentan como datos distintos.</text>
+<text x="54" y="1002" font-size="21" fill="#f2f7f6" font-weight="600" text-anchor="start" >Mis colores, desde el arranque</text>
+<text x="54" y="1036" font-size="16" fill="#9aabb0" font-weight="400" text-anchor="start" >En un equipo configurado se usaría el tema guardado. En el primer inicio, menta.</text>
+<text x="54" y="1070" font-size="16" fill="#9aabb0" font-weight="400" text-anchor="start" >El nombre tendría el tamaño grande. La pantalla redonda informa; los pasos se hacen en el teléfono.</text>
+<text x="54" y="1168" font-size="11" fill="#6f858c" font-weight="400" text-anchor="start" >Maqueta estática · Nombres, redes y claves de ejemplo · Firmware de esta propuesta pendiente de elección</text>
+</g></svg>

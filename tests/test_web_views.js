@@ -8,7 +8,7 @@ const path=require('path');
 const {chromium}=require('playwright');
 const root=path.resolve(__dirname,'..');
 const preset=['#74edbc','#ff675e','#699bff','#f69bd1','#72d9f5'];
-const initial=()=>({firmware:'0.6.0',patient_name:'María Muñoz',csrf:'fixture-session-only',available:true,glucose:142,
+const initial=()=>({firmware:'0.6.1',patient_name:'Alex',csrf:'fixture-session-only',available:true,glucose:142,
   reading_date_ms:Date.now()-120000,age_seconds:120,tone:'normal',trend_symbol:'↗',trend_label:'Subiendo',clock_valid:true,
   message:'Conectado',wifi_connected:true,rssi_dbm:-70,ip:'192.0.2.1',checked_seconds_ago:3,
   appearance:{mode:0,theme:0,accent:preset[0],background:'#0b1114',number:preset[0]},
@@ -44,9 +44,9 @@ const form=`<!doctype html><html lang="es"><meta charset="utf-8"><link rel="styl
         state=initial();Object.assign(state.appearance,{mode,theme,accent:preset[theme],number:preset[theme]});await load();
         assert.equal(await page.locator('#dial').getAttribute('data-mode'),String(mode));
         assert.equal(await page.locator('#history-group').evaluate(e=>getComputedStyle(e).display==='none'),mode!==0);
-        assert.equal(await page.locator('#dial-brand').textContent(),'María Muñoz');
-        assert.equal(await page.locator('#dial-brand').getAttribute('y'),'47');
-        assert.equal(await page.locator('#dial-brand').evaluate(e=>getComputedStyle(e).fontSize),'14px');
+        assert.equal(await page.locator('#dial-brand').textContent(),'Alex');
+        assert.equal(await page.locator('#dial-brand').getAttribute('y'),'53');
+        assert.equal(await page.locator('#dial-brand').evaluate(e=>getComputedStyle(e).fontSize),'28px');
         assert.equal(await page.locator('#dial').evaluate(e=>e.style.getPropertyValue('--theme-accent')),preset[theme]);
         assert.equal(await page.locator('#history-dots circle').count(),7);
         const bounds=await page.locator('#glucose').evaluate(e=>{const b=e.getBBox(),style=getComputedStyle(e),ctx=document.createElement('canvas').getContext('2d');ctx.font=`${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;const ink=ctx.measureText(e.textContent);return{x:b.x,width:b.width,y:Number(e.getAttribute('y'))-ink.actualBoundingBoxAscent,height:ink.actualBoundingBoxAscent+ink.actualBoundingBoxDescent}});
@@ -97,7 +97,15 @@ const form=`<!doctype html><html lang="es"><meta charset="utf-8"><link rel="styl
     assert.equal(await page.locator('#glucose').evaluate(e=>getComputedStyle(e).fill),'rgb(242, 247, 246)');
     assert.equal(await page.locator('#trend').evaluate(e=>getComputedStyle(e).stroke),'rgb(114, 217, 245)');
     state.patient_name='<img src=x onerror=bad>';await refresh();
-    assert.equal(await page.locator('#dial-brand').textContent(),state.patient_name);assert.equal(await page.locator('#dial-brand *').count(),0);
+    assert.equal(await page.locator('#dial-brand').getAttribute('aria-label'),state.patient_name);assert.equal(await page.locator('#dial-brand *').count(),0);
+    assert((await page.locator('#dial-brand').textContent()).endsWith('…'));
+    assert(await page.locator('#dial-brand').evaluate(e=>e.getComputedTextLength()<=128));
+    for(const label of ['María Muñoz','WWWWWWWWWWWWWWWWWWWWWWWW','']) {
+      state.patient_name=label;await refresh();
+      assert.equal(await page.locator('#dial-brand').getAttribute('aria-label'),label||'NIGHTSCOUT');
+      assert(await page.locator('#dial-brand').evaluate(e=>e.getComputedTextLength()<=(e.getAttribute('aria-label')==='NIGHTSCOUT'?148:128)));
+      if(!label)assert.equal(await page.locator('#dial-brand').textContent(),'NIGHTSCOUT');
+    }
     unavailable=true;await refresh();assert.equal(await page.locator('#glucose').textContent(),'142');assert(await page.locator('#view-mode').isDisabled());
     unavailable=false;
     // Save actual static-asset renders for visual review, using example readings.

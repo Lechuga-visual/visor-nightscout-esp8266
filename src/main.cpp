@@ -30,7 +30,7 @@
 #endif
 
 namespace {
-constexpr char VERSION[] = "0.6.0";
+constexpr char VERSION[] = "0.6.1";
 constexpr uint32_t POLL_MS = 30000;
 TFT_eSPI display;
 ESP8266WebServer web(80);
@@ -948,14 +948,17 @@ void drawPatientName(uint16_t background) {
   char label[25];
   patient_label::displayName(patient, label);
   if (!label[0]) strlcpy(label, "NIGHTSCOUT", sizeof(label));
-  display.setTextSize(1);
+  const bool named = patient.name[0] != '\0';
+  display.setTextSize(named ? 2 : 1);
+  const int maximumWidth = named ? 120 : 144;
   size_t length = strlen(label);
-  while (length > 3 && display.textWidth(label, 2) > 144) {
+  while (length > 3 && display.textWidth(label, 2) > maximumWidth) {
     --length;
     memcpy(label + length - 3, "...", 4);
   }
   display.setTextColor(view_appearance::rgb565(0xD3E0DD), background);
   display.drawString(label, 120, 43, 2);
+  display.setTextSize(1);
 }
 
 void drawValue(const String& value, int x, int y, int width, int height) {

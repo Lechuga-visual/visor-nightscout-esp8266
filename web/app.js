@@ -87,13 +87,19 @@
     text('dial-ip',s.ip || 'Sin Wi-Fi');
     text('device-ip',s.ip || '—');
     text('version',s.firmware);
-    text('dial-brand',s.patient_name || 'NIGHTSCOUT');
-    $('dial-brand').style.letterSpacing = '.6px';
-    $('dial-brand').removeAttribute('textLength');
-    const nameWidth = $('dial-brand').getComputedTextLength();
-    if (nameWidth > 148) {
-      $('dial-brand').setAttribute('textLength','148');
-      $('dial-brand').setAttribute('lengthAdjust','spacingAndGlyphs');
+    const fullName=s.patient_name || 'NIGHTSCOUT';
+    const name=$('dial-brand');
+    name.setAttribute('aria-label',fullName);
+    name.setAttribute('y',s.patient_name ? '53' : '47');
+    name.style.fontSize=s.patient_name ? '28px' : '14px';
+    name.style.letterSpacing='.6px';
+    name.removeAttribute('textLength');
+    const maximumNameWidth=s.patient_name ? 128 : 148;
+    const letters=Array.from(fullName);
+    text('dial-brand',fullName);
+    while (letters.length>1 && name.getComputedTextLength()>maximumNameWidth) {
+      letters.pop();
+      text('dial-brand',letters.join('')+'…');
     }
     text('wifi',s.wifi_connected ? `Conectado · ${s.rssi_dbm} dBm` : 'Desconectado');
     text('checked-age',Number.isFinite(s.checked_seconds_ago) ? ageText(s.checked_seconds_ago + elapsed()) : 'Aún sin consultar');
