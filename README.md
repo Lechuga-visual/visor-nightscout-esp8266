@@ -56,12 +56,17 @@ pensada para una red local de confianza.
 | RST / RES | D0 | 16 |
 | GND | GND | — |
 
+En el módulo de siete pines de la foto, conecta también **VCC a 3V3** del Wemos.
+Esta guía señala los pares con el mismo color:
+
+![Conexiones entre la pantalla GC9A01 y el Wemos D1 mini](docs/cableado-gc9a01.png)
+
 En este módulo, SDA/SCL son señales **SPI**, no I²C. No se necesita MISO.
 El firmware utiliza SPI a 27 MHz y no reserva una imagen completa en RAM.
 
-**VCC y BL/BLK dependen del módulo concreto:** confirma las etiquetas y la
-ficha del fabricante antes de conectarlos. Las señales del ESP8266 son de
-3,3 V. La retroiluminación no está controlada por un GPIO en esta versión.
+Realiza el cableado sin alimentación. Las señales del ESP8266 son de 3,3 V.
+Si utilizas otra variante con un pin BL/BLK, consulta su ficha antes de
+conectarlo; la retroiluminación no está controlada por un GPIO en esta versión.
 
 ## 3. Preparar y cargar el firmware
 
