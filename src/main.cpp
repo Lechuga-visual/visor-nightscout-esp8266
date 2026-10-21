@@ -9,6 +9,7 @@
 #include <TFT_eSPI.h>
 #include <WiFiClientSecureBearSSL.h>
 #include <time.h>
+#include "device_settings.h"
 
 #if __has_include("nightscout_config.h")
 #include "nightscout_config.h"
@@ -17,7 +18,7 @@
 #endif
 
 namespace {
-constexpr char VERSION[] = "0.1.0";
+constexpr char VERSION[] = "0.2.0";
 constexpr uint32_t POLL_MS = 30000;
 constexpr time_t VALID_CLOCK = 1704067200;  // 2024-01-01 UTC
 TFT_eSPI display;
@@ -32,6 +33,13 @@ bool attemptedFetch = false;
 uint32_t lastFetch = 0;
 uint32_t lastRender = 0;
 String lastFrame;
+device_config::Settings settings{};
+bool setupMode = false;
+bool hasConnected = false;
+bool restartPending = false;
+uint32_t restartRequestedAt = 0;
+String setupSsid;
+String setupPassword;
 
 struct Reading {
   bool available = false;
@@ -40,12 +48,6 @@ struct Reading {
   int64_t dateMs = 0;
   String direction;
 } reading;
-
-struct Settings {
-  uint32_t magic;
-  char url[201];
-};
-constexpr uint32_t SETTINGS_MAGIC = 0x4E534331;
 
 String htmlEscape(String value) {
   value.replace("&", "&amp;");
@@ -72,32 +74,130 @@ String urlEncode(const char* value) {
 }
 
 bool validUrl(const String& url) {
-  const bool https = url.startsWith("https://");
-  if (!https && !url.startsWith("http://")) return false;
-  if (url.length() > 200) return false;
-  const String authority = url.substring(https ? 8 : 7);
-  if (authority.length() == 0 || authority[0] == '/') return false;
-  for (size_t i = 0; i < authority.length(); ++i) {
-    if (authority[i] <= ' ' || authority[i] == '@' || authority[i] == '?' ||
-        authority[i] == '#' || authority[i] == '\\') return false;
+  return device_config::validBaseUrl(url.c_str());
+}
+
+bool persistSettings(const device_config::Settings& candidate) {
+  if (!storageReady || !device_config::validStoredSettings(candidate)) return false;
+  EEPROM.put(0, candidate);
+  if (!EEPROM.commit()) {
+    EEPROM.put(0, settings);  // Restore the in-memory buffer after a failed write.
+    return false;
   }
+  settings = candidate;
+  baseUrl = settings.url;
   return true;
 }
 
 bool authenticated() {
   web.sendHeader("Cache-Control", "no-store");
   if (!webEnabled) {
-    web.send(503, "text/plain; charset=utf-8", "Configura WEB_PASSWORD (12 caracteres minimo) y carga por USB.");
+    web.send(503, "text/plain; charset=utf-8", "Completa primero la configuracion inicial.");
     return false;
   }
-  if (!web.authenticate(WEB_USERNAME, WEB_PASSWORD)) {
+  if (!web.authenticate(settings.webUsername, settings.webPassword)) {
     web.requestAuthentication();
     return false;
   }
   return true;
 }
 
+void configurationPage() {
+  if (!setupMode && !authenticated()) return;
+  web.sendHeader("Cache-Control", "no-store");
+  String page = F("<!doctype html><html lang='es'><meta charset='utf-8'>"
+                  "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+                  "<title>Configurar pantalla</title><style>body{font:18px system-ui;"
+                  "max-width:650px;margin:25px auto;padding:20px}label{display:block;margin:15px 0}"
+                  "input{box-sizing:border-box;width:100%;font:inherit;padding:8px}button{font:inherit;padding:10px}"
+                  "</style><h1>Configurar pantalla</h1><p>Guarda tu red Wi-Fi de 2,4 GHz y el servidor de datos.</p>"
+                  "<form method='post' action='/configure'><label>Nombre de tu Wi-Fi (SSID)"
+                  "<input name='ssid' maxlength='32' required value='");
+  page += htmlEscape(settings.ssid);
+  page += F("'></label><label>Contraseña de tu Wi-Fi"
+            "<input name='wifi_password' type='password' maxlength='64' autocomplete='off'>"
+            "</label><p>Introduce de nuevo la clave al guardar. Déjala vacía solo si la red es abierta.</p>"
+            "<label>URL base del simulador o Nightscout"
+            "<input name='url' type='url' maxlength='200' required value='");
+  page += htmlEscape(baseUrl);
+  page += F("'></label><p>Por ejemplo: http://192.168.1.100:8000 (IP de tu computador).</p>"
+            "<label>Usuario de administración<input name='web_username' maxlength='32' required value='");
+  page += htmlEscape(settings.webUsername);
+  page += F("'></label><label>Contraseña para administrar y actualizar el Wemos"
+            "<input name='web_password' type='password' minlength='12' maxlength='64' required "
+            "autocomplete='new-password'></label><input type='hidden' name='csrf' value='");
+  page += csrf;
+  page += F("'><button>Guardar y reiniciar</button></form>"
+            "<p>Las contraseñas se guardan en el Wemos. No se muestran en esta página.</p></html>");
+  web.send(200, "text/html; charset=utf-8", page);
+}
+
+void saveConfiguration() {
+  if (!setupMode && !authenticated()) return;
+  web.sendHeader("Cache-Control", "no-store");
+  if (!web.hasArg("csrf") || web.arg("csrf") != csrf) {
+    web.send(403, "text/plain", "Formulario caducado. Recarga la pagina.");
+    return;
+  }
+  String url = web.arg("url");
+  url.trim();
+  while (url.endsWith("/")) url.remove(url.length() - 1);
+  const String ssid = web.arg("ssid");
+  const String wifiPassword = web.arg("wifi_password");
+  String username = web.arg("web_username");
+  username.trim();
+  const String password = web.arg("web_password");
+  if (!validUrl(url) || ssid.length() > 32 || wifiPassword.length() > 64 ||
+      username.length() > 32 || password.length() > 64) {
+    web.send(400, "text/plain; charset=utf-8", "Revisa la URL y la longitud de los campos.");
+    return;
+  }
+  device_config::Settings candidate{};
+  candidate.magic = device_config::MAGIC;
+  url.toCharArray(candidate.url, sizeof(candidate.url));
+  ssid.toCharArray(candidate.ssid, sizeof(candidate.ssid));
+  wifiPassword.toCharArray(candidate.wifiPassword, sizeof(candidate.wifiPassword));
+  username.toCharArray(candidate.webUsername, sizeof(candidate.webUsername));
+  password.toCharArray(candidate.webPassword, sizeof(candidate.webPassword));
+  if (!device_config::configured(candidate)) {
+    web.send(400, "text/plain; charset=utf-8", "SSID y usuario obligatorios; clave Wi-Fi de 8 a 63 caracteres (o vacia para red abierta); clave de administracion de 12 a 64.");
+    return;
+  }
+  if (!persistSettings(candidate)) {
+    web.send(500, "text/plain", "No se pudo guardar. Intenta nuevamente.");
+    return;
+  }
+  web.send(200, "text/html; charset=utf-8",
+           "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+           "<h1>Configuración guardada</h1><p>El Wemos se reiniciará. Vuelve a conectar tu teléfono "
+           "a tu Wi-Fi y abre la IP que aparecerá en la pantalla del Wemos.</p>");
+  restartPending = true;
+  restartRequestedAt = millis();
+}
+
+void startProvisioning() {
+  WiFi.mode(WIFI_AP);
+  char suffix[7];
+  snprintf(suffix, sizeof(suffix), "%06lx", static_cast<unsigned long>(ESP.getChipId() & 0xffffff));
+  char password[13];
+  snprintf(password, sizeof(password), "%08lx%04lx", static_cast<unsigned long>(ESP.random()),
+           static_cast<unsigned long>(ESP.random() & 0xffff));
+  setupSsid = "glucosa-" + String(suffix);
+  setupPassword = password;
+  const IPAddress setupIp(192, 168, 4, 1);
+  if (!WiFi.softAPConfig(setupIp, setupIp, IPAddress(255, 255, 255, 0)) ||
+      !WiFi.softAP(setupSsid.c_str(), setupPassword.c_str())) {
+    setupMode = false;
+    message = "Error al crear Wi-Fi";
+    return;
+  }
+  setupMode = true;
+  message = "Configuracion inicial";
+  lastFrame = "";
+}
+
 void homePage() {
+  if (setupMode) { configurationPage(); return; }
   if (!authenticated()) return;
   String page = F("<!doctype html><html lang='es'><meta charset='utf-8'>"
                   "<meta name='viewport' content='width=device-width,initial-scale=1'>"
@@ -114,7 +214,8 @@ void homePage() {
             "<p>Usa la IP del computador que ejecuta el simulador, por ejemplo "
             "<code>http://192.168.1.100:8000</code>.</p>");
   if (!storageReady) page += F("<p>No se puede guardar la URL: EEPROM no esta disponible.</p>");
-  page += F("<p><a href='/update'>Actualizar firmware (.bin)</a></p>"
+  page += F("<p><a href='/configure'>Configurar Wi-Fi y contraseñas</a></p>"
+            "<p><a href='/update'>Actualizar firmware (.bin)</a></p>"
             "<p>Actualizaciones disponibles solo para uso en una red local de confianza.</p></html>");
   web.send(200, "text/html; charset=utf-8", page);
 }
@@ -132,15 +233,13 @@ void saveSettings() {
     web.send(400, "text/plain", "URL HTTP(S) invalida. No incluyas credenciales, query ni /api/v1.");
     return;
   }
-  if (!storageReady) {
-    web.send(500, "text/plain", "No se pudo guardar la configuracion.");
+  // Changing only the URL must preserve the Wi-Fi and administrator credentials.
+  device_config::Settings saved{};
+  if (!device_config::withUpdatedUrl(settings, candidate.c_str(), saved)) {
+    web.send(400, "text/plain", "Configuracion invalida.");
     return;
   }
-  Settings saved{};
-  saved.magic = SETTINGS_MAGIC;
-  candidate.toCharArray(saved.url, sizeof(saved.url));
-  EEPROM.put(0, saved);
-  if (!EEPROM.commit()) {
+  if (!persistSettings(saved)) {
     web.send(500, "text/plain", "No se pudo guardar la configuracion.");
     return;
   }
@@ -249,6 +348,25 @@ void drawTrend(uint16_t color) {
 }
 
 void render() {
+  if (setupMode) {
+    if (lastFrame == "setup") return;
+    lastFrame = "setup";
+    display.fillScreen(TFT_BLACK);
+    display.drawCircle(120, 120, 116, TFT_CYAN);
+    display.setTextDatum(MC_DATUM);
+    display.setTextSize(1);
+    display.setTextColor(TFT_CYAN, TFT_BLACK);
+    display.drawString("CONFIGURAR", 120, 30, 2);
+    display.setTextColor(TFT_WHITE, TFT_BLACK);
+    display.drawString("Conectate a esta Wi-Fi:", 120, 57, 2);
+    display.drawString(setupSsid, 120, 79, 2);
+    display.drawString("Clave de acceso:", 120, 106, 2);
+    display.drawString(setupPassword, 120, 128, 2);
+    display.drawString("Abre en el navegador:", 120, 158, 2);
+    display.drawString(WiFi.softAPIP().toString(), 120, 181, 2);
+    display.drawString("Guarda tu red Wi-Fi", 120, 207, 2);
+    return;
+  }
   const time_t now = time(nullptr);
   const bool clockReady = now >= VALID_CLOCK;
   const int64_t age = clockReady && reading.available
@@ -286,34 +404,51 @@ void setup() {
   Serial.begin(115200);
   display.init();
   display.setRotation(0);
-  EEPROM.begin(256);
-  storageReady = EEPROM.length() == 256;
-  baseUrl = DEFAULT_NIGHTSCOUT_URL;
+  EEPROM.begin(device_config::STORAGE_SIZE);
+  storageReady = EEPROM.length() == device_config::STORAGE_SIZE;
+  settings.magic = device_config::MAGIC;
+  strlcpy(settings.url, DEFAULT_NIGHTSCOUT_URL, sizeof(settings.url));
+  strlcpy(settings.ssid, WIFI_SSID, sizeof(settings.ssid));
+  strlcpy(settings.wifiPassword, WIFI_PASSWORD, sizeof(settings.wifiPassword));
+  strlcpy(settings.webUsername, WEB_USERNAME, sizeof(settings.webUsername));
+  strlcpy(settings.webPassword, WEB_PASSWORD, sizeof(settings.webPassword));
   if (storageReady) {
-    Settings saved{};
+    device_config::Settings saved{};
     EEPROM.get(0, saved);
-    if (saved.magic == SETTINGS_MAGIC && memchr(saved.url, '\0', sizeof(saved.url)) && validUrl(saved.url))
-      baseUrl = saved.url;
+    if (device_config::validStoredSettings(saved)) settings = saved;
+    else {
+      device_config::LegacySettings legacy{};
+      EEPROM.get(0, legacy);
+      device_config::migrateLegacy(legacy, settings);
+    }
   }
+  baseUrl = settings.url;
+  csrf = String(ESP.random(), HEX) + String(ESP.random(), HEX);
   WiFi.persistent(false);
-  WiFi.mode(WIFI_STA);
   WiFi.hostname(DEVICE_HOSTNAME);
   WiFi.setAutoReconnect(true);
-  if (WIFI_SSID[0]) WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  message = WIFI_SSID[0] ? "Conectando Wi-Fi" : "Configura Wi-Fi por USB";
-  configTime(0, 0, "pool.ntp.org", "time.google.com");
-  csrf = String(ESP.random(), HEX) + String(ESP.random(), HEX);
-  webEnabled = WEB_USERNAME[0] && strlen(WEB_PASSWORD) >= 12;
+  webEnabled = device_config::validAdmin(settings);
+  if (!device_config::configured(settings)) startProvisioning();
+  else {
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(settings.ssid, settings.wifiPassword);
+    message = "Conectando Wi-Fi";
+    configTime(0, 0, "pool.ntp.org", "time.google.com");
+  }
   web.on("/", HTTP_GET, homePage);
+  web.on("/configure", HTTP_GET, configurationPage);
+  web.on("/configure", HTTP_POST, saveConfiguration);
   web.on("/settings", HTTP_POST, saveSettings);
-  if (webEnabled) updater.setup(&web, "/update", WEB_USERNAME, WEB_PASSWORD);
+  if (webEnabled) updater.setup(&web, "/update", settings.webUsername, settings.webPassword);
   web.begin();
   render();
 }
 
 void loop() {
   web.handleClient();
-  if (WiFi.status() == WL_CONNECTED) {
+  if (restartPending && millis() - restartRequestedAt >= 1500) ESP.restart();
+  if (!setupMode && WiFi.status() == WL_CONNECTED) {
+    hasConnected = true;
     static bool mdnsStarted = false;
     if (!mdnsStarted) mdnsStarted = MDNS.begin(DEVICE_HOSTNAME);
     if (mdnsStarted) MDNS.update();
@@ -322,8 +457,10 @@ void loop() {
       fetchReading();
       lastFetch = millis();
     }
-  } else if (WIFI_SSID[0]) {
+  } else if (!setupMode) {
     message = "Sin Wi-Fi";
+    // Recover from wrong credentials at boot without having to recompile or use USB.
+    if (!hasConnected && millis() >= 60000) startProvisioning();
   }
   if (millis() - lastRender >= 1000) {
     render();

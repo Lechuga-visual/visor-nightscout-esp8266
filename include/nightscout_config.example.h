@@ -1,6 +1,8 @@
 #pragma once
 
-// Copy to include/nightscout_config.h locally. That file is excluded from Git.
+// Optional compile-time defaults. Without a private config, the device starts
+// a password-protected setup Wi-Fi and asks for these values in its web page.
+// If needed, copy to include/nightscout_config.h locally (excluded from Git).
 constexpr char WIFI_SSID[] = "";
 constexpr char WIFI_PASSWORD[] = "";
 constexpr char DEVICE_HOSTNAME[] = "glucosa-display";
@@ -10,7 +12,7 @@ constexpr char DEVICE_HOSTNAME[] = "glucosa-display";
 constexpr char DEFAULT_NIGHTSCOUT_URL[] = "http://192.168.1.100:8000";
 
 constexpr char WEB_USERNAME[] = "admin";
-// Choose your own password (12 or more characters). Empty disables the web UI/OTA.
+// 12+ characters. Leave empty to choose a password through first-boot setup.
 constexpr char WEB_PASSWORD[] = "";
 
 // Optional read-only Nightscout access token. Leave blank for the simulator.
