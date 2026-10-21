@@ -1,9 +1,9 @@
 {
-  "version": "0.4.1",
-  "file": "nightscout-d1-mini-v0.4.1.bin",
-  "sha256": "dc6c2e64abd376b20ecba1958cd35797e085ded54509fff689db7e93d42df73b",
-  "size_bytes": 658192,
-  "source_commit": "9a00e8684f14f488ecc62a78bae221cdfc37a4d8",
+  "version": "0.5.0",
+  "file": "nightscout-d1-mini-v0.5.0.bin",
+  "sha256": "6ad0dff49c61c4f4a8470e660e396d1efb17fb956159baefbb5db647e1f08170",
+  "size_bytes": 674000,
+  "source_commit": "7ee0affd69684fe0477460c461df169af51d0bb6",
   "board": "d1_mini",
   "mcu": "ESP8266",
   "flash_size_bytes": 4194304,
@@ -20,14 +20,16 @@
     "method": "Original PlatformIO builder with verified upstream packages and local cloud overrides"
   },
   "memory": {
-    "static_ram_bytes": 38460,
-    "application_flash_bytes": 654035,
+    "static_ram_bytes": 39524,
+    "application_flash_bytes": 669855,
     "request_stack_frame_bytes": 304,
-    "json_parser_stack_frame_bytes": 448
+    "json_parser_wrapper_stack_frame_bytes": 32,
+    "json_parser_core_stack_frame_bytes": 496,
+    "dashboard_state_stack_frame_bytes": 368
   },
   "private_compile_time_configuration": false,
   "validation": {
-    "tests_passed": 14,
+    "tests_passed": 16,
     "tests_skipped": 0,
     "boot_checksum": "valid",
     "arduino_full_image_crc": "valid",
@@ -38,8 +40,11 @@
     "clock_checks": "6 native groups: Wi-Fi startup, retry intervals, reconnect/manual retry, millis wraparound, browser epoch validation, HTTP Date validation",
     "pinned_tls": "Real OpenSSL/BearSSL TLS 1.2 handshakes: matching RSA, P-256, P-384 and P-521 keys accepted without clock/CA despite expired self-signed certificates; different keys rejected",
     "pin_export": "Verified TLS export succeeds; expired, untrusted and wrong-host certificates rejected",
-    "request_stack": "Compiled Xtensa prologue verified: TLS request frame 304 bytes, JSON parser frame 448 bytes; request frame previously 2240 bytes",
-    "browser_flow": "Firmware compiled; stale POSTs still rejected before validation, successful server saves return confirmation, TLS waits for the browser connection to close plus 3 seconds of inactivity; physical browser/device checks pending"
+    "request_stack": "Compiled Xtensa prologues inspected: request 304 bytes, streamed parser core 496 bytes plus 32-byte wrapper, dashboard state 368 bytes",
+    "browser_flow": "Chromium on synthetic local preview: desktop/mobile, low/high/old/no-clock/empty/error states, retained offline reading, safe rendering of untrusted text; physical device checks pending",
+    "reading_history": "6 native groups: freshness, 25-point sorted/bucketed history, two-hour plot and gaps, streamed 145-entry JSON with large ignored fields, invalid/empty readings, newest entry/trends",
+    "web_assets": "Checked-in gzip flash assets verified against HTML/CSS/JS sources",
+    "external_api_smoke_test": "Nightscout SGV v1 returned HTTP 200 for count=145, compatible history schema and Date header; no glucose values retained"
   },
   "setup": {
     "ssid": "glucosa-XXXXXX",
@@ -58,5 +63,16 @@
     "optional": "Explicit server public-key pin; TLS proof of key possession without CA chain/hostname/certificate date checks",
     "server_pin_embedded": false,
     "clock_bootstrap": "Fresh HTTP Date after a successful pinned HTTPS request only; never from a glucose reading or unverified HTTP"
+  },
+  "interface": {
+    "style": "dark high contrast",
+    "history_hours": 2,
+    "source_entries_max": 145,
+    "history_points_max": 25,
+    "history_bucket_minutes": 5,
+    "web_refresh_seconds": 5,
+    "nightscout_poll_seconds": 30,
+    "web_authentication": "Existing device administrator credentials",
+    "assets": "Gzip in PROGMEM; no filesystem image or external browser dependencies"
   }
 }
