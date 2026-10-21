@@ -1,9 +1,9 @@
 {
-  "version": "0.5.2",
-  "file": "nightscout-d1-mini-v0.5.2.bin",
-  "sha256": "16a78ce66702e347f84862d538a7896f7cd613315b5b328a11bc3e9ba0b063b9",
-  "size_bytes": 681120,
-  "source_commit": "e8ccbc5376f477c0470f9bc26ec2522176799f2c",
+  "version": "0.6.0",
+  "file": "nightscout-d1-mini-v0.6.0.bin",
+  "sha256": "4cbd3e67ced47f00185a7740db5f9382bd9e56f1c882cfd5315ed4724f58e1f8",
+  "size_bytes": 695056,
+  "source_commit": "628c7ad769f387b9ddc4c0dfebc8bda19e7d7966",
   "board": "d1_mini",
   "mcu": "ESP8266",
   "flash_size_bytes": 4194304,
@@ -20,19 +20,21 @@
     "method": "Original PlatformIO builder with verified upstream packages and local cloud overrides"
   },
   "memory": {
-    "static_ram_bytes": 37632,
-    "application_flash_bytes": 676971,
+    "static_ram_bytes": 37764,
+    "application_flash_bytes": 690907,
     "request_stack_frame_bytes": 336,
     "json_parser_wrapper_stack_frame_bytes": 112,
     "json_parser_core_stack_frame_bytes": 448,
-    "dashboard_state_stack_frame_bytes": 432,
-    "display_stack_frame_bytes": 352,
-    "static_ram_saved_from_v051_bytes": 3088,
-    "dashboard_document_capacity_bytes": 1792
+    "dashboard_state_stack_frame_bytes": 576,
+    "display_stack_frame_bytes": 320,
+    "static_ram_saved_from_v051_bytes": 2956,
+    "dashboard_document_capacity_bytes": 2048,
+    "appearance_save_stack_frame_bytes": 208,
+    "static_ram_increase_from_v052_bytes": 132
   },
   "private_compile_time_configuration": false,
   "validation": {
-    "tests_passed": 10,
+    "tests_passed": 11,
     "tests_skipped": 0,
     "boot_checksum": "valid",
     "arduino_full_image_crc": "valid",
@@ -43,13 +45,14 @@
     "clock_checks": "6 native groups: Wi-Fi startup, retry intervals, reconnect/manual retry, millis wraparound, browser epoch validation, HTTP Date validation",
     "pinned_tls": "Real OpenSSL/BearSSL TLS 1.2 handshakes: matching RSA, P-256, P-384 and P-521 keys accepted without clock/CA despite expired self-signed certificates; different keys rejected",
     "pin_export": "Verified TLS export succeeds; expired, untrusted and wrong-host certificates rejected",
-    "request_stack": "Compiled Xtensa prologues inspected: request 336 bytes, streamed parser core 448 plus 112-byte wrapper, dashboard state 432, render 352 bytes; HTTP body buffer remains heap allocated",
-    "browser_flow": "Previous desktop/mobile patient-name checks unchanged; current generated gzip assets verified against updated 30-minute HTML; physical device checks pending",
+    "request_stack": "Compiled Xtensa prologues inspected: request 336 bytes, streamed parser core 448 plus 112-byte wrapper, dashboard state 576, render 320, appearance save 208 bytes; no framebuffer",
+    "browser_flow": "Request interception without HTTP server: 3 modes x 5 themes on desktop/mobile; all seven trend directions and unknown, low/high/old/no-clock/empty/error, custom contrast, authenticated CSRF mode-save payloads and rejected-session handling, safe name text and offline retention; actual ESP8266 HTTP/EEPROM/SPI/OTA checks pending",
     "reading_history": "6 native groups updated for 30 minutes: freshness, 7-point sorted/bucketed history, plot boundaries and gaps, streamed 31-entry JSON with large ignored fields, invalid/empty readings, newest entry/trends",
     "web_assets": "Checked-in gzip flash assets verified against HTML/CSS/JS sources",
-    "external_api_smoke_test": "Real Nightscout v1 count=31 returned HTTP 200 with 9492 bytes; native complete-body decoder and JSON parser accepted all 31 entries with identity and re-framed chunked transport; no glucose values retained; physical ESP8266 validation pending",
+    "external_api_smoke_test": "Last live API check in v0.5.2: count=31 returned HTTP 200, 9492 bytes accepted by native body/JSON decoder with identity and re-framed chunked transport. Fetch/TLS/parser behavior unchanged in v0.6.0; no glucose values retained",
     "http_body": "5 native groups: identity/content length, chunked framing/extensions/trailers, fragmented and short reads, truncation/trailing data, malformed chunks/body limits, raw-chunk regression and precise parser stages",
-    "patient_name": "Original 3732-byte settings layout and trust-key offset unchanged; tagged EEPROM name extension, erased storage rejection, bounded UTF-8 validation and Spanish display transliteration tested"
+    "patient_name": "Original 3732-byte settings layout and trust-key offset unchanged; tagged EEPROM name extension, erased storage rejection, bounded UTF-8 validation and Spanish display transliteration tested",
+    "appearance": "3 native groups: tagged 20-byte extension at EEPROM offset 3836, old server/token/key/name preserved, erased storage defaults, partial mode updates, atomic rejection, presets/custom colors and contrast after RGB565 quantization"
   },
   "setup": {
     "ssid": "glucosa-XXXXXX",
@@ -77,11 +80,36 @@
     "history_bucket_minutes": 5,
     "web_refresh_seconds": 5,
     "nightscout_poll_seconds": 30,
-    "web_authentication": "Existing device administrator credentials",
-    "assets": "Gzip in PROGMEM; no filesystem image or external browser dependencies",
+    "web_authentication": "Existing administrator credentials; per-boot CSRF nonce required for POST /appearance",
+    "assets": "Four gzip PROGMEM resources; no filesystem upload, framebuffer or external browser dependencies",
     "patient_name_characters_max": 24,
     "patient_name_storage": "Tagged 104-byte EEPROM extension after the unchanged v3 settings; empty label uses NIGHTSCOUT",
-    "history_minutes": 30
+    "history_minutes": 30,
+    "view_modes": [
+      "30-minute graph",
+      "large number with lateral arrow",
+      "centered large number with lower arrow"
+    ],
+    "themes": [
+      "mint",
+      "red",
+      "blue",
+      "pink",
+      "cyan",
+      "custom"
+    ],
+    "custom_colors": [
+      "accent and arrow",
+      "display background",
+      "normal reading number"
+    ],
+    "appearance_storage": {
+      "offset": 3836,
+      "bytes": 20,
+      "tagged": true,
+      "existing_settings_layout_unchanged": true
+    },
+    "patient_name_header": "Larger and lower in all modes; TFT font 2 centered at y=43; web 14px at baseline y=47; long labels fit available width"
   },
   "http_body": {
     "buffer_bytes": 512,
