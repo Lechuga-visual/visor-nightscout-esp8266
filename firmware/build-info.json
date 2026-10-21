@@ -1,9 +1,9 @@
 {
-  "version": "0.4.0",
-  "file": "nightscout-d1-mini-v0.4.0.bin",
-  "sha256": "cf29cb763cf1adae713584bc0c09495725d6435fa77312895d8d4a5495dded95",
-  "size_bytes": 656352,
-  "source_commit": "38968924e71f5b54f9c9236383eb2b32bdf84bb4",
+  "version": "0.4.1",
+  "file": "nightscout-d1-mini-v0.4.1.bin",
+  "sha256": "dc6c2e64abd376b20ecba1958cd35797e085ded54509fff689db7e93d42df73b",
+  "size_bytes": 658192,
+  "source_commit": "9a00e8684f14f488ecc62a78bae221cdfc37a4d8",
   "board": "d1_mini",
   "mcu": "ESP8266",
   "flash_size_bytes": 4194304,
@@ -20,8 +20,10 @@
     "method": "Original PlatformIO builder with verified upstream packages and local cloud overrides"
   },
   "memory": {
-    "static_ram_bytes": 38160,
-    "application_flash_bytes": 652207
+    "static_ram_bytes": 38460,
+    "application_flash_bytes": 654035,
+    "request_stack_frame_bytes": 304,
+    "json_parser_stack_frame_bytes": 448
   },
   "private_compile_time_configuration": false,
   "validation": {
@@ -36,7 +38,8 @@
     "clock_checks": "6 native groups: Wi-Fi startup, retry intervals, reconnect/manual retry, millis wraparound, browser epoch validation, HTTP Date validation",
     "pinned_tls": "Real OpenSSL/BearSSL TLS 1.2 handshakes: matching RSA, P-256, P-384 and P-521 keys accepted without clock/CA despite expired self-signed certificates; different keys rejected",
     "pin_export": "Verified TLS export succeeds; expired, untrusted and wrong-host certificates rejected",
-    "external_api_smoke_test": "Nightscout v1 returned HTTP 200 without token and a Date header; compatible SGV JSON; no glucose values retained"
+    "request_stack": "Compiled Xtensa prologue verified: TLS request frame 304 bytes, JSON parser frame 448 bytes; request frame previously 2240 bytes",
+    "browser_flow": "Firmware compiled; stale POSTs still rejected before validation, successful server saves return confirmation, TLS waits for the browser connection to close plus 3 seconds of inactivity; physical browser/device checks pending"
   },
   "setup": {
     "ssid": "glucosa-XXXXXX",
