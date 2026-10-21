@@ -1,0 +1,98 @@
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  let snapshot = null, receivedAt = 0, browserOnline = false, timer = 0, busy = false;
+  const labels = {normal:'En intervalo',low:'Por debajo de 70',high:'Por encima de 180',old:'Lectura antigua',clock:'Hora sin sincronizar',error:'Última lectura disponible',empty:'Sin lecturas'};
+  const elapsed = () => Math.max(0, Math.floor((performance.now() - receivedAt) / 1000));
+  const ageText = seconds => seconds < 60 ? 'Hace menos de 1 min' : `Hace ${Math.floor(seconds / 60)} min`;
+  function text(id, value) { $(id).textContent = value; }
+  function drawGraph(plot) {
+    const grid = $('graph-grid'), dots = $('history-dots');
+    grid.replaceChildren(); dots.replaceChildren();
+    let path = '';
+    if (plot && plot.high > plot.low) {
+      for (const value of [70,180]) {
+        if (value < plot.low || value > plot.high) continue;
+        const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+        const y = 148 + (plot.high - value) * 30 / (plot.high - plot.low);
+        for (const [key,v] of Object.entries({x1:38,x2:202,y1:y,y2:y,class:'graph-grid'})) line.setAttribute(key,v);
+        grid.append(line);
+      }
+      for (const point of plot.points || []) {
+        const x = 38 + point[0] * 164 / 1000, y = 148 + point[1] * 30 / 1000;
+        path += `${point[2] ? 'M':'L'}${x.toFixed(2)} ${y.toFixed(2)} `;
+        const dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
+        for (const [key,value] of Object.entries({cx:x,cy:y,r:1.1,class:'history-dot'})) dot.setAttribute(key,value);
+        dots.append(dot);
+      }
+    }
+    $('history-path').setAttribute('d',path);
+    $('graph-empty').hidden = Boolean(path);
+    $('graph-empty').style.display = path ? 'none' : '';
+    text('graph-empty', snapshot && !snapshot.clock_valid ? 'Hora sin sincronizar' : 'Esperando historial');
+  }
+  function render() {
+    if (!snapshot) return;
+    const s = snapshot;
+    const hasReading = s.available && Number.isFinite(s.glucose);
+    const age = hasReading && Number.isFinite(s.age_seconds) ? s.age_seconds + elapsed() : null;
+    const old = age !== null && age >= 600;
+    let tone = hasReading ? (labels[s.tone] ? s.tone : 'error') : 'empty';
+    if (old) tone = 'old'; else if (!browserOnline && hasReading) tone = 'error';
+    $('dial').dataset.tone = tone;
+    const number = hasReading ? String(s.glucose) : '---';
+    text('glucose',number);
+    $('glucose').style.fontSize = number.length > 3 ? '48px' : '64px';
+    text('trend',hasReading ? s.trend_symbol : '—');
+    text('trend-label',hasReading ? s.trend_label : 'Sin tendencia');
+    const ageLabel = !hasReading ? 'Sin lecturas' : age === null ? 'Hora sin sincronizar' : ageText(age);
+    text('age',old ? `ANTIGUA · ${ageLabel}` : ageLabel);
+    text('age-detail',ageLabel);
+    text('reading-state',labels[tone]);
+    text('server-status',s.message || 'Esperando consulta');
+    text('dial-status',browserOnline ? (s.message || '').slice(0,25) : 'Sin conexión al visor');
+    text('dial-ip',s.ip || 'Sin Wi-Fi');
+    text('device-ip',s.ip || '—');
+    text('version',s.firmware);
+    text('wifi',s.wifi_connected ? `Conectado · ${s.rssi_dbm} dBm` : 'Desconectado');
+    text('checked-age',Number.isFinite(s.checked_seconds_ago) ? ageText(s.checked_seconds_ago + elapsed()) : 'Aún sin consultar');
+    text('reading-time',hasReading ? new Date(s.reading_date_ms).toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'}) : '—');
+    text('dial-brand',s.synthetic ? 'DEMO · DATOS FICTICIOS' : 'NIGHTSCOUT');
+    $('demo').hidden = !s.synthetic;
+    $('dial').setAttribute('aria-label',hasReading ? `${s.glucose} miligramos por decilitro. ${s.trend_label}. ${ageLabel}` : 'Sin lecturas');
+    const connection = $('connection');
+    connection.className = 'connection-pill ' + (browserOnline ? 'online' : 'offline');
+    connection.replaceChildren(Object.assign(document.createElement('i'),{}),document.createTextNode(browserOnline ? 'Conectado al Wemos' : 'Wemos sin respuesta'));
+  }
+  async function refresh() {
+    if (busy) return;
+    clearTimeout(timer);
+    if (document.hidden) { timer = setTimeout(refresh,5000); return; }
+    busy = true; $('refresh').disabled = true;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(),9000);
+    try {
+      const response = await fetch('/api/state',{cache:'no-store',credentials:'same-origin',signal:controller.signal});
+      if (!response.ok) throw new Error(response.status === 401 ? 'Vuelve a iniciar sesión en el Wemos.' : 'El Wemos no pudo entregar su estado.');
+      const data = await response.json();
+      if (typeof data.available !== 'boolean') throw new Error('Recarga la página después de actualizar el firmware.');
+      snapshot = data; receivedAt = performance.now(); browserOnline = true;
+      $('network-notice').hidden = true;
+      text('viewer-status','Visor conectado · se actualiza cada 5 s');
+      drawGraph(data.plot);
+    } catch (error) {
+      browserOnline = false;
+      text('network-notice',error.name === 'AbortError' ? 'El Wemos tardó en responder. El visor reintentará automáticamente; conserva la última lectura recibida.' : error.message);
+      $('network-notice').hidden = false;
+      text('viewer-status','Sin respuesta del Wemos · reintentando');
+      if (!snapshot) { text('connection','Wemos sin respuesta'); $('connection').className = 'connection-pill offline'; }
+    } finally {
+      clearTimeout(timeout); busy = false; $('refresh').disabled = false;
+      render(); timer = setTimeout(refresh,5000);
+    }
+  }
+  $('refresh').addEventListener('click',refresh);
+  document.addEventListener('visibilitychange',() => { if (!document.hidden) refresh(); });
+  setInterval(render,1000);
+  refresh();
+})();

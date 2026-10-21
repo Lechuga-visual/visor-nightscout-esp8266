@@ -18,7 +18,7 @@ PAGE = """<!doctype html><html lang="es"><meta charset="utf-8">
 <style>body{font:18px system-ui;max-width:650px;margin:40px auto;padding:20px}
 select,button{font:inherit;padding:8px}pre{white-space:pre-wrap}</style>
 <h1>Simulador Nightscout</h1><p><strong>DATOS FICTICIOS PARA PRUEBAS</strong></p>
-<p>El Wemos consulta <code>/api/v1/entries.json?count=1</code>.
+<p>El Wemos consulta <code>/api/v1/entries/sgv.json?count=145</code> para la lectura y su gráfica.
 Los valores se expresan en mg/dL.</p>
 <form id="form"><label>Escenario <select id="scenario">
 OPTIONS</select></label> <button>Aplicar</button></form>

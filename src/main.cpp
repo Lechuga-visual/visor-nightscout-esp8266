@@ -17,6 +17,8 @@
 #include "device_settings.h"
 #include "public_ca_store.h"
 #include "pinned_key.h"
+#include "reading_json.h"
+#include "generated/web_assets.h"
 
 #if __has_include("nightscout_config.h")
 #include "nightscout_config.h"
@@ -25,9 +27,8 @@
 #endif
 
 namespace {
-constexpr char VERSION[] = "0.4.1";
+constexpr char VERSION[] = "0.5.0";
 constexpr uint32_t POLL_MS = 30000;
-constexpr time_t VALID_CLOCK = device_clock::EARLIEST_UNIX;
 TFT_eSPI display;
 ESP8266WebServer web(80);
 ESP8266HTTPUpdateServer updater;
@@ -72,6 +73,8 @@ struct Reading {
   int64_t dateMs = 0;
   String direction;
 } reading;
+reading_ui::History history;
+uint32_t historyVersion = 0;
 
 String htmlEscape(String value) {
   value.replace("&", "&amp;");
@@ -114,9 +117,9 @@ bool persistSettings(const device_config::Settings& candidate) {
   return true;
 }
 
-bool authenticated() {
-  webRecentlyUsed = true;
-  lastWebActivity = millis();
+bool authenticated(bool interactive = true) {
+  // Read-only dashboard polling must not postpone Nightscout indefinitely.
+  if (interactive) { webRecentlyUsed = true; lastWebActivity = millis(); }
   web.sendHeader("Cache-Control", "no-store");
   if (!webEnabled) {
     web.send(503, "text/plain; charset=utf-8", "Completa primero la configuracion inicial.");
@@ -143,7 +146,7 @@ bool currentForm() {
            "Puede haber ocurrido un reinicio o una actualización mientras estaba abierta. "
            "La solicitud fue rechazada antes de validar el certificado o la clave y no cambió la configuración.</p>"
            "<p><a href='/'>Abrir página actualizada</a></p>"
-           "<p>Vuelve a pegar la clave pública y pulsa Guardar servidor. No uses Atrás para recuperar el formulario.</p>"));
+           "<p>En Ajustes, vuelve a pegar la clave pública y pulsa Guardar servidor. No uses Atrás para recuperar el formulario.</p>"));
   return false;
 }
 
@@ -204,7 +207,7 @@ void retryNtp() {
   if (!clockRequestAllowed()) return;
   startNtp();
   attemptedFetch = false;
-  web.sendHeader("Location", "/");
+  web.sendHeader("Location", "/settings");
   web.send(303);
 }
 
@@ -300,11 +303,11 @@ void configurationPage() {
   web.sendHeader("Cache-Control", "no-store");
   String page = F("<!doctype html><html lang='es'><meta charset='utf-8'>"
                   "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-                  "<title>Configurar pantalla</title><style>body{font:18px system-ui;"
-                  "max-width:650px;margin:25px auto;padding:20px}label{display:block;margin:15px 0}"
-                  "input{box-sizing:border-box;width:100%;font:inherit;padding:8px}button{font:inherit;padding:10px}"
-                  "</style><h1>Configurar pantalla</h1><p>Guarda tu red Wi-Fi de 2,4 GHz y el servidor de datos.</p>"
-                  "<form method='post' action='/configure'><label>Nombre de tu Wi-Fi (SSID)"
+                  "<meta name='color-scheme' content='dark'><link rel='stylesheet' href='/assets/ui.css'>"
+                  "<title>Configurar pantalla</title><main class='settings'><a class='back' href='/'>← Volver al panel</a>"
+                  "<p class='eyebrow'>TU DISPOSITIVO</p><h1>Configurar pantalla</h1>"
+                  "<p class='intro'>Guarda tu red Wi-Fi de 2,4 GHz y el servidor de datos.</p>"
+                  "<form class='card' method='post' action='/configure'><label>Nombre de tu Wi-Fi (SSID)"
                   "<input name='ssid' maxlength='32' required value='");
   page += htmlEscape(settings.ssid);
   page += F("'></label><label>Contraseña de tu Wi-Fi"
@@ -319,7 +322,7 @@ void configurationPage() {
             "autocomplete='new-password'></label><input type='hidden' name='csrf' value='");
   page += csrf;
   page += F("'><button>Guardar y reiniciar</button></form>"
-            "<p>Las contraseñas se guardan en el Wemos. No se muestran en esta página.</p></html>");
+            "<p>Las contraseñas se guardan en el Wemos. No se muestran en esta página.</p></main></html>");
   web.send(200, "text/html; charset=utf-8", page);
 }
 
@@ -390,30 +393,32 @@ void startProvisioning() {
   lastFrame = "";
 }
 
-void homePage() {
-  if (setupMode) { configurationPage(); return; }
+void settingsPage() {
   if (!authenticated()) return;
   String page = F("<!doctype html><html lang='es'><meta charset='utf-8'>"
                   "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-                  "<title>Pantalla de glucosa</title><style>body{font:18px system-ui;"
-                  "max-width:650px;margin:30px auto;padding:20px}input{width:95%;padding:8px}"
-                  "button{padding:10px;margin-top:10px}</style><h1>Pantalla de glucosa</h1>");
+                  "<meta name='color-scheme' content='dark'><link rel='stylesheet' href='/assets/ui.css'>"
+                  "<title>Ajustes · Glucosa</title><main class='settings'><a class='back' href='/'>← Volver al panel</a>"
+                  "<p class='eyebrow'>TU DISPOSITIVO</p><h1>Ajustes</h1>"
+                  "<p class='intro'>Conexión, servidor y mantenimiento de tu pantalla.</p><section class='card'>");
   page += "<p>Firmware " + String(VERSION) + " · IP " + WiFi.localIP().toString() + "</p>";
   page += "<p>Sesión " + String(bootId, HEX) + " · encendido hace " + String(millis() / 1000) + " s</p>";
   page += "<p>Estado: " + htmlEscape(message) + "</p>";
   page += "<p>Wi-Fi: " + String(WiFi.RSSI()) + " dBm · desconexiones: " + String(wifiDisconnects) +
           " · último motivo: " + String(lastWifiReason) + "</p>";
-  appendClockControls(page);
-  page += F("<form method='post' action='/settings'>");
+  page += F("</section><form class='card' method='post' action='/settings'><h2>Servidor de lecturas</h2>");
   appendServerFields(page);
   page += "<input type='hidden' name='csrf' value='" + csrf + "'>";
-  page += F("<button>Guardar servidor</button></form>"
+  page += F("<button>Guardar servidor</button>"
             "<p>Usa la IP del computador que ejecuta el simulador, por ejemplo "
-            "<code>http://192.168.1.100:8000</code>.</p>");
+            "<code>http://192.168.1.100:8000</code>.</p></form><section class='card'>");
+  appendClockControls(page);
   if (!storageReady) page += F("<p>No se puede guardar la URL: EEPROM no esta disponible.</p>");
-  page += F("<p><a href='/configure'>Configurar Wi-Fi y contraseñas</a></p>"
-            "<p><a href='/update'>Actualizar firmware (.bin)</a> · <a href='/diagnostics'>Diagnóstico</a></p>"
-            "<p>Actualizaciones disponibles solo para uso en una red local de confianza.</p></html>");
+  page += F("</section><section class='card'><h2>Mantenimiento</h2><div class='actions'>"
+            "<a class='button secondary' href='/configure'>Wi-Fi y contraseñas</a>"
+            "<a class='button secondary' href='/firmware'>Actualizar firmware</a>"
+            "<a class='button secondary' href='/diagnostics'>Diagnóstico</a></div>"
+            "<p>Utiliza la administración y las actualizaciones en tu red local de confianza.</p></section></main></html>");
   web.send(200, "text/html; charset=utf-8", page);
 }
 
@@ -441,6 +446,8 @@ void saveSettings() {
   }
   baseUrl = candidate;
   reading.available = false;
+  history.count = 0;
+  ++historyVersion;
   attemptedFetch = false;
   message = "Servidor cambiado";
   lastOperation = "settings_saved";
@@ -454,45 +461,32 @@ void saveSettings() {
 }
 
 __attribute__((noinline)) void parseReading(HTTPClient& http) {
-  // Do not reserve a ~2 KB JSON frame for the entire TLS request. ESP8266's
-  // continuation stack is only 4 KB, shared with DNS, TCP and client wrappers.
-  DynamicJsonDocument document(768);
-  if (document.capacity() == 0) { message = "Sin memoria para JSON"; return; }
-  // Other Nightscout plugins may add large fields that the display does not need.
-  StaticJsonDocument<192> filter;
-  filter[0]["sgv"] = true;
-  filter[0]["date"] = true;
-  filter[0]["direction"] = true;
-  filter[0]["synthetic"] = true;
-  const auto error = deserializeJson(document, http.getStream(), DeserializationOption::Filter(filter));
-  if (error || !document.is<JsonArray>()) {
-    message = "JSON invalido";
-    return;
-  }
-  if (document.size() == 0) {
+  std::unique_ptr<reading_ui::ParsedReadings> parsed(new (std::nothrow) reading_ui::ParsedReadings);
+  if (!parsed) { message = "Sin memoria para historial"; return; }
+  const auto result = reading_ui::parseEntries(http.getStream(), static_cast<int64_t>(time(nullptr)), *parsed);
+  if (result == reading_ui::ParseResult::Empty) {
     reading.available = false;
+    history.count = 0;
+    ++historyVersion;
     message = "Servidor sin lecturas";
     return;
   }
-  JsonObject entry = document[0];
-  const int value = entry["sgv"] | 0;
-  const int64_t date = entry["date"].as<int64_t>();
-  const time_t now = time(nullptr);
-  if (value <= 0 || value > 1000 || date < static_cast<int64_t>(VALID_CLOCK) * 1000 ||
-      (now >= VALID_CLOCK && date > (static_cast<int64_t>(now) + 300) * 1000)) {
-    message = "Lectura invalida";
+  if (result != reading_ui::ParseResult::Ok) {
+    message = result == reading_ui::ParseResult::NoMemory ? "Sin memoria para JSON" : "JSON invalido";
     return;
   }
+  history = parsed->history;
+  ++historyVersion;
   reading.available = true;
-  reading.sgv = value;
-  reading.dateMs = date;
-  reading.direction = String(entry["direction"] | "NONE").substring(0, 24);
-  reading.synthetic = entry["synthetic"] | false;
+  reading.sgv = parsed->value;
+  reading.dateMs = parsed->date;
+  reading.direction = parsed->direction;
+  reading.synthetic = parsed->synthetic;
   message = "Conectado";
 }
 
 void fetchReading() {
-  String endpoint = baseUrl + "/api/v1/entries.json?count=1";
+  String endpoint = baseUrl + "/api/v1/entries/sgv.json?count=145";
   const bool https = baseUrl.startsWith("https://");
   const bool pinned = device_config::pinnedPublicKey(settings.customCa);
   // Avoid allocating the TLS stack and buffers until a connection is possible.
@@ -578,6 +572,81 @@ void fetchReading() {
   lastOperation = "request_finished";
 }
 
+void sendAsset(const char* type, const unsigned char* data, size_t length) {
+  if (!setupMode && !authenticated(false)) return;
+  web.sendHeader("Cache-Control", "no-store");
+  web.sendHeader("Content-Encoding", "gzip");
+  web.send_P(200, type, reinterpret_cast<const char*>(data), length);
+}
+
+void homePage() {
+  if (setupMode) { configurationPage(); return; }
+  if (!authenticated()) return;
+  sendAsset("text/html; charset=utf-8", web_assets::index_html, sizeof(web_assets::index_html));
+}
+
+void statePage() {
+  if (!authenticated(false)) return;
+  DynamicJsonDocument document(3072);
+  if (!document.capacity()) { web.send(503, "text/plain", "Sin memoria para el visor"); return; }
+  const auto now = static_cast<int64_t>(time(nullptr));
+  const auto age = reading_ui::ageSeconds(reading.available, reading.dateMs, now);
+  const auto style = reading_ui::tone(reading.available, reading.sgv, age,
+                                    WiFi.status() == WL_CONNECTED && message == "Conectado");
+  const auto trend = reading_ui::trend(reading.direction.c_str());
+  document["firmware"] = VERSION;
+  document["available"] = reading.available;
+  if (reading.available) {
+    document["glucose"] = reading.sgv;
+    document["reading_date_ms"] = reading.dateMs;
+  } else {
+    document["glucose"] = nullptr;
+    document["reading_date_ms"] = nullptr;
+  }
+  if (age >= 0) document["age_seconds"] = age;
+  else document["age_seconds"] = nullptr;
+  document["tone"] = reading_ui::toneName(style);
+  document["trend_symbol"] = trend.symbol;
+  document["trend_label"] = trend.label;
+  document["synthetic"] = reading.available && reading.synthetic;
+  document["clock_valid"] = device_clock::plausible(now);
+  document["message"] = message;
+  document["wifi_connected"] = WiFi.status() == WL_CONNECTED;
+  document["rssi_dbm"] = WiFi.RSSI();
+  document["ip"] = WiFi.localIP().toString();
+  if (attemptedFetch) document["checked_seconds_ago"] = (millis() - lastFetch) / 1000;
+  else document["checked_seconds_ago"] = nullptr;
+  const auto plot = reading_ui::plot(history, now);
+  JsonObject graph = document.createNestedObject("plot");
+  graph["low"] = plot.low;
+  graph["high"] = plot.high;
+  JsonArray points = graph.createNestedArray("points");
+  for (size_t i = 0; i < plot.count; ++i) {
+    JsonArray point = points.createNestedArray();
+    point.add(plot.points[i].x);
+    point.add(plot.points[i].y);
+    point.add(plot.points[i].start);
+  }
+  if (document.overflowed()) { web.send(503, "text/plain", "Sin memoria para el visor"); return; }
+  String body;
+  if (!body.reserve(measureJson(document) + 1)) { web.send(503, "text/plain", "Sin memoria para el visor"); return; }
+  serializeJson(document, body);
+  web.send(200, "application/json", body);
+}
+
+void firmwarePage() {
+  if (!authenticated()) return;
+  web.send_P(200, PSTR("text/html; charset=utf-8"), PSTR(
+      "<!doctype html><html lang='es'><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>"
+      "<meta name='color-scheme' content='dark'><link rel='stylesheet' href='/assets/ui.css'>"
+      "<title>Actualizar · Glucosa</title><main class='settings'><a class='back' href='/'>← Volver al panel</a>"
+      "<p class='eyebrow'>MANTENIMIENTO</p><h1>Actualizar firmware</h1><p class='intro'>Instala una nueva versión desde tu red local.</p>"
+      "<form class='card' method='post' action='/update' enctype='multipart/form-data'><h2>Selecciona el archivo .bin</h2>"
+      "<label>Firmware para Wemos D1 mini<input type='file' name='firmware' accept='.bin' required></label>"
+      "<p>Los ajustes guardados se conservan. Mantén el Wemos conectado a la alimentación hasta que termine y se reinicie.</p>"
+      "<button>Instalar actualización</button></form><p>Utiliza el archivo de Firmware. No se necesita una imagen de FileSystem.</p></main></html>"));
+}
+
 void diagnostics() {
   if (!authenticated()) return;
   DynamicJsonDocument document(1024);
@@ -608,24 +677,25 @@ void diagnostics() {
   web.send(200, "application/json", body);
 }
 
-void drawTrend(uint16_t color) {
-  const String& direction = reading.direction;
-  int dx = 0, dy = 0;
-  if (direction == "Flat") dx = 22;
-  else if (direction == "SingleUp" || direction == "DoubleUp") dy = -22;
-  else if (direction == "SingleDown" || direction == "DoubleDown") dy = 22;
-  else if (direction == "FortyFiveUp") { dx = 16; dy = -16; }
-  else if (direction == "FortyFiveDown") { dx = 16; dy = 16; }
-  else { display.drawString("?", 120, 146, 4); return; }
-  for (int offset = -1; offset <= 1; ++offset) {
-    display.drawLine(120 - dx / 2 + offset, 147 - dy / 2,
-                     120 + dx / 2 + offset, 147 + dy / 2, color);
-    display.drawLine(120 + dx / 2, 147 + dy / 2,
-                     120 + dx / 2 - (dx + dy) / 3, 147 + dy / 2 - (dy - dx) / 3, color);
-    display.drawLine(120 + dx / 2, 147 + dy / 2,
-                     120 + dx / 2 - (dx - dy) / 3, 147 + dy / 2 - (dy + dx) / 3, color);
+uint16_t readingColor(reading_ui::Tone tone) {
+  switch (tone) {
+    case reading_ui::Tone::Normal: return 0x7777;
+    case reading_ui::Tone::Low: return 0xFC11;
+    case reading_ui::Tone::High: case reading_ui::Tone::Old: return 0xFDEE;
+    default: return 0x84F4;
   }
-  if (direction.startsWith("Double")) display.drawString("2x", 157, 147, 2);
+}
+
+void drawTrend(uint16_t color) {
+  const auto trend = reading_ui::trend(reading.direction.c_str());
+  if (!trend.dx && !trend.dy) { display.drawString("-", 188, 88, 4); return; }
+  const int dx = trend.dx * (trend.dy ? 16 : 22), dy = trend.dy * (trend.dx ? 16 : 22);
+  for (int offset = -1; offset <= 1; ++offset) {
+    display.drawLine(188 - dx / 2 + offset, 88 - dy / 2, 188 + dx / 2 + offset, 88 + dy / 2, color);
+    display.drawLine(188 + dx / 2, 88 + dy / 2, 188 + dx / 2 - (dx + dy) / 3, 88 + dy / 2 - (dy - dx) / 3, color);
+    display.drawLine(188 + dx / 2, 88 + dy / 2, 188 + dx / 2 - (dx - dy) / 3, 88 + dy / 2 - (dy + dx) / 3, color);
+  }
+  if (trend.doubled) display.drawString("2x", 188, 112, 1);
 }
 
 void render() {
@@ -650,35 +720,64 @@ void render() {
   }
   const time_t now = time(nullptr);
   const bool clockReady = device_clock::plausible(now);
-  const int64_t age = clockReady && reading.available
-                          ? max(static_cast<int64_t>(0), static_cast<int64_t>(now) - reading.dateMs / 1000)
-                          : 0;
+  const int64_t age = reading_ui::ageSeconds(reading.available, reading.dateMs, now);
   const bool stale = clockReady && reading.available && age >= 600;
   const String ageText = !reading.available ? "Sin lecturas" :
                          !clockReady ? "Hora sin sincronizar" :
                          "Hace " + String(static_cast<unsigned long>(age / 60)) + " min";
   String frame = String(reading.available) + reading.sgv + reading.direction + ageText +
-                 message + WiFi.localIP().toString() + String(reading.synthetic);
+                 message + WiFi.localIP().toString() + String(reading.synthetic) +
+                 String(historyVersion) + String(static_cast<uint32_t>(now / 60));
   if (frame == lastFrame) return;
   lastFrame = frame;
-  uint16_t color = reading.sgv < 70 || reading.sgv > 180 ? TFT_ORANGE : TFT_GREEN;
-  if (stale || !clockReady || message != "Conectado") color = TFT_LIGHTGREY;
-  display.fillScreen(TFT_BLACK);
-  display.drawCircle(120, 120, 116, stale ? TFT_ORANGE : TFT_DARKGREY);
+  const auto tone = reading_ui::tone(reading.available, reading.sgv, age,
+                                     WiFi.status() == WL_CONNECTED && message == "Conectado");
+  const uint16_t accent = readingColor(tone);
+  const uint16_t color = stale ? 0x84F4 : accent;
+  constexpr uint16_t background = 0x0882;
+  display.fillScreen(background);
+  display.drawCircle(120, 120, 115, accent);
+  display.drawCircle(120, 120, 114, accent);
   display.setTextDatum(MC_DATUM);
-  display.setTextColor(TFT_CYAN, TFT_BLACK);
-  display.drawString(reading.synthetic ? "DEMO - DATOS FICTICIOS" : "GLUCOSA", 120, 35, 2);
-  display.setTextColor(color, TFT_BLACK);
-  display.setTextSize(2);
-  display.drawString(reading.available ? String(reading.sgv) : "---", 120, 85, 4);
   display.setTextSize(1);
-  display.drawString("mg/dL", 120, 119, 2);
+  display.setTextColor(0xCEFB, background);
+  display.drawString(reading.available && reading.synthetic ? "DEMO - DATOS FICTICIOS" : "NIGHTSCOUT", 120, 28, 1);
+  display.setTextColor(0x84F4, background);
+  display.drawString("GLUCOSA", 120, 46, 1);
+  display.setTextColor(color, background);
+  display.setTextSize(reading.available && reading.sgv >= 1000 ? 2 : 3);
+  display.drawString(reading.available ? String(reading.sgv) : "---", 104, 88, 4);
+  display.setTextSize(1);
+  display.setTextColor(0x84F4, background);
+  display.drawString("mg/dL", 104, 124, 2);
+  display.setTextColor(color, background);
   if (reading.available) drawTrend(color);
-  display.setTextColor(stale ? TFT_ORANGE : TFT_WHITE, TFT_BLACK);
-  display.drawString(stale ? "LECTURA ANTIGUA" : ageText, 120, 174, 2);
-  display.drawString(message, 120, 195, 2);
+  const auto plot = reading_ui::plot(history, now);
+  display.setTextColor(0x740F, background);
+  display.drawString("-2 h", 50, 139, 1);
+  display.drawString("ahora", 188, 139, 1);
+  for (int value : {70, 180}) {
+    if (value < plot.low || value > plot.high) continue;
+    const int y = 148 + (plot.high - value) * 30 / (plot.high - plot.low);
+    for (int x = 38; x < 202; x += 5) display.drawFastHLine(x, y, 2, 0x3207);
+  }
+  for (size_t i = 0; i < plot.count; ++i) {
+    const int x = 38 + plot.points[i].x * 164 / 1000, y = 148 + plot.points[i].y * 30 / 1000;
+    if (i && !plot.points[i].start)
+      display.drawLine(38 + plot.points[i-1].x * 164 / 1000, 148 + plot.points[i-1].y * 30 / 1000, x, y, color);
+    display.fillCircle(x, y, 1, color);
+  }
+  if (!plot.count) {
+    display.setTextColor(0x84F4, background);
+    display.drawString(clockReady ? "Esperando historial" : "Hora sin sincronizar", 120, 163, 1);
+  }
+  display.fillRoundRect(30, 184, 180, 21, 10, stale ? 0x3143 : 0x1944);
+  display.setTextColor(stale ? 0xFDEE : 0xBF5A, stale ? 0x3143 : 0x1944);
+  display.drawString(stale ? "ANTIGUA: " + ageText : ageText, 120, 195, 2);
+  display.setTextColor(0x84F4, background);
+  display.drawString(message.length() > 23 ? message.substring(0,21) + ".." : message, 120, 213, 1);
   display.drawString(WiFi.status() == WL_CONNECTED ? WiFi.localIP().toString() :
-                     "Sin Wi-Fi (" + String(lastWifiReason) + ")", 120, 215, 2);
+                     "Sin Wi-Fi (" + String(lastWifiReason) + ")", 120, 226, 1);
 }
 }  // namespace
 
@@ -738,9 +837,14 @@ void setup() {
     message = "Conectando Wi-Fi";
   }
   web.on("/", HTTP_GET, homePage);
+  web.on("/api/state", HTTP_GET, statePage);
+  web.on("/assets/ui.css", HTTP_GET, [] { sendAsset("text/css; charset=utf-8", web_assets::ui_css, sizeof(web_assets::ui_css)); });
+  web.on("/assets/app.js", HTTP_GET, [] { sendAsset("application/javascript; charset=utf-8", web_assets::app_js, sizeof(web_assets::app_js)); });
   web.on("/configure", HTTP_GET, configurationPage);
   web.on("/configure", HTTP_POST, saveConfiguration);
   web.on("/settings", HTTP_POST, saveSettings);
+  web.on("/settings", HTTP_GET, settingsPage);
+  web.on("/firmware", HTTP_GET, firmwarePage);
   web.on("/clock/retry", HTTP_POST, retryNtp);
   web.on("/clock/browser", HTTP_POST, useBrowserClock);
   web.on("/diagnostics", HTTP_GET, diagnostics);

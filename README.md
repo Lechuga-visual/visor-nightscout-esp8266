@@ -72,7 +72,7 @@ conectarlo; la retroiluminación no está controlada por un GPIO en esta versió
 
 ### Binario listo para cargar
 
-Descarga [nightscout-d1-mini-v0.4.1.bin](firmware/nightscout-d1-mini-v0.4.1.bin)
+Descarga [nightscout-d1-mini-v0.5.0.bin](firmware/nightscout-d1-mini-v0.5.0.bin)
 desde la carpeta `firmware` (en GitHub utiliza **Download raw file**). Está
 compilado para **Wemos D1 mini ESP8266 con 4 MB de flash**, con los pines de la
 tabla anterior. No contiene datos privados ni requiere configurar el Wi-Fi
@@ -143,12 +143,44 @@ Desde la raíz del repositorio:
 La primera carga requiere USB. La pantalla muestra la IP del Wemos al conectarse.
 Consulta la API cada 30 segundos y presenta glucosa en mg/dL, flecha de tendencia,
 antigüedad y estado de conexión. Marca las lecturas simuladas con `DEMO` y las
-que tengan diez minutos o más con `LECTURA ANTIGUA`. Si falla una consulta,
+que tengan diez minutos o más con `ANTIGUA`. Si falla una consulta,
 conserva el último valor con el error visible. Sin una hora válida indica que
 la hora no está sincronizada; no asume que la lectura es reciente.
 
-Los colores naranja fuera de 70–180 mg/dL son valores de demostración fijados
-en esta versión. La pantalla todavía no incluye gráfica ni alarmas sonoras.
+La versión 0.5.0 incorpora un diseño oscuro de alto contraste y una mini gráfica
+de las últimas dos horas. El color de la lectura es menta entre 70–180 mg/dL,
+rojo por debajo y ámbar por encima. Ese intervalo visual está fijado en esta
+versión y no constituye una alarma personalizada. Las lecturas antiguas y los
+errores se distinguen por texto además del color. No hay alarmas sonoras.
+
+### La misma pantalla en la web
+
+Abre `http://IP_DEL_WEMOS/` e inicia sesión con tu usuario y contraseña de
+administración. El panel muestra la misma glucosa, tendencia, antigüedad,
+estado e historial de la pantalla redonda. Se adapta al teléfono y al computador.
+
+![Vista de escritorio con datos ficticios](docs/images/dashboard-desktop.png)
+
+El visor consulta el estado local del Wemos cada cinco segundos; el botón
+**Actualizar visor** también lee ese estado y no fuerza consultas adicionales
+a Nightscout. El Wemos conserva su intervalo de consulta de 30 segundos.
+Dejar el panel abierto no pospone las consultas a Nightscout. Si el navegador
+pierde contacto con el Wemos, conserva el último valor recibido, actualiza su
+antigüedad cuando se conoce y muestra que el dispositivo no responde. No se
+presenta como una lectura recién recibida.
+
+La gráfica usa hasta 25 puntos, guardando la muestra más reciente de cada
+bloque de cinco minutos. Se solicitan hasta 145 entradas y se decodifican una
+por una para cubrir dos horas incluso con sensores que envían cada minuto,
+sin guardar toda la respuesta JSON en RAM. Los huecos de más de 15 minutos no
+se unen con una línea. Si falta la hora o no hay historial reciente se indica
+en pantalla. El historial vive en RAM y se vuelve a obtener del servidor después
+de reiniciar; no produce escrituras adicionales en flash.
+
+El panel y `/api/state` requieren autenticación y no exponen el token Nightscout
+ni contraseñas. Los recursos web están comprimidos en la flash del firmware;
+funcionan sin servicios de fuentes, librerías externas ni cargas de FileSystem.
+La hora de lectura en el navegador se muestra en la zona horaria del teléfono/PC.
 
 ## 4. Cambiar el servidor y actualizar por web
 
@@ -156,7 +188,7 @@ En un navegador de tu misma red, abre `http://IP_DEL_WEMOS/` e ingresa las
 credenciales configuradas. También puedes probar `http://glucosa-display.local/`
 si tu red admite mDNS; usa la IP si no resuelve.
 
-La página permite guardar otra **URL base**, sin `/api/v1`, credenciales ni
+En **Ajustes** (`/settings`) puedes guardar otra **URL base**, sin `/api/v1`, credenciales ni
 parámetros. La URL se conserva en EEPROM emulada y se vuelve a consultar sin
 reiniciar. Guardar otra URL descarta la lectura del servidor anterior y conserva
 las claves de Wi-Fi y administración. También permite guardar un token de solo
@@ -177,12 +209,13 @@ valores anteriores. Este formulario requiere iniciar sesión y reinicia el Wemos
 Para actualizar:
 
 1. Descarga el `.bin` publicado o compila con `.venv/bin/pio run -e d1_mini`.
-2. En el Wemos abre `/update` con las mismas credenciales.
+2. En el Wemos pulsa **Actualizar** (`/firmware`) con las mismas credenciales.
 3. En **Firmware**, selecciona el `.bin` descargado o `.pio/build/d1_mini/firmware.bin` y súbelo.
 4. Espera el reinicio y comprueba la conexión, las lecturas y el acceso a la web.
 
 El actualizador incluido en el núcleo ESP8266 también ofrece un formulario
 **FileSystem**: no lo necesitas para este proyecto. No subas el firmware allí.
+La ruta anterior `/update` sigue disponible para compatibilidad.
 El modelo configurado es D1 mini con 4 MB de flash y espacio para OTA; confirma
 la capacidad si usas un clon. Un firmware demasiado grande se rechazará.
 
@@ -257,7 +290,7 @@ una CA privada, puedes añadir `--ca-file tu-ca.pem`. No obtengas la clave desde
 una conexión sin verificar ni desde un proxy que sustituya el certificado del
 servidor: estarías fijando la identidad equivocada.
 
-En el Wemos, abre **Seguridad HTTPS y opción sin NTP**, pega todo el contenido
+En el Wemos, abre **Ajustes → Seguridad HTTPS y opción sin NTP**, pega todo el contenido
 de `clave-servidor.pem` (desde `BEGIN PUBLIC KEY` hasta `END PUBLIC KEY`) y pulsa
 **Guardar servidor**, sin marcar la casilla de borrar. Desde 0.4.1 aparece la
 confirmación **Servidor guardado**, con el modo de autenticación elegido. El modo se reconoce por
@@ -288,7 +321,7 @@ Si aparece **Esperando hora NTP** o **Sin hora: abre la web**:
 
 1. Desde un teléfono o computador conectado a la misma red, abre
    `http://IP_DEL_WEMOS/` e inicia sesión con tus datos de administración.
-2. En **Hora del dispositivo**, comprueba el estado y pulsa **Reintentar NTP**.
+2. En **Ajustes → Hora del dispositivo**, comprueba el estado y pulsa **Reintentar NTP**.
 3. Si sigue sin sincronizar, comprueba que el teléfono/PC tenga la fecha y hora
    correctas, preferentemente automáticas, y pulsa **Usar hora de este teléfono/PC**.
 
@@ -324,7 +357,7 @@ la hora puede terminar antes de abrir la conexión al servidor.
 El código de sesión de los formularios cambia cada vez que arranca el Wemos.
 Una página abierta antes de un reinicio o una actualización ya no sirve para
 guardar datos. Ese rechazo sucede **antes de validar la clave o el certificado**.
-Abre de nuevo `http://IP_DEL_WEMOS/`, recarga completamente la página y vuelve
+Abre de nuevo `http://IP_DEL_WEMOS/settings`, recarga completamente la página y vuelve
 a pegar la clave; no uses Atrás para recuperar el formulario anterior. No se
 desactiva esta protección ni se reenvía automáticamente una solicitud rechazada.
 
@@ -363,7 +396,29 @@ hacen conexiones TLS locales entre BearSSL y OpenSSL: claves RSA/EC correctas
 aceptadas sin reloj, claves distintas rechazadas y exportación que rechaza
 certificados no confiables, vencidos o de otro nombre. Cubren P-256, P-384 y P-521,
 incluida la reparación del marcador de punto EC que omite el decodificador del
-núcleo 3.1.2. En la nube se usa el Python del venv para las catorce pruebas completas.
+núcleo 3.1.2. Se añaden seis grupos nativos para historial acotado, muestras de
+un minuto, antigüedad, huecos y lectura incremental de JSON, y una prueba que
+comprueba que los recursos gzip del firmware coincidan con sus fuentes. En la
+nube se usa el Python del venv para las dieciséis pruebas completas.
 La compilación verifica las bibliotecas para ESP8266; la prueba física de SPI,
 Wi-Fi, configuración desde el teléfono, persistencia en flash y OTA debe hacerse
 con el Wemos conectado.
+
+Para editar o previsualizar la interfaz web con datos ficticios:
+
+```bash
+python3 tools/preview_web.py
+# http://127.0.0.1:8766 · usuario preview · contraseña preview-only
+python3 tools/embed_web_assets.py
+```
+
+Después de modificar `web/`, regenera y guarda `include/generated/web_assets.h`
+antes de compilar. Con Node, Playwright y Chromium instalados, las pruebas de
+navegador arrancan su propio servidor de previsualización y comprueban escritorio,
+móvil, lecturas antiguas, falta de hora, errores y conservación del último dato:
+
+```bash
+CHROMIUM_PATH=/usr/bin/chromium node tools/test_web_ui.js
+```
+
+Estas pruebas usan datos ficticios y no acceden a tu Nightscout ni a una placa.

@@ -1,13 +1,26 @@
 # Firmware para Wemos D1 mini (ESP8266)
 
-Versión **0.4.1**, GC9A01 SPI 240 × 240, D1 mini con **4 MB de flash**.
+Versión **0.5.0**, GC9A01 SPI 240 × 240, D1 mini con **4 MB de flash**.
 
-- [Descargar el .bin](nightscout-d1-mini-v0.4.1.bin) (en GitHub: **Download raw file**).
+- [Descargar el .bin](nightscout-d1-mini-v0.5.0.bin) (en GitHub: **Download raw file**).
 - [SHA-256](SHA256SUMS).
 - [Datos de compilación](build-info.json).
 
 El binario no contiene credenciales de Wi-Fi ni de administración. En el primer
 arranque pide estos datos por web. Usa el cableado del [README principal](../README.md).
+
+## Pantalla y visor web
+
+La versión 0.5.0 incluye una interfaz oscura con glucosa grande, tendencia,
+antigüedad y una mini gráfica de dos horas. En `http://IP_DEL_WEMOS/` verás una
+copia de la pantalla, adaptada al teléfono o computador, con los mismos datos.
+Inicia sesión con tus credenciales de administración. El visor se actualiza
+automáticamente y conserva la última lectura con un aviso si pierde contacto
+con el Wemos. Los ajustes están en **Ajustes** y la carga OTA en **Actualizar**.
+
+La gráfica resume hasta 145 entradas en un máximo de 25 puntos. No requiere
+FileSystem ni un servicio web externo. Al actualizar desde 0.4.x se conservan
+Wi-Fi, servidor, token, clave pública o CA y datos de administración.
 
 ## Primera carga por USB
 
@@ -19,7 +32,7 @@ Si utilizas Python y esptool 4.x, por ejemplo:
 
 ```bash
 python -m pip install esptool==4.8.1
-python -m esptool --chip esp8266 --port COM3 --baud 115200 write_flash --flash_mode dio --flash_size 4MB 0x00000 nightscout-d1-mini-v0.4.1.bin
+python -m esptool --chip esp8266 --port COM3 --baud 115200 write_flash --flash_mode dio --flash_size 4MB 0x00000 nightscout-d1-mini-v0.5.0.bin
 ```
 
 Cambia `COM3` por el puerto real. En Linux suele ser `/dev/ttyUSB0` y en macOS
@@ -66,7 +79,7 @@ administración. Introduce el token en la web después de actualizar. La imagen
 ## Consultar sin NTP
 
 Desde 0.4.0 puedes pegar una **clave pública fija del servidor** en
-**Seguridad HTTPS y opción sin NTP**. El archivo PEM debe obtenerse desde un
+**Ajustes → Seguridad HTTPS y opción sin NTP**. El archivo PEM debe obtenerse desde un
 PC verificando primero el certificado; se incluye la herramienta
 [export_server_key.py](../tools/export_server_key.py). Consulta los pasos en el
 [README principal](../README.md#https-sin-ntp-fijar-la-clave-pública-del-servidor).
@@ -85,7 +98,7 @@ inicia automáticamente en este modo; la clave permanece guardada al reiniciar.
 
 La versión 0.3.1 inicia NTP al conectar el Wi-Fi y reintenta cada 30 segundos
 mientras no tiene hora, alternando tres servidores. Si tu red no permite NTP,
-abre `http://IP_DEL_WEMOS/`, inicia sesión y, en **Hora del dispositivo**, pulsa
+abre `http://IP_DEL_WEMOS/settings`, inicia sesión y, en **Hora del dispositivo**, pulsa
 **Usar hora de este teléfono/PC**. Comprueba primero que la fecha y hora de ese
 teléfono o computador sean correctas. El Wemos volverá a consultar Nightscout
 manteniendo la validación HTTPS. Si reinicias la placa y NTP sigue sin responder,
@@ -102,7 +115,7 @@ mostrar credenciales. No se ha determinado aún la causa en tu placa.
 
 El aviso de formulario caducado indica que su sesión no coincide con la sesión
 actual del Wemos. Se rechaza antes de validar el PEM, sin cambiar los ajustes.
-Después de actualizar o reiniciar, abre de nuevo la página principal desde la
+Después de actualizar o reiniciar, abre de nuevo **Ajustes** desde la
 IP del dispositivo y vuelve a pegar la clave; no recuperes el formulario con Atrás.
 
 La versión 0.4.1 muestra una confirmación **Servidor guardado** antes de iniciar
