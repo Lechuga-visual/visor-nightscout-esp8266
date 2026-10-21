@@ -6,6 +6,7 @@ compiler. Field templates, escaping and page assembly come from firmware source.
 import pathlib
 import subprocess
 import tempfile
+import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 source = (ROOT / 'src/main.cpp').read_text()
@@ -21,6 +22,8 @@ harness = r'''
 #include <cstring>
 #include "device_settings.h"
 #include "patient_label.h"
+#include "night_display.h"
+#include <cstdio>
 #include "generated/web_assets.h"
 #define F(x) x
 #define FPSTR(x) x
@@ -50,7 +53,17 @@ String baseUrl("https://tu-nightscout.example"), csrf("fixture-csrf-only");
 harness += function('String htmlEscape(', 'String urlEncode(')
 harness += function('void appendServerFields(', 'bool validPinnedKey(')
 harness += function('void configurationPage(', 'void saveConfiguration(')
-harness += r'''
+if len(sys.argv) > 1 and sys.argv[1] == 'night':
+    harness += 'night_display::Settings nightSettings; uint8_t screenIntensity = 100; int localMinute() { return 1350; }\n'
+    harness += function('String minuteText(', 'void saveNightDisplay(')
+    harness += r'''
+int main() {
+  std::cout << "<!doctype html><html lang='es'><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><link rel='stylesheet' href='/assets/ui.css'><script src='/assets/night.js' defer></script><main class='settings'>";
+  String page;appendNightControls(page);std::cout << page << "</main></html>";
+}
+'''
+else:
+    harness += r'''
 int main() {
   strcpy(settings.webUsername, "admin");
   configurationPage();

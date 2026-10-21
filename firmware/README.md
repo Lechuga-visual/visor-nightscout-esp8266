@@ -1,13 +1,25 @@
 # Firmware para Wemos D1 mini (ESP8266)
 
-Versión **0.7.0**, GC9A01 SPI 240 × 240, D1 mini con **4 MB de flash**.
+Versión **0.7.1**, GC9A01 SPI 240 × 240, D1 mini con **4 MB de flash**.
 
-- [Descargar el .bin](nightscout-d1-mini-v0.7.0.bin) (en GitHub: **Download raw file**).
+- [Descargar el .bin](nightscout-d1-mini-v0.7.1.bin) (en GitHub: **Download raw file**).
 - [SHA-256](SHA256SUMS).
 - [Datos de compilación](build-info.json).
 
 El binario no contiene credenciales de Wi-Fi ni de administración. En el primer
 arranque pide estos datos por web. Usa el cableado del [README principal](../README.md).
+
+La versión 0.7.1 añade **Ajustes → Brillo y horario nocturno**: activación,
+horario, zona horaria e intensidades de día y noche entre 10 y 100 %. Incluye una
+prueba nocturna de cinco segundos que se restaura sin guardar. El horario se
+guarda en una extensión independiente y conserva los ajustes anteriores.
+
+Se atenúan los colores de la pantalla física; **la luz de fondo mantiene su
+intensidad**, porque este módulo no tiene pin BL/BLK. El visor web sigue igual.
+Al actualizar, el horario queda desactivado. Puedes activar 22:00–07:00 con
+100 % de día y 25 % de noche, o elegir tus valores. Santiago ajusta el horario de
+verano; sin hora válida se utiliza la intensidad de día. El modo de clave fija
+sigue obteniendo la hora del servidor HTTPS autenticado, sin NTP.
 
 La versión 0.7.0 incorpora los dos diseños B elegidos: bienvenida con etapas
 reales de Wi-Fi, servidor y primera lectura, y configuración en tres pasos.
@@ -26,8 +38,7 @@ guardado. Mantiene la posición del nombre, la lectura, el estado y la IP.
 Conserva Wi-Fi, servidor, token, clave HTTPS y apariencia al actualizar normalmente.
 
 Los [diseños de bienvenida y configuración inicial](../docs/propuestas-inicio/README.md)
-quedan como referencia. El horario nocturno sigue como propuesta y no está
-implementado en este binario.
+quedan como referencia. El horario nocturno está implementado desde 0.7.1.
 
 La versión 0.6.0 incorpora los dos diseños de número grande además de la gráfica
 de 30 minutos. El nombre aparece más abajo y con letra mayor. El selector del
@@ -68,7 +79,7 @@ Si utilizas Python y esptool 4.x, por ejemplo:
 
 ```bash
 python -m pip install esptool==4.8.1
-python -m esptool --chip esp8266 --port COM3 --baud 115200 write_flash --flash_mode dio --flash_size 4MB 0x00000 nightscout-d1-mini-v0.7.0.bin
+python -m esptool --chip esp8266 --port COM3 --baud 115200 write_flash --flash_mode dio --flash_size 4MB 0x00000 nightscout-d1-mini-v0.7.1.bin
 ```
 
 Cambia `COM3` por el puerto real. En Linux suele ser `/dev/ttyUSB0` y en macOS

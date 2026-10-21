@@ -2,7 +2,7 @@
 
 **Diseños B elegidos e implementados en el firmware 0.7.0.** Las imágenes de
 esta carpeta conservan las maquetas originales; los nombres, redes, claves y
-lecturas son ejemplos. El horario nocturno sigue pendiente.
+lecturas son ejemplos. El horario nocturno está implementado desde 0.7.1.
 Las opciones de bienvenida y configuración se pueden combinar libremente.
 
 | Pantalla | Opción A | Opción B |
@@ -64,10 +64,12 @@ cruzar medianoche y una prueba de cinco segundos. Por ejemplo, 22:00–07:00,
 la intensidad de día y se mostraría un aviso.
 
 **Límite del hardware actual:** el módulo GC9A01 de siete pines no expone BL/BLK.
-Esta propuesta atenuaría los colores del contenido; la retroiluminación seguiría
+La versión 0.7.1 atenúa los colores del contenido; la retroiluminación sigue
 encendida. Reducir la luz de fondo real requiere revisar el circuito del módulo
-y añadir un control compatible si fuera posible. El horario no está implementado
-en 0.7.0 y no se anuncia como control eléctrico de brillo.
+y añadir un control compatible si fuera posible. El horario está implementado
+desde 0.7.1 y no es un control eléctrico de brillo. Puedes ver las capturas del
+[formulario móvil](../images/horario-nocturno-movil.png) y del
+[formulario web](../images/horario-nocturno-web.png).
 
 Los originales SVG están en esta carpeta junto a cada PNG. Las capturas del
 asistente implementado están disponibles aquí:

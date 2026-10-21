@@ -22,6 +22,7 @@
 #include "patient_label.h"
 #include "view_appearance.h"
 #include "startup_view.h"
+#include "night_display.h"
 #include "generated/web_assets.h"
 
 #if __has_include("nightscout_config.h")
@@ -31,7 +32,7 @@
 #endif
 
 namespace {
-constexpr char VERSION[] = "0.7.0";
+constexpr char VERSION[] = "0.7.1";
 constexpr uint32_t POLL_MS = 30000;
 TFT_eSPI display;
 ESP8266WebServer web(80);
@@ -95,6 +96,9 @@ struct Reading {
 reading_ui::History history;
 uint32_t historyVersion = 0;
 startup_view::Progress startup;
+night_display::Settings nightSettings;
+night_display::Preview nightPreview;
+uint8_t screenIntensity = 100;
 void renderWelcome();
 
 String htmlEscape(String value) {
@@ -177,7 +181,7 @@ bool currentForm() {
 bool startNtp() {
   if (setupMode || WiFi.status() != WL_CONNECTED) return false;
   const unsigned first = ntpAttempts % 3;
-  configTime(0, 0, NTP_SERVERS[first], NTP_SERVERS[(first + 1) % 3], NTP_SERVERS[(first + 2) % 3]);
+  configTime(night_display::timezoneRule(nightSettings.zone), NTP_SERVERS[first], NTP_SERVERS[(first + 1) % 3], NTP_SERVERS[(first + 2) % 3]);
   ++ntpAttempts;
   clockSchedule.restarted(millis());
   return true;
@@ -359,6 +363,106 @@ void appearanceColor(String& page, const __FlashStringHelper* name, const __Flas
   page += F("' value='"); page += colorHex(color); page += F("'></label>");
 }
 
+int localMinute() {
+  const time_t now = time(nullptr);
+  if (!device_clock::plausible(now)) return -1;
+  struct tm local;
+  if (!localtime_r(&now, &local)) return -1;
+  return local.tm_hour * 60 + local.tm_min;
+}
+
+void updateScreenIntensity() {
+  const int minute = localMinute();
+  const uint8_t percent = setupMode ? 100 : nightPreview.active(millis()) ? nightPreview.percent :
+                          night_display::intensity(nightSettings, minute, minute >= 0);
+  if (percent != screenIntensity) { screenIntensity = percent; lastFrame = ""; }
+}
+
+uint16_t screenColor(uint32_t rgb) {
+  return night_display::scale565(view_appearance::rgb565(rgb), screenIntensity);
+}
+
+String minuteText(uint16_t minute) {
+  char value[6];
+  snprintf(value, sizeof(value), "%02u:%02u", static_cast<unsigned>(minute / 60) % 24, static_cast<unsigned>(minute % 60));
+  return String(value);
+}
+
+void appendNightControls(String& page) {
+  page += F("<form id='night-display-form' class='card' method='post' action='/night-display'>"
+            "<h2>Brillo y horario nocturno</h2><p>Reduce la intensidad de los colores de la pantalla física. "
+            "La luz de fondo sigue encendida con la misma intensidad; este módulo no tiene pin BL/BLK.</p>"
+            "<input type='hidden' name='csrf' value='");
+  page += csrf;
+  page += F("'><label><input type='checkbox' name='enabled' value='1'");
+  if (nightSettings.enabled) page += F(" checked");
+  page += F("> Activar horario nocturno</label><div class='night-times'><label>Desde"
+            "<input type='time' name='start' required value='");
+  page += minuteText(nightSettings.start);
+  page += F("'></label><label>Hasta<input type='time' name='end' required value='");
+  page += minuteText(nightSettings.end);
+  page += F("'></label></div><label>Zona horaria<select name='zone'>");
+  for (unsigned i = 0; i < 8; ++i) {
+    page += F("<option value='"); page += String(i);
+    page += i == nightSettings.zone ? F("' selected>") : F("'>");
+    page += FPSTR(night_display::timezoneName(i)); page += F("</option>");
+  }
+  page += F("</select></label><label>Intensidad de día <output id='night-day-value'>");
+  page += String(nightSettings.day);
+  page += F(" %</output><input type='range' name='day' min='10' max='100' step='1' value='");
+  page += String(nightSettings.day);
+  page += F("'></label><label>Intensidad de noche <output id='night-level-value'>");
+  page += String(nightSettings.night);
+  page += F(" %</output><input type='range' name='night' min='10' max='100' step='1' value='");
+  page += String(nightSettings.night);
+  page += F("'></label><p>El horario puede cruzar medianoche. Sin una hora válida se usa la intensidad de día. "
+            "Santiago y Madrid ajustan automáticamente el horario de verano. Con el horario desactivado se usa la intensidad de día.</p><p class='notice'>Horario guardado: ");
+  const int minute = localMinute();
+  if (minute >= 0) {
+    page += minuteText(minute); page += F(" · ");
+    page += night_display::nightAt(nightSettings, minute, true) ? F("horario de noche") : F("horario de día");
+  } else page += F("sin hora sincronizada · intensidad de día");
+  page += F(" · "); page += String(screenIntensity);
+  page += F(" %</p><p id='night-feedback' role='status' aria-live='polite'></p>"
+            "<div class='actions'><button type='submit' name='preview' value='1' class='secondary' id='night-preview'>"
+            "Probar noche durante 5 segundos</button><button id='night-save' type='submit'>Guardar horario</button></div>"
+            "<p>La prueba no guarda ajustes y se restaura sola. El visor web mantiene su intensidad habitual. "
+            "La pantalla de configuración inicial permanece al 100 % para leer su clave.</p></form>");
+}
+
+void saveNightDisplay() {
+  if (!authenticated() || !currentForm()) return;
+  night_display::Settings candidate;
+  const String start = web.arg("start"), end = web.arg("end"), day = web.arg("day"),
+               night = web.arg("night"), zone = web.arg("zone");
+  if ((web.hasArg("enabled") && web.arg("enabled") != "1") ||
+      !night_display::update(start.c_str(), end.c_str(), day.c_str(), night.c_str(), zone.c_str(),
+                             web.arg("enabled") == "1", candidate)) {
+    web.send(400, "text/plain; charset=utf-8", F("Revisa los horarios (deben ser distintos), la zona y las intensidades entre 10 y 100 %.")); return;
+  }
+  if (web.hasArg("preview")) {
+    if (web.arg("preview") != "1") { web.send(400, "text/plain", F("Prueba inválida.")); return; }
+    nightPreview.start(candidate.night, millis());
+    updateScreenIntensity(); lastFrame = "";
+    if (web.arg("quick") == "1") web.send(200, "application/json", F("{\"ok\":true,\"seconds\":5}"));
+    else { web.sendHeader("Location", "/settings?night=preview#night-display-form"); web.send(303); }
+    return;
+  }
+  if (!storageReady) { web.send(503, "text/plain", F("No se puede guardar el horario.")); return; }
+  if (memcmp(&candidate, &nightSettings, sizeof(candidate))) {
+    EEPROM.put(night_display::OFFSET, candidate);
+    if (!EEPROM.commit()) {
+      EEPROM.put(night_display::OFFSET, nightSettings);
+      web.send(500, "text/plain", F("No se pudo guardar el horario.")); return;
+    }
+    nightSettings = candidate;
+  }
+  nightPreview.enabled = false;
+  setTZ(night_display::timezoneRule(nightSettings.zone));
+  updateScreenIntensity(); lastFrame = "";
+  web.sendHeader("Location", "/settings?night=saved#night-display-form"); web.send(303);
+}
+
 void appendAppearanceControls(String& page) {
   page += F("<form id='appearance-form' class='card' method='post' action='/appearance'>"
             "<h2>Apariencia</h2><input type='hidden' name='csrf' value='");
@@ -511,7 +615,7 @@ void settingsPage() {
   String page = F("<!doctype html><html lang='es'><meta charset='utf-8'>"
                   "<meta name='viewport' content='width=device-width,initial-scale=1'>"
                   "<meta name='color-scheme' content='dark'><link rel='stylesheet' href='/assets/ui.css'>"
-                  "<script src='/assets/appearance.js' defer></script>"
+                  "<script src='/assets/appearance.js' defer></script><script src='/assets/night.js' defer></script>"
                   "<title>Ajustes · Glucosa</title><main class='settings'><a class='back' href='/'>← Volver al panel</a>"
                   "<p class='eyebrow'>TU DISPOSITIVO</p><h1>Ajustes</h1>"
                   "<p class='intro'>Conexión, servidor y mantenimiento de tu pantalla.</p><section class='card'>");
@@ -523,6 +627,9 @@ void settingsPage() {
   page += F("</section>");
   if (web.arg("appearance") == "saved") page += F("<p class='notice' role='status'>Apariencia guardada.</p>");
   appendAppearanceControls(page);
+  if (web.arg("night") == "saved") page += F("<p class='notice' role='status'>Horario e intensidad guardados.</p>");
+  if (web.arg("night") == "preview") page += F("<p class='notice' role='status'>Prueba temporal de cinco segundos; no guarda ajustes.</p>");
+  appendNightControls(page);
   page += F("<form class='card' method='post' action='/settings'><h2>Persona y servidor de lecturas</h2>");
   appendServerFields(page);
   page += "<input type='hidden' name='csrf' value='" + csrf + "'>";
@@ -924,10 +1031,10 @@ void diagnostics() {
 
 uint16_t readingColor(reading_ui::Tone tone, const view_appearance::Palette& colors) {
   switch (tone) {
-    case reading_ui::Tone::Normal: return view_appearance::rgb565(colors.number);
-    case reading_ui::Tone::Low: return view_appearance::rgb565(0xFF828B);
-    case reading_ui::Tone::High: case reading_ui::Tone::Old: return view_appearance::rgb565(0xFFBD73);
-    default: return view_appearance::rgb565(0x879DA5);
+    case reading_ui::Tone::Normal: return screenColor(colors.number);
+    case reading_ui::Tone::Low: return screenColor(0xFF828B);
+    case reading_ui::Tone::High: case reading_ui::Tone::Old: return screenColor(0xFFBD73);
+    default: return screenColor(0x879DA5);
   }
 }
 
@@ -959,7 +1066,7 @@ void drawPatientName(uint16_t background, int y = 43, int width = 120) {
     --length;
     memcpy(label + length - 3, "...", 4);
   }
-  display.setTextColor(view_appearance::rgb565(0xD3E0DD), background);
+  display.setTextColor(screenColor(0xD3E0DD), background);
   display.drawString(label, 120, y, 2);
   display.setTextSize(1);
 }
@@ -977,13 +1084,13 @@ void drawValue(const String& value, int x, int y, int width, int height) {
 
 void drawHistory(time_t now, uint16_t color, uint16_t background) {
   const auto plot = reading_ui::plot(history, now);
-  display.setTextColor(view_appearance::rgb565(0x9AABB0), background);
+  display.setTextColor(screenColor(0x9AABB0), background);
   display.drawString(F("-30 min"), 50, 139, 1);
   display.drawString(F("ahora"), 188, 139, 1);
   for (int value : {70, 180}) {
     if (value < plot.low || value > plot.high) continue;
     const int y = 148 + (plot.high - value) * 30 / (plot.high - plot.low);
-    for (int x = 38; x < 202; x += 5) display.drawFastHLine(x, y, 2, 0x3207);
+    for (int x = 38; x < 202; x += 5) display.drawFastHLine(x, y, 2, night_display::scale565(0x3207, screenIntensity));
   }
   for (size_t i = 0; i < plot.count; ++i) {
     const int x = 38 + plot.points[i].x * 164 / 1000, y = 148 + plot.points[i].y * 30 / 1000;
@@ -996,10 +1103,10 @@ void drawHistory(time_t now, uint16_t color, uint16_t background) {
 
 void drawStartupStage(startup_view::Stage stage, int y) {
   const auto colors = view_appearance::palette(appearance);
-  const uint16_t background = view_appearance::rgb565(colors.background);
-  const uint16_t accent = view_appearance::rgb565(colors.accent);
-  const uint16_t color = stage == startup_view::Stage::Error ? view_appearance::rgb565(0xFFBD73) :
-                         stage == startup_view::Stage::Pending ? view_appearance::rgb565(0x52666D) : accent;
+  const uint16_t background = screenColor(colors.background);
+  const uint16_t accent = screenColor(colors.accent);
+  const uint16_t color = stage == startup_view::Stage::Error ? screenColor(0xFFBD73) :
+                         stage == startup_view::Stage::Pending ? screenColor(0x52666D) : accent;
   if (stage == startup_view::Stage::Done) {
     display.fillCircle(53, y, 5, accent);
     display.drawLine(50, y, 52, y + 2, background);
@@ -1011,19 +1118,20 @@ void drawStartupStage(startup_view::Stage stage, int y) {
       display.drawPixel(53, y + 2, color);
     }
   }
-  display.setTextColor(stage == startup_view::Stage::Done ? view_appearance::rgb565(0xD3E0DD) : color, background);
+  display.setTextColor(stage == startup_view::Stage::Done ? screenColor(0xD3E0DD) : color, background);
 }
 
 // Used before TLS allocation and between response headers and parsing; no framebuffer.
 void renderWelcome() {
+  updateScreenIntensity();
   const bool connected = WiFi.status() == WL_CONNECTED;
   const String frame = String(F("boot:")) + String(connected) + String(startup.responseCode) +
                        String(startup.parseFailed) + message;
   if (lastFrame == frame) return;
   lastFrame = frame;
   const auto colors = view_appearance::palette(appearance);
-  const uint16_t background = view_appearance::rgb565(colors.background);
-  const uint16_t accent = view_appearance::rgb565(colors.accent);
+  const uint16_t background = screenColor(colors.background);
+  const uint16_t accent = screenColor(colors.accent);
   display.fillScreen(background);
   display.drawCircle(120, 120, 115, accent);
   display.setTextDatum(MC_DATUM);
@@ -1048,7 +1156,7 @@ void renderWelcome() {
   drawStartupStage(startup.reading(connected), 173);
   display.drawString(startup.parseFailed ? F("Reintentando lectura") : F("Esperando lectura"), 67, 173, 2);
   display.setTextDatum(MC_DATUM);
-  display.setTextColor(view_appearance::rgb565(0x9AABB0), background);
+  display.setTextColor(screenColor(0x9AABB0), background);
   // Preserve specific clock, authentication and parse errors on the welcome screen.
   if (!connected || message == "Sin Wi-Fi" || message == "Conectando Wi-Fi") display.drawString(F("Preparando tu pantalla"), 120, 207, 1);
   else display.drawString(message.length() > 23 ? message.substring(0, 21) + F("..") : message, 120, 207, 1);
@@ -1059,8 +1167,8 @@ void renderProvisioning() {
   if (lastFrame == "setup") return;
   lastFrame = "setup";
   const auto colors = view_appearance::palette(appearance);
-  const uint16_t background = view_appearance::rgb565(colors.background);
-  const uint16_t accent = view_appearance::rgb565(colors.accent);
+  const uint16_t background = screenColor(colors.background);
+  const uint16_t accent = screenColor(colors.accent);
   display.fillScreen(background);
   display.drawCircle(120, 120, 115, accent);
   display.setTextDatum(MC_DATUM);
@@ -1074,20 +1182,21 @@ void renderProvisioning() {
     display.drawString(String(i + 1), 42, y, 1);
   }
   display.setTextDatum(ML_DATUM);
-  display.setTextColor(view_appearance::rgb565(0x9AABB0), background);
+  display.setTextColor(screenColor(0x9AABB0), background);
   display.drawString(F("Conecta a esta Wi-Fi"), 60, 63, 1);
   display.drawString(F("Usa esta clave"), 60, 113, 1);
   display.drawString(F("Abre en el navegador"), 60, 163, 1);
-  display.setTextColor(view_appearance::rgb565(0xD3E0DD), background);
+  display.setTextColor(screenColor(0xD3E0DD), background);
   display.drawString(setupSsid, 60, 80, 2);
   display.drawString(setupPassword, 60, 130, 2);
   display.drawString(WiFi.softAPIP().toString(), 60, 180, 2);
   display.setTextDatum(MC_DATUM);
-  display.setTextColor(view_appearance::rgb565(0x9AABB0), background);
+  display.setTextColor(screenColor(0x9AABB0), background);
   display.drawString(F("Continua en tu telefono"), 120, 208, 1);
 }
 
 void render() {
+  updateScreenIntensity();
   if (setupMode) { renderProvisioning(); return; }
   if (!startup.finished) { renderWelcome(); return; }
   const time_t now = time(nullptr);
@@ -1103,10 +1212,10 @@ void render() {
   const auto tone = reading_ui::tone(reading.available, reading.sgv, age,
                                      WiFi.status() == WL_CONNECTED && lastReadingRequestOk);
   const auto colors = view_appearance::palette(appearance);
-  const uint16_t background = view_appearance::rgb565(colors.background);
+  const uint16_t background = screenColor(colors.background);
   const uint16_t statusColor = readingColor(tone, colors);
-  const uint16_t valueColor = tone == reading_ui::Tone::Old ? view_appearance::rgb565(0xA4B4B6) : statusColor;
-  const uint16_t accent = tone == reading_ui::Tone::Normal ? view_appearance::rgb565(colors.accent) : statusColor;
+  const uint16_t valueColor = tone == reading_ui::Tone::Old ? screenColor(0xA4B4B6) : statusColor;
+  const uint16_t accent = tone == reading_ui::Tone::Normal ? screenColor(colors.accent) : statusColor;
   const uint16_t trendColor = tone == reading_ui::Tone::Old ? valueColor : accent;
   display.fillScreen(background);
   display.drawCircle(120, 120, 115, accent);
@@ -1118,26 +1227,26 @@ void render() {
   if (appearance.mode == view_appearance::Mode::Graph) {
     drawValue(value, 104, 96, 150, 57);
     if (reading.available) drawTrend(trendColor, 188, 96, 22);
-    display.setTextColor(view_appearance::rgb565(0x9AABB0), background);
+    display.setTextColor(screenColor(0x9AABB0), background);
     display.drawString(F("mg/dL"), 104, 124, 2);
     drawHistory(now, valueColor, background);
   } else if (appearance.mode == view_appearance::Mode::Lateral) {
     drawValue(value, 100, 118, 164, 90);
     if (reading.available) drawTrend(trendColor, 201, 118, 29);
-    display.setTextColor(view_appearance::rgb565(0x9AABB0), background);
+    display.setTextColor(screenColor(0x9AABB0), background);
     display.drawString(F("mg/dL"), 100, 166, 2);
   } else {
     drawValue(value, 120, 116, 196, 105);
-    display.setTextColor(view_appearance::rgb565(0x9AABB0), background);
+    display.setTextColor(screenColor(0x9AABB0), background);
     display.drawString(F("mg/dL"), 102, 174, 2);
     if (reading.available) drawTrend(trendColor, 155, 173, 20);
   }
   const bool warning = tone == reading_ui::Tone::Low || tone == reading_ui::Tone::High || stale;
-  const uint16_t badge = view_appearance::rgb565(tone == reading_ui::Tone::Low ? 0x332025 : warning ? 0x33291E : 0x192A24);
+  const uint16_t badge = screenColor(tone == reading_ui::Tone::Low ? 0x332025 : warning ? 0x33291E : 0x192A24);
   display.fillRoundRect(48, 184, 144, 21, 10, badge);
-  display.setTextColor(warning ? statusColor : view_appearance::rgb565(0xBFE9D7), badge);
+  display.setTextColor(warning ? statusColor : screenColor(0xBFE9D7), badge);
   display.drawString(ageText, 120, 195, display.textWidth(ageText, 2) > 136 ? 1 : 2);
-  display.setTextColor(view_appearance::rgb565(0x9AABB0), background);
+  display.setTextColor(screenColor(0x9AABB0), background);
   if (tone == reading_ui::Tone::Low) display.drawString(F("BAJA: menos de 70"), 120, 213, 1);
   else if (tone == reading_ui::Tone::High) display.drawString(F("ALTA: mas de 180"), 120, 213, 1);
   else if (tone == reading_ui::Tone::Normal && message == "Conectado") display.drawString(F("En intervalo"), 120, 213, 1);
@@ -1164,6 +1273,8 @@ void setup() {
   strlcpy(settings.token, NIGHTSCOUT_TOKEN, sizeof(settings.token));
   strncpy_P(settings.customCa, NIGHTSCOUT_ROOT_CA, sizeof(settings.customCa) - 1);
   if (storageReady) {
+    EEPROM.get(night_display::OFFSET, nightSettings);
+    if (!night_display::valid(nightSettings)) nightSettings = night_display::Settings{};
     EEPROM.get(view_appearance::OFFSET, appearance);
     if (!view_appearance::valid(appearance)) appearance = view_appearance::Settings{};
     EEPROM.get(patient_label::OFFSET, patient);
@@ -1183,6 +1294,7 @@ void setup() {
       }
     }
   }
+  setTZ(night_display::timezoneRule(nightSettings.zone));
   baseUrl = settings.url;
   csrf = String(ESP.random(), HEX) + String(ESP.random(), HEX);
   settimeofday_cb([](bool fromSntp) {
@@ -1212,6 +1324,8 @@ void setup() {
   web.on("/assets/app.js", HTTP_GET, [] { sendAsset("application/javascript; charset=utf-8", web_assets::app_js, sizeof(web_assets::app_js)); });
   web.on("/assets/appearance.js", HTTP_GET, [] { sendAsset("application/javascript; charset=utf-8", web_assets::appearance_js, sizeof(web_assets::appearance_js)); });
   web.on("/assets/setup.js", HTTP_GET, [] { sendAsset("application/javascript; charset=utf-8", web_assets::setup_js, sizeof(web_assets::setup_js)); });
+  web.on("/assets/night.js", HTTP_GET, [] { sendAsset("application/javascript; charset=utf-8", web_assets::night_js, sizeof(web_assets::night_js)); });
+  web.on("/night-display", HTTP_POST, saveNightDisplay);
   web.on("/configure", HTTP_GET, configurationPage);
   web.on("/configure", HTTP_POST, saveConfiguration);
   web.on("/settings", HTTP_POST, saveSettings);
@@ -1228,6 +1342,10 @@ void setup() {
 
 void loop() {
   web.handleClient();
+  // Restore the five-second preview before a blocking TLS request can start.
+  if (nightPreview.enabled && !nightPreview.active(millis())) {
+    updateScreenIntensity(); render(); lastRender = millis();
+  }
   if (restartPending && millis() - restartRequestedAt >= 1500) ESP.restart();
   if (!setupMode && WiFi.status() == WL_CONNECTED) {
     hasConnected = true;
@@ -1240,7 +1358,7 @@ void loop() {
     if (mdnsStarted) MDNS.update();
     // Let the browser receive its clock/settings response before starting TLS.
     const bool webIdle = (!webRecentlyUsed || millis() - lastWebActivity >= 3000) &&
-                         !web.client().connected();
+                         !web.client().connected() && !nightPreview.enabled;
     if (millis() >= 5000 && webIdle && (!attemptedFetch || millis() - lastFetch >= POLL_MS)) {
       attemptedFetch = true;
       fetchReading();

@@ -7,7 +7,7 @@ cambiar la configuración y actualizar el firmware por Wi-Fi (OTA).
 
 **Diseños y comparación:** [propuestas de número grande, selector de modo y colores](docs/propuestas-visor/README.md).
 
-**Bienvenida y configuración:** [diseños B elegidos y propuesta de horario nocturno](docs/propuestas-inicio/README.md).
+**Bienvenida y configuración:** [diseños B elegidos y horario nocturno](docs/propuestas-inicio/README.md).
 
 Necesitas un servidor Nightscout con lecturas disponibles y una red Wi-Fi de
 2,4 GHz. La URL base tiene este formato: `https://tu-nightscout.example`.
@@ -39,7 +39,7 @@ conectarlo; la retroiluminación no está controlada por un GPIO en esta versió
 
 ### Binario listo para cargar
 
-Descarga [nightscout-d1-mini-v0.7.0.bin](firmware/nightscout-d1-mini-v0.7.0.bin)
+Descarga [nightscout-d1-mini-v0.7.1.bin](firmware/nightscout-d1-mini-v0.7.1.bin)
 desde la carpeta `firmware` (en GitHub utiliza **Download raw file**). Está
 compilado para **Wemos D1 mini ESP8266 con 4 MB de flash**, con los pines de la
 tabla anterior. No contiene datos privados ni requiere configurar el Wi-Fi
@@ -119,6 +119,38 @@ rojo por debajo y ámbar por encima. Ese intervalo visual está fijado en esta
 versión y no constituye una alarma personalizada. Las lecturas antiguas y los
 errores se distinguen por texto además del color. No hay alarmas sonoras.
 
+### Brillo y horario nocturno en 0.7.1
+
+En **Ajustes → Brillo y horario nocturno** puedes activar un horario, elegir
+su inicio y fin, la zona horaria y la intensidad de día y de noche entre 10 y
+100 %. Por defecto queda desactivado, con día al 100 %, noche al 25 % y horario
+22:00–07:00 en Santiago. Pulsa **Guardar horario** para aplicarlo y conservarlo
+al reiniciar. Con el horario desactivado se utiliza la intensidad de día, lo que
+permite ajustarla manualmente.
+
+**Se atenúa el contenido dibujado, no la luz de fondo.** El módulo de siete pines
+no tiene entrada BL/BLK. Número, flecha, textos, gráfica y fondo se escalan en
+RGB565, manteniendo sus colores. El visor web conserva su intensidad habitual.
+
+**Probar noche durante 5 segundos** aplica temporalmente la intensidad nocturna
+sin guardar ni escribir en flash. Se restaura sola aunque cierres el navegador.
+El horario puede cruzar medianoche; el inicio se incluye y el fin se excluye.
+La zona horaria se guarda y Santiago/Madrid ajustan el horario de verano.
+Sin hora sincronizada se utiliza la intensidad de día, con un aviso en Ajustes.
+En el modo de clave pública fija se sigue tomando la hora del HTTPS autenticado,
+sin necesitar NTP. La configuración inicial permanece al 100 % para leer su clave.
+
+Los ajustes ocupan una extensión etiquetada de 16 bytes desde el offset 3856 de
+EEPROM. No cambia el formato de Wi-Fi, URL, token, clave HTTPS, nombre o apariencia.
+Guardar y probar requieren autenticación de administración y el nonce CSRF vigente.
+Las actualizaciones de intensidad no reservan un framebuffer ni cambian las
+consultas a Nightscout.
+
+[Captura móvil](docs/images/horario-nocturno-movil.png) ·
+[Captura web](docs/images/horario-nocturno-web.png).
+Son capturas del formulario real con valores de ejemplo; la atenuación y el
+guardado en la placa requieren comprobación física.
+
 ### Bienvenida y configuración B en 0.7.0
 
 Al encender, el Wemos muestra tu nombre y las etapas **Wi-Fi → servidor → primera
@@ -149,7 +181,7 @@ Las capturas muestran datos de ejemplo generados por el constructor HTML del
 firmware en una prueba local; la conexión y el reinicio reales requieren la placa.
 
 Actualizar normalmente conserva Wi-Fi, token, clave HTTPS, nombre y apariencia.
-El horario nocturno sigue como propuesta y no forma parte de 0.7.0.
+El horario nocturno se incorpora desde 0.7.1; los ajustes anteriores se conservan.
 
 ### Tres modos de visor y colores en 0.6.0
 
@@ -174,7 +206,7 @@ del visor y número con una vista previa. El dispositivo comprueba el contraste
 antes de guardar. Los avisos de lectura baja, alta o antigua mantienen texto
 y colores propios. Se conservan los colores personalizados al elegir otro tema.
 
-La compilación 0.7.0 usa 37.812 bytes de RAM estática: 48 bytes más que 0.6.1.
+La compilación 0.7.1 usa 38.084 bytes de RAM estática: 272 bytes más que 0.7.0.
 Los dibujos se hacen directamente, sin una imagen completa de pantalla en RAM.
 La apariencia se guarda en una extensión independiente de 20 bytes, después
 del nombre, sin cambiar el formato del Wi-Fi, servidor, token o clave PEM.
@@ -481,7 +513,7 @@ un minuto, antigüedad, huecos y lectura incremental de JSON, y una prueba que
 comprueba que los recursos gzip del firmware coincidan con sus fuentes. Otras dos
 pruebas cubren el cuerpo HTTP (fragmentación, bloques, truncamiento y límites) y
 el almacenamiento del nombre, la validación UTF-8 y los offsets anteriores. En la
-nube se usa el Python del venv para las doce pruebas completas. El estado de
+nube se usa el Python del venv para las trece pruebas completas. El estado de
 bienvenida cubre conexión, errores HTTP, JSON rechazado, respuesta vacía y el
 paso definitivo al visor después de la primera lectura válida.
 La compilación verifica las bibliotecas para ESP8266; la prueba física de SPI,
@@ -499,6 +531,7 @@ solicitudes con recursos locales, sin iniciar un servidor de previsualización:
 ```bash
 CHROMIUM_PATH=/usr/bin/chromium node tests/test_web_views.js
 CHROMIUM_PATH=/usr/bin/chromium node tests/test_setup_views.js
+CHROMIUM_PATH=/usr/bin/chromium node tests/test_night_views.js
 ```
 
 Cubren los tres modos y cinco temas en escritorio/móvil, tendencias simples y
@@ -511,3 +544,10 @@ El asistente se prueba con HTML producido por las funciones C++ reales y los
 recursos web locales: validaciones, regreso entre pasos, Enter, resumen sin
 secretos, CSRF, respuestas de error, guardado único, confirmación y uso sin
 JavaScript. No utiliza un servidor de simulación.
+
+Las pruebas nocturnas cubren la extensión EEPROM sin modificar los bytes previos,
+validación atómica, límites de horario y cruce de medianoche, ausencia de reloj,
+transiciones de verano/invierno de Santiago y Madrid, intensidad del 100 % sin
+cambiar ningún color RGB565 y restauración de la prueba al desbordarse millis().
+El navegador verifica el formulario C++ real, controles, validaciones, payload
+CSRF, errores y desconexión, bloqueo de doble prueba y guardado nativo.
