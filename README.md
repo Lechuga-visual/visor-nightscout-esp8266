@@ -72,7 +72,7 @@ conectarlo; la retroiluminación no está controlada por un GPIO en esta versió
 
 ### Binario listo para cargar
 
-Descarga [nightscout-d1-mini-v0.3.0.bin](firmware/nightscout-d1-mini-v0.3.0.bin)
+Descarga [nightscout-d1-mini-v0.3.1.bin](firmware/nightscout-d1-mini-v0.3.1.bin)
 desde la carpeta `firmware` (en GitHub utiliza **Download raw file**). Está
 compilado para **Wemos D1 mini ESP8266 con 4 MB de flash**, con los pines de la
 tabla anterior. No contiene datos privados ni requiere configurar el Wi-Fi
@@ -144,7 +144,7 @@ La primera carga requiere USB. La pantalla muestra la IP del Wemos al conectarse
 Consulta la API cada 30 segundos y presenta glucosa en mg/dL, flecha de tendencia,
 antigüedad y estado de conexión. Marca las lecturas simuladas con `DEMO` y las
 que tengan diez minutos o más con `LECTURA ANTIGUA`. Si falla una consulta,
-conserva el último valor con el error visible. Sin hora NTP válida indica que
+conserva el último valor con el error visible. Sin una hora válida indica que
 la hora no está sincronizada; no asume que la lectura es reciente.
 
 Los colores naranja fuera de 70–180 mg/dL son valores de demostración fijados
@@ -212,8 +212,8 @@ El firmware incluye **120 raíces públicas de confianza** de Mozilla, distribui
 por certifi 2026.10.19. Están en flash y solo se carga en RAM la raíz necesaria.
 No se necesita un certificado propio para el Wemos ni subir una imagen de
 filesystem. Se verifican la cadena, el nombre del servidor y la hora; el reloj
-se sincroniza por NTP. Hasta tener una hora válida se espera antes de consultar
-HTTPS. Las renovaciones del certificado del servidor funcionan mientras la
+se sincroniza por NTP o desde el navegador, como se explica debajo. Hasta tener
+una hora válida se espera antes de consultar HTTPS. Las renovaciones del certificado del servidor funcionan mientras la
 cadena siga siendo válida bajo una raíz admitida. Nuevas raíces se distribuyen
 con actualizaciones del firmware.
 
@@ -231,6 +231,28 @@ La API consultada sigue siendo v1 y las entradas `sgv` se muestran en mg/dL;
 aún no se puede seleccionar mmol/L en pantalla. Ver [certs/README.md](certs/README.md)
 para la procedencia y reproducción del almacén de confianza.
 
+### Si se queda esperando la hora NTP
+
+Desde 0.3.1, NTP arranca después de conectar el Wi-Fi y reintenta cada 30 segundos
+mientras falta la hora. Alterna entre `pool.ntp.org`, `time.google.com` y
+`time.cloudflare.com`, por UDP al puerto 123. Algunas redes bloquean esas consultas.
+
+Si aparece **Esperando hora NTP** o **Sin hora: abre la web**:
+
+1. Desde un teléfono o computador conectado a la misma red, abre
+   `http://IP_DEL_WEMOS/` e inicia sesión con tus datos de administración.
+2. En **Hora del dispositivo**, comprueba el estado y pulsa **Reintentar NTP**.
+3. Si sigue sin sincronizar, comprueba que el teléfono/PC tenga la fecha y hora
+   correctas, preferentemente automáticas, y pulsa **Usar hora de este teléfono/PC**.
+
+El navegador entrega su hora al Wemos y este vuelve a intentar consultar
+Nightscout. La verificación del certificado HTTPS permanece activa. La hora
+se muestra en UTC; una diferencia respecto a tu hora local es normal.
+El Wemos no tiene un reloj con batería: si NTP sigue bloqueado, tendrás que
+repetir este paso después de reiniciarlo. No es necesario abrir puertos entrantes
+en el router. Esta opción requiere el firmware 0.3.1; puedes actualizar por
+`/update` aunque todavía no se haya sincronizado la hora.
+
 ## Verificación
 
 ```bash
@@ -242,13 +264,15 @@ Las pruebas Python hacen solicitudes HTTP reales a un servidor efímero local
 y comprueban el contrato de la API, fechas, historial y los escenarios de error.
 Si está disponible `g++`, también ejecutan nueve grupos de pruebas nativas de
 validación de ajustes, migración del formato anterior y conservación de claves
-al cambiar la URL. Sin `g++`, esa prueba se informa como omitida.
+al cambiar la URL. Otros cinco grupos comprueban el inicio de NTP después del
+Wi-Fi, los reintentos, la reconexión, el desbordamiento de `millis()` y la
+validación de la hora del navegador. Sin `g++`, esas pruebas se informan como omitidas.
 Con `cryptography`, `make`, compiladores nativos y las fuentes de BearSSL del
 núcleo ESP8266 instalado, otras dos pruebas verifican las 120 raíces con el
 propio decodificador BearSSL y comprueban cadenas válidas, nombres incorrectos,
 certificados vencidos, emisores no confiables y firmas manipuladas. Si faltan
 esas herramientas, las pruebas TLS se informan como omitidas. En la nube se usa
-el Python del venv preparado para ejecutar las once pruebas completas.
+el Python del venv preparado para ejecutar las doce pruebas completas.
 La compilación verifica las bibliotecas para ESP8266; la prueba física de SPI,
 Wi-Fi, configuración desde el teléfono, persistencia en flash y OTA debe hacerse
 con el Wemos conectado.

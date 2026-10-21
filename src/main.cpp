@@ -9,6 +9,10 @@
 #include <TFT_eSPI.h>
 #include <WiFiClientSecureBearSSL.h>
 #include <time.h>
+#include <sys/time.h>
+#include <coredecls.h>
+#include <limits>
+#include "device_clock.h"
 #include "device_settings.h"
 #include "public_ca_store.h"
 
@@ -19,9 +23,9 @@
 #endif
 
 namespace {
-constexpr char VERSION[] = "0.3.0";
+constexpr char VERSION[] = "0.3.1";
 constexpr uint32_t POLL_MS = 30000;
-constexpr time_t VALID_CLOCK = 1704067200;  // 2024-01-01 UTC
+constexpr time_t VALID_CLOCK = device_clock::EARLIEST_UNIX;
 TFT_eSPI display;
 ESP8266WebServer web(80);
 ESP8266HTTPUpdateServer updater;
@@ -42,6 +46,11 @@ bool restartPending = false;
 uint32_t restartRequestedAt = 0;
 String setupSsid;
 String setupPassword;
+device_clock::SyncSchedule clockSchedule;
+constexpr const char* NTP_SERVERS[] = {"pool.ntp.org", "time.google.com", "time.cloudflare.com"};
+uint32_t ntpAttempts = 0;
+enum class ClockSource { Unknown, Ntp, Browser };
+ClockSource clockSource = ClockSource::Unknown;
 
 struct Reading {
   bool available = false;
@@ -102,6 +111,86 @@ bool authenticated() {
     return false;
   }
   return true;
+}
+
+bool startNtp() {
+  if (setupMode || WiFi.status() != WL_CONNECTED) return false;
+  const unsigned first = ntpAttempts % 3;
+  configTime(0, 0, NTP_SERVERS[first], NTP_SERVERS[(first + 1) % 3], NTP_SERVERS[(first + 2) % 3]);
+  ++ntpAttempts;
+  clockSchedule.restarted(millis());
+  return true;
+}
+
+void appendClockControls(String& page) {
+  page += F("<section><h2>Hora del dispositivo</h2><p>");
+  const time_t now = time(nullptr);
+  if (device_clock::plausible(now)) {
+    struct tm utc;
+    char formatted[32];
+    gmtime_r(&now, &utc);
+    strftime(formatted, sizeof(formatted), "%Y-%m-%d %H:%M:%S UTC", &utc);
+    page += formatted;
+    page += clockSource == ClockSource::Ntp ? F(" · NTP") :
+            clockSource == ClockSource::Browser ? F(" · hora del navegador") : F(" · reloj disponible");
+  } else page += F("Hora sin sincronizar. HTTPS espera una hora válida.");
+  page += F("</p><p>Intentos NTP: ");
+  page += String(ntpAttempts);
+  page += F(". Servidores: pool.ntp.org, time.google.com y time.cloudflare.com (UDP 123).</p>"
+            "<form method='post' action='/clock/retry'><input type='hidden' name='csrf' value='");
+  page += csrf;
+  page += F("'><button>Reintentar NTP</button></form>"
+            "<p>Si NTP no responde, comprueba que la fecha y hora de este teléfono o computador "
+            "sean correctas y usa su reloj. Se mantienen las verificaciones HTTPS.</p>"
+            "<form method='post' action='/clock/browser' onsubmit=\"document.getElementById('browser-epoch').value="
+            "Math.floor(Date.now()/1000)\"><input type='hidden' id='browser-epoch' name='epoch'>"
+            "<input type='hidden' name='csrf' value='");
+  page += csrf;
+  page += F("'><button>Usar hora de este teléfono/PC</button></form>"
+            "<p>Esta hora dura hasta el próximo reinicio. NTP sigue intentando sincronizar en segundo plano.</p></section>");
+}
+
+bool clockRequestAllowed() {
+  if (!authenticated()) return false;
+  if (!web.hasArg("csrf") || web.arg("csrf") != csrf) {
+    web.send(403, "text/plain", "Formulario caducado. Recarga la pagina.");
+    return false;
+  }
+  if (setupMode || WiFi.status() != WL_CONNECTED) {
+    web.send(409, "text/plain", "Conecta primero el Wemos a tu Wi-Fi.");
+    return false;
+  }
+  return true;
+}
+
+void retryNtp() {
+  if (!clockRequestAllowed()) return;
+  startNtp();
+  attemptedFetch = false;
+  web.sendHeader("Location", "/");
+  web.send(303);
+}
+
+void useBrowserClock() {
+  if (!clockRequestAllowed()) return;
+  int64_t epoch = 0;
+  if (!device_clock::parseBrowserTime(web.arg("epoch").c_str(), epoch) ||
+      epoch > static_cast<int64_t>(std::numeric_limits<time_t>::max())) {
+    web.send(400, "text/plain; charset=utf-8", "Hora no válida. Comprueba la fecha y hora del teléfono/PC.");
+    return;
+  }
+  struct timeval value{};
+  value.tv_sec = static_cast<time_t>(epoch);
+  if (settimeofday(&value, nullptr) != 0) {
+    web.send(500, "text/plain", "No se pudo ajustar el reloj.");
+    return;
+  }
+  clockSource = ClockSource::Browser;
+  attemptedFetch = false;
+  lastFrame = "";
+  message = "Hora del navegador";
+  web.sendHeader("Location", "/");
+  web.send(303);
 }
 
 void appendServerFields(String& page) {
@@ -254,6 +343,7 @@ void homePage() {
                   "button{padding:10px;margin-top:10px}</style><h1>Pantalla de glucosa</h1>");
   page += "<p>Firmware " + String(VERSION) + " · IP " + WiFi.localIP().toString() + "</p>";
   page += "<p>Estado: " + htmlEscape(message) + "</p>";
+  appendClockControls(page);
   page += F("<form method='post' action='/settings'>");
   appendServerFields(page);
   page += "<input type='hidden' name='csrf' value='" + csrf + "'>";
@@ -353,8 +443,8 @@ void fetchReading() {
   http.setTimeout(2500);
   http.setReuse(false);
   if (https) {
-    if (time(nullptr) < VALID_CLOCK) {
-      message = "Esperando hora NTP";
+    if (!device_clock::plausible(time(nullptr))) {
+      message = ntpAttempts < 2 ? "Esperando hora NTP" : "Sin hora: abre la web";
       return;
     }
     if (settings.customCa[0]) {
@@ -424,7 +514,7 @@ void render() {
     return;
   }
   const time_t now = time(nullptr);
-  const bool clockReady = now >= VALID_CLOCK;
+  const bool clockReady = device_clock::plausible(now);
   const int64_t age = clockReady && reading.available
                           ? max(static_cast<int64_t>(0), static_cast<int64_t>(now) - reading.dateMs / 1000)
                           : 0;
@@ -488,6 +578,11 @@ void setup() {
   }
   baseUrl = settings.url;
   csrf = String(ESP.random(), HEX) + String(ESP.random(), HEX);
+  settimeofday_cb([](bool fromSntp) {
+    if (fromSntp) clockSource = ClockSource::Ntp;
+    attemptedFetch = false;
+    lastFrame = "";
+  });
   WiFi.persistent(false);
   WiFi.hostname(DEVICE_HOSTNAME);
   WiFi.setAutoReconnect(true);
@@ -497,12 +592,13 @@ void setup() {
     WiFi.mode(WIFI_STA);
     WiFi.begin(settings.ssid, settings.wifiPassword);
     message = "Conectando Wi-Fi";
-    configTime(0, 0, "pool.ntp.org", "time.google.com");
   }
   web.on("/", HTTP_GET, homePage);
   web.on("/configure", HTTP_GET, configurationPage);
   web.on("/configure", HTTP_POST, saveConfiguration);
   web.on("/settings", HTTP_POST, saveSettings);
+  web.on("/clock/retry", HTTP_POST, retryNtp);
+  web.on("/clock/browser", HTTP_POST, useBrowserClock);
   if (webEnabled) updater.setup(&web, "/update", settings.webUsername, settings.webPassword);
   web.begin();
   render();
@@ -513,6 +609,8 @@ void loop() {
   if (restartPending && millis() - restartRequestedAt >= 1500) ESP.restart();
   if (!setupMode && WiFi.status() == WL_CONNECTED) {
     hasConnected = true;
+    // Start/retry DNS and SNTP only after the station has acquired a connection.
+    if (clockSchedule.poll(true, device_clock::plausible(time(nullptr)), millis())) startNtp();
     static bool mdnsStarted = false;
     if (!mdnsStarted) mdnsStarted = MDNS.begin(DEVICE_HOSTNAME);
     if (mdnsStarted) MDNS.update();
@@ -522,6 +620,7 @@ void loop() {
       lastFetch = millis();
     }
   } else if (!setupMode) {
+    clockSchedule.poll(false, device_clock::plausible(time(nullptr)), millis());
     message = "Sin Wi-Fi";
     // Recover from wrong credentials at boot without having to recompile or use USB.
     if (!hasConnected && millis() >= 60000) startProvisioning();

@@ -1,8 +1,8 @@
 # Firmware para Wemos D1 mini (ESP8266)
 
-Versión **0.3.0**, GC9A01 SPI 240 × 240, D1 mini con **4 MB de flash**.
+Versión **0.3.1**, GC9A01 SPI 240 × 240, D1 mini con **4 MB de flash**.
 
-- [Descargar el .bin](nightscout-d1-mini-v0.3.0.bin) (en GitHub: **Download raw file**).
+- [Descargar el .bin](nightscout-d1-mini-v0.3.1.bin) (en GitHub: **Download raw file**).
 - [SHA-256](SHA256SUMS).
 - [Datos de compilación](build-info.json).
 
@@ -19,7 +19,7 @@ Si utilizas Python y esptool 4.x, por ejemplo:
 
 ```bash
 python -m pip install esptool==4.8.1
-python -m esptool --chip esp8266 --port COM3 --baud 115200 write_flash --flash_mode dio --flash_size 4MB 0x00000 nightscout-d1-mini-v0.3.0.bin
+python -m esptool --chip esp8266 --port COM3 --baud 115200 write_flash --flash_mode dio --flash_size 4MB 0x00000 nightscout-d1-mini-v0.3.1.bin
 ```
 
 Cambia `COM3` por el puerto real. En Linux suele ser `/dev/ttyUSB0` y en macOS
@@ -63,6 +63,19 @@ Al actualizar desde 0.2.0 se conservan la red Wi-Fi, la URL y los datos de
 administración. Introduce el token en la web después de actualizar. La imagen
 0.2.0 anterior permanece disponible para referencia, pero no tiene estos campos.
 
+## Si queda esperando NTP
+
+La versión 0.3.1 inicia NTP al conectar el Wi-Fi y reintenta cada 30 segundos
+mientras no tiene hora, alternando tres servidores. Si tu red no permite NTP,
+abre `http://IP_DEL_WEMOS/`, inicia sesión y, en **Hora del dispositivo**, pulsa
+**Usar hora de este teléfono/PC**. Comprueba primero que la fecha y hora de ese
+teléfono o computador sean correctas. El Wemos volverá a consultar Nightscout
+manteniendo la validación HTTPS. Si reinicias la placa y NTP sigue sin responder,
+necesitarás volver a darle la hora desde el navegador.
+
+Puedes subir esta actualización por `/update` incluso sin hora sincronizada;
+al pasar desde 0.3.0 se conservan Wi-Fi, URL, token y datos de administración.
+
 ## Actualizaciones siguientes
 
 Con el Wemos conectado a tu Wi-Fi, abre `http://IP_DEL_WEMOS/update`, inicia
@@ -70,7 +83,8 @@ sesión con tus datos de administración y sube el `.bin` en **Firmware**. No lo
 subas en **FileSystem**. La configuración guardada se conserva al actualizar
 normalmente; un borrado completo de flash la elimina.
 
-El archivo se ha compilado y se han probado las validaciones de configuración
+El archivo se ha compilado y se han probado el inicio y los reintentos del reloj,
+la validación de la hora del navegador y las validaciones de configuración
 y certificados con la biblioteca BearSSL del núcleo ESP8266 en el entorno de
 desarrollo. La conexión Wi-Fi, HTTPS en el dispositivo, el panel SPI, la grabación
 de ajustes y la actualización OTA necesitan validación física en la placa.
