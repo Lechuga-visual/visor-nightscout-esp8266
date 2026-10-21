@@ -6,9 +6,9 @@
 #include "device_clock.h"
 
 namespace reading_ui {
-constexpr size_t HISTORY_SIZE = 25;
-constexpr size_t SOURCE_READINGS = 145; // Covers two hours even with one-minute uploads.
-constexpr int64_t WINDOW_MS = 2 * 60 * 60 * 1000;
+constexpr size_t HISTORY_SIZE = 7;
+constexpr size_t SOURCE_READINGS = 31; // Covers 30 minutes even with one-minute uploads.
+constexpr int64_t WINDOW_MS = 30 * 60 * 1000;
 constexpr int64_t GAP_MS = 15 * 60 * 1000;
 struct Point { int64_t date; uint16_t value; };
 struct History {
@@ -36,7 +36,7 @@ struct History {
     ++count;
   }
 };
-static_assert(sizeof(History) <= 512, "History must remain bounded on ESP8266");
+static_assert(sizeof(History) <= 128, "History must remain bounded on ESP8266");
 
 enum class Tone { Empty, Clock, Old, Error, Low, High, Normal };
 inline int64_t ageSeconds(bool available, int64_t dateMs, int64_t now) {

@@ -24,7 +24,7 @@
           <text class="dial-value" id="glucose" x="104" y="108">---</text>
           <text class="dial-trend" id="trend" x="188" y="99">—</text>
           <text class="dial-unit" x="104" y="128">mg/dL</text>
-          <g class="graph-labels"><text x="38" y="141" text-anchor="start">−2 h</text><text x="202" y="141" text-anchor="end">ahora</text></g>
+          <g class="graph-labels"><text x="38" y="141" text-anchor="start">−30 min</text><text x="202" y="141" text-anchor="end">ahora</text></g>
           <g id="graph-grid"></g><path class="history-line" id="history-path"/><g id="history-dots"></g>
           <text class="graph-empty" id="graph-empty" x="120" y="166">Esperando historial</text>
           <rect class="age-background" x="30" y="184" width="180" height="21" rx="10"/>
@@ -32,7 +32,7 @@
           <text class="dial-status" id="dial-status" x="120" y="217">Esperando al dispositivo</text>
           <text class="dial-ip" id="dial-ip" x="120" y="230">—</text>
         </svg>
-        <div class="display-foot"><span><i class="live-dot"></i> Historial de las últimas 2 horas</span><button class="button quiet" type="button" id="refresh">Actualizar visor <span aria-hidden="true">↻</span></button></div>
+        <div class="display-foot"><span><i class="live-dot"></i> Historial de los últimos 30 minutos</span><button class="button quiet" type="button" id="refresh">Actualizar visor <span aria-hidden="true">↻</span></button></div>
       </section>
       <div class="side-column">
         <section class="card summary-card"><p class="eyebrow">LA LECTURA ACTUAL</p><h2 id="reading-state">Esperando datos</h2><p class="muted" id="server-status" role="status">Conectando con tu pantalla…</p><div class="metrics"><div><span>Tendencia</span><strong id="trend-label">—</strong></div><div><span>Antigüedad</span><strong id="age-detail">—</strong></div><div><span>Hora de la lectura</span><strong id="reading-time">—</strong></div><div><span>Último intento de consulta</span><strong id="checked-age">—</strong></div></div></section>

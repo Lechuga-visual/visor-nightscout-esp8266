@@ -35,7 +35,7 @@ conectarlo; la retroiluminación no está controlada por un GPIO en esta versió
 
 ### Binario listo para cargar
 
-Descarga [nightscout-d1-mini-v0.5.1.bin](firmware/nightscout-d1-mini-v0.5.1.bin)
+Descarga [nightscout-d1-mini-v0.5.2.bin](firmware/nightscout-d1-mini-v0.5.2.bin)
 desde la carpeta `firmware` (en GitHub utiliza **Download raw file**). Está
 compilado para **Wemos D1 mini ESP8266 con 4 MB de flash**, con los pines de la
 tabla anterior. No contiene datos privados ni requiere configurar el Wi-Fi
@@ -109,11 +109,29 @@ que tengan diez minutos o más con `ANTIGUA`. Si falla una consulta,
 conserva el último valor con el error visible. Sin una hora válida indica que
 la hora no está sincronizada; no asume que la lectura es reciente.
 
-La versión 0.5.0 incorpora un diseño oscuro de alto contraste y una mini gráfica
-de las últimas dos horas. El color de la lectura es menta entre 70–180 mg/dL,
+La interfaz usa un diseño oscuro de alto contraste y una mini gráfica
+de los últimos 30 minutos. El color de la lectura es menta entre 70–180 mg/dL,
 rojo por debajo y ámbar por encima. Ese intervalo visual está fijado en esta
 versión y no constituye una alarma personalizada. Las lecturas antiguas y los
 errores se distinguen por texto además del color. No hay alarmas sonoras.
+
+### Menos memoria y gráfica de 30 minutos en 0.5.2
+
+La gráfica de pantalla y web cubre los últimos 30 minutos. La consulta baja de
+145 a 31 entradas y el historial conserva hasta siete puntos de cinco minutos.
+Los textos fijos de respuestas web, diagnóstico, mensajes y registro se guardan
+en flash. La RAM estática de la compilación baja de 40.720 a 37.632 bytes:
+**3.088 bytes menos**. Además, el documento temporal del visor baja de 3.072 a
+1.792 bytes y el historial temporal necesita menos memoria durante HTTPS.
+Esto ahorra RAM; la imagen de firmware no tiene por qué ocupar menos flash.
+
+El diagnóstico de 0.5.1 mostró HTTP 200 con un cuerpo incompleto y solo 1.960
+bytes libres al empezar el JSON. La autenticación por clave pública funcionaba.
+La nueva consulta reduce la transferencia; si quedan menos de 3.072 bytes al
+empezar el análisis, se informa memoria baja y se conserva el dato anterior.
+Ese margen evita iniciar nuevas reservas con tan poca RAM, pero no garantiza
+por sí solo resolver la excepción anterior: debe confirmarse en el dispositivo.
+Se conservan el nombre, Wi-Fi, URL, token, CA o clave pública y datos de acceso.
 
 ### Corrección de lectura en 0.5.1
 
@@ -159,9 +177,9 @@ pierde contacto con el Wemos, conserva el último valor recibido, actualiza su
 antigüedad cuando se conoce y muestra que el dispositivo no responde. No se
 presenta como una lectura recién recibida.
 
-La gráfica usa hasta 25 puntos, guardando la muestra más reciente de cada
-bloque de cinco minutos. Se solicitan hasta 145 entradas y se decodifican una
-por una para cubrir dos horas incluso con sensores que envían cada minuto,
+La gráfica usa hasta 7 puntos, guardando la muestra más reciente de cada
+bloque de cinco minutos. Se solicitan hasta 31 entradas y se decodifican una
+por una para cubrir 30 minutos incluso con sensores que envían cada minuto,
 sin guardar toda la respuesta JSON en RAM. Los huecos de más de 15 minutos no
 se unen con una línea. Si falta la hora o no hay historial reciente se indica
 en pantalla. El historial vive en RAM y se vuelve a obtener del servidor después

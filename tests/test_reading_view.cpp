@@ -33,18 +33,18 @@ void testAgeAndStaleness() {
 void testBoundedSortedDeduplicatedHistory() {
   History history;
   for (int i = 40; i >= 0; --i) history.add((NOW - i * 300) * 1000, 100 + i);
-  assert(history.count == 25);
-  assert(history.points[0].date == (NOW - 24 * 300) * 1000);
+  assert(history.count == 7);
+  assert(history.points[0].date == (NOW - 6 * 300) * 1000);
   history.add(NOW * 1000, 200);
-  assert(history.count == 25 && history.points[24].value == 200);
+  assert(history.count == 7 && history.points[6].value == 200);
   history.add((NOW - 40 * 300) * 1000, 55);
-  assert(history.count == 25 && history.points[0].value == 124);
+  assert(history.count == 7 && history.points[0].value == 106);
 }
 void testGraphWindowGapsAndScale() {
   History history;
-  history.add((NOW - 8000) * 1000, 900); // Outside the two-hour window.
-  history.add((NOW - 7200) * 1000, 40);
-  history.add((NOW - 6900) * 1000, 70);
+  history.add((NOW - 2100) * 1000, 900); // Outside the 30-minute window.
+  history.add((NOW - 1800) * 1000, 40);
+  history.add((NOW - 1500) * 1000, 70);
   history.add(NOW * 1000, 300);
   const auto graph = plot(history, NOW);
   assert(graph.count == 3 && graph.points[0].x == 0 && graph.points[2].x == 1000);
@@ -55,7 +55,7 @@ void testGraphWindowGapsAndScale() {
 }
 void testStreamsFullHistoryWithoutRetainingLargeFields() {
   std::string json = "[\n";
-  for (int i = 0; i < 145; ++i) {
+  for (int i = 0; i < 31; ++i) {
     if (i) json += ",\n";
     json += entry(120 + i, (NOW - i * 60) * 1000,
                   ",\"unused\":{\"large\":\"" + std::string(800, 'x') + "\",\"nested\":[1,2,3]}");
@@ -63,9 +63,9 @@ void testStreamsFullHistoryWithoutRetainingLargeFields() {
   json += "\n]";
   Input input(json); ParsedReadings result;
   assert(parseEntries(input, NOW, result) == ParseResult::Ok);
-  assert(result.available && result.history.count == 25 && result.value == 120);
+  assert(result.available && result.history.count == 7 && result.value == 120);
   assert(std::string(result.direction) == "FortyFiveUp");
-  assert(result.history.points[0].date <= (NOW - 115 * 60) * 1000);
+  assert(result.history.points[0].date <= (NOW - 25 * 60) * 1000);
 }
 void testEmptyAndInvalidResponses() {
   for (const char* json : {"[]", "[ \r\n ]"}) {

@@ -47,7 +47,7 @@ template <typename Input> int token(Input& input) {
   return -1;
 }
 
-// Decode one filtered object at a time instead of keeping 145 JSON objects in
+// Decode one filtered object at a time instead of keeping 31 JSON objects in
 // RAM alongside BearSSL. Only the small numeric history survives each object.
 template <typename Input> ParseResult parseEntries(Input& input, int64_t now, ParsedReadings& output,
                                                  ParseDiagnostics& diagnostic) {

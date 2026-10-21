@@ -29,7 +29,7 @@
 #endif
 
 namespace {
-constexpr char VERSION[] = "0.5.1";
+constexpr char VERSION[] = "0.5.2";
 constexpr uint32_t POLL_MS = 30000;
 TFT_eSPI display;
 ESP8266WebServer web(80);
@@ -141,7 +141,7 @@ bool authenticated(bool interactive = true) {
   if (interactive) { webRecentlyUsed = true; lastWebActivity = millis(); }
   web.sendHeader("Cache-Control", "no-store");
   if (!webEnabled) {
-    web.send(503, "text/plain; charset=utf-8", "Completa primero la configuracion inicial.");
+    web.send(503, "text/plain; charset=utf-8", F("Completa primero la configuracion inicial."));
     return false;
   }
   if (!web.authenticate(settings.webUsername, settings.webPassword)) {
@@ -216,7 +216,7 @@ bool clockRequestAllowed() {
   if (!authenticated()) return false;
   if (!currentForm()) return false;
   if (setupMode || WiFi.status() != WL_CONNECTED) {
-    web.send(409, "text/plain", "Conecta primero el Wemos a tu Wi-Fi.");
+    web.send(409, "text/plain", F("Conecta primero el Wemos a tu Wi-Fi."));
     return false;
   }
   return true;
@@ -235,23 +235,23 @@ void useBrowserClock() {
   int64_t epoch = 0;
   if (!device_clock::parseBrowserTime(web.arg("epoch").c_str(), epoch) ||
       epoch > static_cast<int64_t>(std::numeric_limits<time_t>::max())) {
-    web.send(400, "text/plain; charset=utf-8", "Hora no válida. Comprueba la fecha y hora del teléfono/PC.");
+    web.send(400, "text/plain; charset=utf-8", F("Hora no válida. Comprueba la fecha y hora del teléfono/PC."));
     return;
   }
   struct timeval value{};
   value.tv_sec = static_cast<time_t>(epoch);
   if (settimeofday(&value, nullptr) != 0) {
-    web.send(500, "text/plain", "No se pudo ajustar el reloj.");
+    web.send(500, "text/plain", F("No se pudo ajustar el reloj."));
     return;
   }
   clockSource = ClockSource::Browser;
   attemptedFetch = false;
   lastFrame = "";
-  message = "Hora del navegador";
+  message = F("Hora del navegador");
   web.send(200, "text/html; charset=utf-8",
-           "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+           F("<meta name='viewport' content='width=device-width,initial-scale=1'>"
            "<h1>Hora ajustada</h1><p>El reloj del Wemos recibió la hora del navegador. "
-           "La consulta al servidor se reanudará en unos segundos.</p><p><a href='/'>Volver</a></p>");
+           "La consulta al servidor se reanudará en unos segundos.</p><p><a href='/'>Volver</a></p>"));
 }
 
 void appendServerFields(String& page) {
@@ -328,7 +328,7 @@ bool patientFields(patient_label::Label& label) {
   String name = web.arg("patient_name");
   name.trim();
   if (!patient_label::validName(name.c_str())) {
-    web.send(400, "text/plain; charset=utf-8", "Nombre inválido: usa hasta 24 caracteres, sin saltos de línea ni controles.");
+    web.send(400, "text/plain; charset=utf-8", F("Nombre inválido: usa hasta 24 caracteres, sin saltos de línea ni controles."));
     return false;
   }
   memset(label.name, 0, sizeof(label.name));
@@ -378,14 +378,14 @@ void saveConfiguration() {
   const String password = web.arg("web_password");
   if (!validUrl(url) || ssid.length() > 32 || wifiPassword.length() > 64 ||
       username.length() > 32 || password.length() > 64) {
-    web.send(400, "text/plain; charset=utf-8", "Revisa la URL y la longitud de los campos.");
+    web.send(400, "text/plain; charset=utf-8", F("Revisa la URL y la longitud de los campos."));
     return;
   }
   // CA settings are several KB; allocate candidates on the heap, not the ESP's 4 KB stack.
   std::unique_ptr<device_config::Settings> candidate(new (std::nothrow) device_config::Settings);
-  if (!candidate) { web.send(503, "text/plain", "Memoria insuficiente. Intenta nuevamente."); return; }
+  if (!candidate) { web.send(503, "text/plain", F("Memoria insuficiente. Intenta nuevamente.")); return; }
   if (!serverFields(*candidate, url)) {
-    web.send(400, "text/plain; charset=utf-8", "Revisa el token y el PEM: una CA válida o una clave pública RSA/EC. Nunca una clave privada. El token requiere HTTPS. No combines borrar con introducir un valor nuevo.");
+    web.send(400, "text/plain; charset=utf-8", F("Revisa el token y el PEM: una CA válida o una clave pública RSA/EC. Nunca una clave privada. El token requiere HTTPS. No combines borrar con introducir un valor nuevo."));
     return;
   }
   ssid.toCharArray(candidate->ssid, sizeof(candidate->ssid));
@@ -393,20 +393,20 @@ void saveConfiguration() {
   username.toCharArray(candidate->webUsername, sizeof(candidate->webUsername));
   password.toCharArray(candidate->webPassword, sizeof(candidate->webPassword));
   if (!device_config::configured(*candidate)) {
-    web.send(400, "text/plain; charset=utf-8", "SSID y usuario obligatorios; clave Wi-Fi de 8 a 63 caracteres (o vacia para red abierta); clave de administracion de 12 a 64.");
+    web.send(400, "text/plain; charset=utf-8", F("SSID y usuario obligatorios; clave Wi-Fi de 8 a 63 caracteres (o vacia para red abierta); clave de administracion de 12 a 64."));
     return;
   }
   lastOperation = "saving_configuration";
   patient_label::Label label;
   if (!patientFields(label)) return;
   if (!persistSettings(*candidate, label)) {
-    web.send(500, "text/plain", "No se pudo guardar. Intenta nuevamente.");
+    web.send(500, "text/plain", F("No se pudo guardar. Intenta nuevamente."));
     return;
   }
   web.send(200, "text/html; charset=utf-8",
-           "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+           F("<meta name='viewport' content='width=device-width,initial-scale=1'>"
            "<h1>Configuración guardada</h1><p>El Wemos se reiniciará. Vuelve a conectar tu teléfono "
-           "a tu Wi-Fi y abre la IP que aparecerá en la pantalla del Wemos.</p>");
+           "a tu Wi-Fi y abre la IP que aparecerá en la pantalla del Wemos.</p>"));
   restartPending = true;
   lastOperation = "restart_requested";
   restartRequestedAt = millis();
@@ -425,11 +425,11 @@ void startProvisioning() {
   if (!WiFi.softAPConfig(setupIp, setupIp, IPAddress(255, 255, 255, 0)) ||
       !WiFi.softAP(setupSsid.c_str(), setupPassword.c_str())) {
     setupMode = false;
-    message = "Error al crear Wi-Fi";
+    message = F("Error al crear Wi-Fi");
     return;
   }
   setupMode = true;
-  message = "Configuracion inicial";
+  message = F("Configuracion inicial");
   lastFrame = "";
 }
 
@@ -468,21 +468,21 @@ void saveSettings() {
   candidate.trim();
   while (candidate.endsWith("/")) candidate.remove(candidate.length() - 1);
   if (!validUrl(candidate)) {
-    web.send(400, "text/plain", "URL HTTP(S) invalida. No incluyas credenciales, query ni /api/v1.");
+    web.send(400, "text/plain", F("URL HTTP(S) invalida. No incluyas credenciales, query ni /api/v1."));
     return;
   }
   // Changing only the URL must preserve the Wi-Fi and administrator credentials.
   std::unique_ptr<device_config::Settings> saved(new (std::nothrow) device_config::Settings);
-  if (!saved) { web.send(503, "text/plain", "Memoria insuficiente."); return; }
+  if (!saved) { web.send(503, "text/plain", F("Memoria insuficiente.")); return; }
   if (!serverFields(*saved, candidate)) {
-    web.send(400, "text/plain; charset=utf-8", "Revisa el token, HTTPS y el PEM de CA o clave pública.");
+    web.send(400, "text/plain; charset=utf-8", F("Revisa el token, HTTPS y el PEM de CA o clave pública."));
     return;
   }
   lastOperation = "saving_settings";
   patient_label::Label label;
   if (!patientFields(label)) return;
   if (!persistSettings(*saved, label)) {
-    web.send(500, "text/plain", "No se pudo guardar la configuracion.");
+    web.send(500, "text/plain", F("No se pudo guardar la configuracion."));
     return;
   }
   baseUrl = candidate;
@@ -493,7 +493,7 @@ void saveSettings() {
   historyErrorStage = "none";
   lastReadingRequestOk = false;
   attemptedFetch = false;
-  message = "Servidor cambiado";
+  message = F("Servidor cambiado");
   lastOperation = "settings_saved";
   String page = F("<meta name='viewport' content='width=device-width,initial-scale=1'>"
                   "<meta charset='utf-8'><h1>Servidor guardado</h1><p>La configuración se guardó correctamente. "
@@ -523,13 +523,21 @@ __attribute__((noinline)) bool parseReading(HTTPClient& http, bool latestOnly, b
   bodyBytes = 0;
   firstBodyByte = -1;
   bodyError = "none";
+  // Leave headroom for the parser and Wi-Fi's receive buffers together.
+  // A failed allocation inside a networking dependency can otherwise reset
+  // the device instead of producing a recoverable JSON error.
+  if (heapBeforeJson < 3072) {
+    parseDiagnostic.stage = "low_heap";
+    message = F("Memoria baja para lectura");
+    return false;
+  }
   std::unique_ptr<reading_ui::ParsedReadings> parsed(new (std::nothrow) reading_ui::ParsedReadings);
   HttpInput input{http.getStream()};
   using Reader = nightscout_http::BodyReader<HttpInput>;
   std::unique_ptr<Reader> body(new (std::nothrow) Reader(input, chunked, http.getSize()));
   if (!parsed || !body) {
     parseDiagnostic.stage = "allocation";
-    message = "Sin memoria para historial";
+    message = F("Sin memoria para historial");
     return false;
   }
   const auto result = reading_ui::parseEntries(*body, static_cast<int64_t>(time(nullptr)), *parsed, parseDiagnostic);
@@ -539,14 +547,14 @@ __attribute__((noinline)) bool parseReading(HTTPClient& http, bool latestOnly, b
   firstBodyByte = body->firstByte();
   bodyError = nightscout_http::errorName(body->error());
   if (!complete || (result != reading_ui::ParseResult::Ok && result != reading_ui::ParseResult::Empty)) {
-    if (result == reading_ui::ParseResult::NoMemory) message = "Sin memoria para JSON";
+    if (result == reading_ui::ParseResult::NoMemory) message = F("Sin memoria para JSON");
     else if (body->error() == nightscout_http::BodyError::Truncated ||
              !strcmp(parseDiagnostic.jsonError, "IncompleteInput") ||
-             !strcmp(parseDiagnostic.jsonError, "EmptyInput")) message = "Respuesta incompleta";
-    else if (!strcmp(parseDiagnostic.stage, "invalid_reading")) message = "Lectura no valida";
-    else if (body->error() != nightscout_http::BodyError::None) message = "Error en cuerpo HTTP";
+             !strcmp(parseDiagnostic.jsonError, "EmptyInput")) message = F("Respuesta incompleta");
+    else if (!strcmp(parseDiagnostic.stage, "invalid_reading")) message = F("Lectura no valida");
+    else if (body->error() != nightscout_http::BodyError::None) message = F("Error en cuerpo HTTP");
     else message = "JSON: " + String(parseDiagnostic.stage);
-    Serial.printf("Lectura rechazada: fase=%s json=%s cuerpo=%s bytes=%u entradas=%u primero=%d\n",
+    Serial.printf_P(PSTR("Lectura rechazada: fase=%s json=%s cuerpo=%s bytes=%u entradas=%u primero=%d\n"),
                   parseDiagnostic.stage, parseDiagnostic.jsonError, bodyError,
                   static_cast<unsigned>(bodyBytes), static_cast<unsigned>(parseDiagnostic.entries), firstBodyByte);
     return false;
@@ -555,7 +563,7 @@ __attribute__((noinline)) bool parseReading(HTTPClient& http, bool latestOnly, b
     reading.available = false;
     history.count = 0;
     ++historyVersion;
-    message = "Servidor sin lecturas";
+    message = F("Servidor sin lecturas");
     return true;
   }
   if (latestOnly) history.add(parsed->date, static_cast<uint16_t>(parsed->value));
@@ -582,7 +590,9 @@ void fetchReading() {
   transferMode = "unknown";
   contentEncoding = "unknown";
   latestOnlyRequest = historyRetryPending && millis() - historyFailedAt < 300000;
-  String endpoint = baseUrl + (latestOnlyRequest ? "/api/v1/entries.json?count=1" : "/api/v1/entries/sgv.json?count=145");
+  String endpoint = baseUrl;
+  endpoint += latestOnlyRequest ? F("/api/v1/entries.json?count=1") : F("/api/v1/entries/sgv.json?count=");
+  if (!latestOnlyRequest) endpoint += String(reading_ui::SOURCE_READINGS);
   const bool https = baseUrl.startsWith("https://");
   const bool pinned = device_config::pinnedPublicKey(settings.customCa);
   // Avoid allocating the TLS stack and buffers until a connection is possible.
@@ -592,7 +602,7 @@ void fetchReading() {
   }
   if (settings.token[0]) {
     if (!https) {
-      message = "Token requiere HTTPS";
+      message = F("Token requiere HTTPS");
       return;
     }
     endpoint += "&token=" + urlEncode(settings.token);
@@ -611,27 +621,27 @@ void fetchReading() {
     heapBeforeTls = ESP.getFreeHeap();
     largestBlockBeforeTls = ESP.getMaxFreeBlockSize();
     secure.reset(new (std::nothrow) BearSSL::WiFiClientSecure);
-    if (!secure) { message = "Sin memoria para TLS"; return; }
+    if (!secure) { message = F("Sin memoria para TLS"); return; }
     if (pinned) {
       key.reset(new (std::nothrow) BearSSL::PublicKey(settings.customCa));
-      if (!key || !validPinnedKey(*key)) { message = "Clave publica invalida"; return; }
+      if (!key || !validPinnedKey(*key)) { message = F("Clave publica invalida"); return; }
       secure->setKnownKey(key.get());
     } else if (settings.customCa[0]) {
       trust.reset(new (std::nothrow) BearSSL::X509List(settings.customCa));
-      if (!trust || trust->getCount() != 1) { message = "CA propia invalida"; return; }
+      if (!trust || trust->getCount() != 1) { message = F("CA propia invalida"); return; }
       secure->setTrustAnchors(trust.get());
     } else secure->setCertStore(&publicRoots);
     // HTTPClient applies its own timeout before connect(), overriding the
     // client's value. Set it here so the TLS handshake actually gets 5 s.
     http.setTimeout(5000);
-    Serial.printf("TLS inicio: modo=%s heap=%u bloque=%u RSSI=%d\n",
+    Serial.printf_P(PSTR("TLS inicio: modo=%s heap=%u bloque=%u RSSI=%d\n"),
                   pinned ? "clave" : "CA", heapBeforeTls, largestBlockBeforeTls, WiFi.RSSI());
     if (!http.begin(*secure, endpoint)) {
-      message = "URL HTTPS invalida";
+      message = F("URL HTTPS invalida");
       return;
     }
   } else if (!http.begin(plain, endpoint)) {
-    message = "URL HTTP invalida";
+    message = F("URL HTTP invalida");
     return;
   }
   const char* responseHeaders[] = {"Date", "Age", "Transfer-Encoding", "Content-Encoding"};
@@ -639,7 +649,7 @@ void fetchReading() {
   http.addHeader("Cache-Control", "no-cache, no-store");
   http.addHeader("Accept-Encoding", "identity");
   lastOperation = https ? "tls_request" : "http_request";
-  Serial.printf("Consulta inicio: pila=%u\n", ESP.getFreeContStack());
+  Serial.printf_P(PSTR("Consulta inicio: pila=%u\n"), ESP.getFreeContStack());
   const int result = http.GET();
   lastHttpStatus = result;
   responseLength = http.getSize();
@@ -652,7 +662,7 @@ void fetchReading() {
   contentEncoding = !encoding.length() || encoding == "identity" ? "identity" : "unsupported";
   lastOperation = "server_response";
   lastTlsError = secure ? secure->getLastSSLError() : 0;
-  Serial.printf("Consulta: HTTP=%d TLS=%d WiFi=%d heap=%u\n", result, lastTlsError,
+  Serial.printf_P(PSTR("Consulta: HTTP=%d TLS=%d WiFi=%d heap=%u\n"), result, lastTlsError,
                 WiFi.status(), ESP.getFreeHeap());
   if (result == HTTP_CODE_OK) {
     if (pinned && https) {
@@ -670,7 +680,7 @@ void fetchReading() {
     bool parsedOk = false;
     if (!strcmp(transferMode, "unsupported") || !strcmp(contentEncoding, "unsupported")) {
       parseDiagnostic.stage = "unsupported_encoding";
-      message = "Codificacion HTTP no admitida";
+      message = F("Codificacion HTTP no admitida");
     } else parsedOk = parseReading(http, latestOnlyRequest, chunked);
     if (parsedOk) {
       if (!latestOnlyRequest) { historyRetryPending = false; historyErrorStage = "none"; }
@@ -710,49 +720,49 @@ void homePage() {
 
 void statePage() {
   if (!authenticated(false)) return;
-  DynamicJsonDocument document(3072);
-  if (!document.capacity()) { web.send(503, "text/plain", "Sin memoria para el visor"); return; }
+  DynamicJsonDocument document(1792);
+  if (!document.capacity()) { web.send(503, "text/plain", F("Sin memoria para el visor")); return; }
   const auto now = static_cast<int64_t>(time(nullptr));
   const auto age = reading_ui::ageSeconds(reading.available, reading.dateMs, now);
   const auto style = reading_ui::tone(reading.available, reading.sgv, age,
                                     WiFi.status() == WL_CONNECTED && lastReadingRequestOk);
   const auto trend = reading_ui::trend(reading.direction.c_str());
-  document["firmware"] = VERSION;
-  document["patient_name"] = patient.name;
-  document["available"] = reading.available;
+  document[F("firmware")] = VERSION;
+  document[F("patient_name")] = patient.name;
+  document[F("available")] = reading.available;
   if (reading.available) {
-    document["glucose"] = reading.sgv;
-    document["reading_date_ms"] = reading.dateMs;
+    document[F("glucose")] = reading.sgv;
+    document[F("reading_date_ms")] = reading.dateMs;
   } else {
-    document["glucose"] = nullptr;
-    document["reading_date_ms"] = nullptr;
+    document[F("glucose")] = nullptr;
+    document[F("reading_date_ms")] = nullptr;
   }
-  if (age >= 0) document["age_seconds"] = age;
-  else document["age_seconds"] = nullptr;
-  document["tone"] = reading_ui::toneName(style);
-  document["trend_symbol"] = trend.symbol;
-  document["trend_label"] = trend.label;
-  document["clock_valid"] = device_clock::plausible(now);
-  document["message"] = message;
-  document["wifi_connected"] = WiFi.status() == WL_CONNECTED;
-  document["rssi_dbm"] = WiFi.RSSI();
-  document["ip"] = WiFi.localIP().toString();
-  if (attemptedFetch) document["checked_seconds_ago"] = (millis() - lastFetch) / 1000;
-  else document["checked_seconds_ago"] = nullptr;
+  if (age >= 0) document[F("age_seconds")] = age;
+  else document[F("age_seconds")] = nullptr;
+  document[F("tone")] = reading_ui::toneName(style);
+  document[F("trend_symbol")] = trend.symbol;
+  document[F("trend_label")] = trend.label;
+  document[F("clock_valid")] = device_clock::plausible(now);
+  document[F("message")] = message;
+  document[F("wifi_connected")] = WiFi.status() == WL_CONNECTED;
+  document[F("rssi_dbm")] = WiFi.RSSI();
+  document[F("ip")] = WiFi.localIP().toString();
+  if (attemptedFetch) document[F("checked_seconds_ago")] = (millis() - lastFetch) / 1000;
+  else document[F("checked_seconds_ago")] = nullptr;
   const auto plot = reading_ui::plot(history, now);
-  JsonObject graph = document.createNestedObject("plot");
-  graph["low"] = plot.low;
-  graph["high"] = plot.high;
-  JsonArray points = graph.createNestedArray("points");
+  JsonObject graph = document.createNestedObject(F("plot"));
+  graph[F("low")] = plot.low;
+  graph[F("high")] = plot.high;
+  JsonArray points = graph.createNestedArray(F("points"));
   for (size_t i = 0; i < plot.count; ++i) {
     JsonArray point = points.createNestedArray();
     point.add(plot.points[i].x);
     point.add(plot.points[i].y);
     point.add(plot.points[i].start);
   }
-  if (document.overflowed()) { web.send(503, "text/plain", "Sin memoria para el visor"); return; }
+  if (document.overflowed()) { web.send(503, "text/plain", F("Sin memoria para el visor")); return; }
   String body;
-  if (!body.reserve(measureJson(document) + 1)) { web.send(503, "text/plain", "Sin memoria para el visor"); return; }
+  if (!body.reserve(measureJson(document) + 1)) { web.send(503, "text/plain", F("Sin memoria para el visor")); return; }
   serializeJson(document, body);
   web.send(200, "application/json", body);
 }
@@ -773,47 +783,47 @@ void firmwarePage() {
 void diagnostics() {
   if (!authenticated()) return;
   DynamicJsonDocument document(3072);
-  if (!document.capacity()) { web.send(503, "text/plain", "Sin memoria para diagnostico"); return; }
-  document["firmware"] = VERSION;
-  document["boot_id"] = String(bootId, HEX);
-  document["reset_reason"] = ESP.getResetReason();
+  if (!document.capacity()) { web.send(503, "text/plain", F("Sin memoria para diagnostico")); return; }
+  document[F("firmware")] = VERSION;
+  document[F("boot_id")] = String(bootId, HEX);
+  document[F("reset_reason")] = ESP.getResetReason();
   String resetInfo = ESP.getResetInfo();
   if (resetInfo.length() > 512) resetInfo.remove(512);
-  document["reset_info"] = resetInfo;
-  document["last_operation"] = lastOperation;
-  document["free_stack"] = ESP.getFreeContStack();
-  document["uptime_seconds"] = millis() / 1000;
-  document["wifi_connected"] = WiFi.status() == WL_CONNECTED;
-  document["wifi_status"] = static_cast<int>(WiFi.status());
-  document["rssi_dbm"] = WiFi.RSSI();
-  document["wifi_disconnects"] = wifiDisconnects;
-  document["last_wifi_reason"] = lastWifiReason;
-  document["free_heap"] = ESP.getFreeHeap();
-  document["largest_free_block"] = ESP.getMaxFreeBlockSize();
-  document["heap_before_tls"] = heapBeforeTls;
-  document["largest_block_before_tls"] = largestBlockBeforeTls;
-  document["last_tls_error"] = lastTlsError;
-  document["http_status"] = lastHttpStatus;
-  document["response_length"] = responseLength;
-  document["transfer_encoding"] = transferMode;
-  document["content_encoding"] = contentEncoding;
-  document["body_bytes"] = bodyBytes;
-  document["first_body_byte"] = firstBodyByte;
-  document["body_error"] = bodyError;
-  document["json_stage"] = parseDiagnostic.stage;
-  document["json_error"] = parseDiagnostic.jsonError;
-  document["json_entries"] = parseDiagnostic.entries;
-  document["heap_before_json"] = heapBeforeJson;
-  document["latest_only_request"] = latestOnlyRequest;
-  document["history_retry_pending"] = historyRetryPending;
-  document["history_error_stage"] = historyErrorStage;
-  document["clock_valid"] = device_clock::plausible(time(nullptr));
-  document["clock_source"] = clockSource == ClockSource::Server ? "https_server" :
+  document[F("reset_info")] = resetInfo;
+  document[F("last_operation")] = lastOperation;
+  document[F("free_stack")] = ESP.getFreeContStack();
+  document[F("uptime_seconds")] = millis() / 1000;
+  document[F("wifi_connected")] = WiFi.status() == WL_CONNECTED;
+  document[F("wifi_status")] = static_cast<int>(WiFi.status());
+  document[F("rssi_dbm")] = WiFi.RSSI();
+  document[F("wifi_disconnects")] = wifiDisconnects;
+  document[F("last_wifi_reason")] = lastWifiReason;
+  document[F("free_heap")] = ESP.getFreeHeap();
+  document[F("largest_free_block")] = ESP.getMaxFreeBlockSize();
+  document[F("heap_before_tls")] = heapBeforeTls;
+  document[F("largest_block_before_tls")] = largestBlockBeforeTls;
+  document[F("last_tls_error")] = lastTlsError;
+  document[F("http_status")] = lastHttpStatus;
+  document[F("response_length")] = responseLength;
+  document[F("transfer_encoding")] = transferMode;
+  document[F("content_encoding")] = contentEncoding;
+  document[F("body_bytes")] = bodyBytes;
+  document[F("first_body_byte")] = firstBodyByte;
+  document[F("body_error")] = bodyError;
+  document[F("json_stage")] = parseDiagnostic.stage;
+  document[F("json_error")] = parseDiagnostic.jsonError;
+  document[F("json_entries")] = parseDiagnostic.entries;
+  document[F("heap_before_json")] = heapBeforeJson;
+  document[F("latest_only_request")] = latestOnlyRequest;
+  document[F("history_retry_pending")] = historyRetryPending;
+  document[F("history_error_stage")] = historyErrorStage;
+  document[F("clock_valid")] = device_clock::plausible(time(nullptr));
+  document[F("clock_source")] = clockSource == ClockSource::Server ? "https_server" :
                              clockSource == ClockSource::Browser ? "browser" :
                              clockSource == ClockSource::Ntp ? "ntp" : "unknown";
-  document["ntp_attempts"] = ntpAttempts;
-  document["tls_authentication"] = device_config::pinnedPublicKey(settings.customCa) ? "pinned_public_key" : "certificate_authority";
-  if (document.overflowed()) { web.send(503, "text/plain", "Sin memoria para diagnostico"); return; }
+  document[F("ntp_attempts")] = ntpAttempts;
+  document[F("tls_authentication")] = device_config::pinnedPublicKey(settings.customCa) ? "pinned_public_key" : "certificate_authority";
+  if (document.overflowed()) { web.send(503, "text/plain", F("Sin memoria para diagnostico")); return; }
   String body;
   serializeJson(document, body);
   web.send(200, "application/json", body);
@@ -830,14 +840,14 @@ uint16_t readingColor(reading_ui::Tone tone) {
 
 void drawTrend(uint16_t color) {
   const auto trend = reading_ui::trend(reading.direction.c_str());
-  if (!trend.dx && !trend.dy) { display.drawString("-", 188, 88, 4); return; }
+  if (!trend.dx && !trend.dy) { display.drawString(F("-"), 188, 88, 4); return; }
   const int dx = trend.dx * (trend.dy ? 16 : 22), dy = trend.dy * (trend.dx ? 16 : 22);
   for (int offset = -1; offset <= 1; ++offset) {
     display.drawLine(188 - dx / 2 + offset, 88 - dy / 2, 188 + dx / 2 + offset, 88 + dy / 2, color);
     display.drawLine(188 + dx / 2, 88 + dy / 2, 188 + dx / 2 - (dx + dy) / 3, 88 + dy / 2 - (dy - dx) / 3, color);
     display.drawLine(188 + dx / 2, 88 + dy / 2, 188 + dx / 2 - (dx - dy) / 3, 88 + dy / 2 - (dy + dx) / 3, color);
   }
-  if (trend.doubled) display.drawString("2x", 188, 112, 1);
+  if (trend.doubled) display.drawString(F("2x"), 188, 112, 1);
 }
 
 void render() {
@@ -849,15 +859,15 @@ void render() {
     display.setTextDatum(MC_DATUM);
     display.setTextSize(1);
     display.setTextColor(TFT_CYAN, TFT_BLACK);
-    display.drawString("CONFIGURAR", 120, 30, 2);
+    display.drawString(F("CONFIGURAR"), 120, 30, 2);
     display.setTextColor(TFT_WHITE, TFT_BLACK);
-    display.drawString("Conectate a esta Wi-Fi:", 120, 57, 2);
+    display.drawString(F("Conectate a esta Wi-Fi:"), 120, 57, 2);
     display.drawString(setupSsid, 120, 79, 2);
-    display.drawString("Clave de acceso:", 120, 106, 2);
+    display.drawString(F("Clave de acceso:"), 120, 106, 2);
     display.drawString(setupPassword, 120, 128, 2);
-    display.drawString("Abre en el navegador:", 120, 158, 2);
+    display.drawString(F("Abre en el navegador:"), 120, 158, 2);
     display.drawString(WiFi.softAPIP().toString(), 120, 181, 2);
-    display.drawString("Guarda tu red Wi-Fi", 120, 207, 2);
+    display.drawString(F("Guarda tu red Wi-Fi"), 120, 207, 2);
     return;
   }
   const time_t now = time(nullptr);
@@ -887,19 +897,19 @@ void render() {
   patient_label::displayName(patient, displayLabel);
   display.drawString(displayLabel[0] ? displayLabel : "NIGHTSCOUT", 120, 28, 1);
   display.setTextColor(0x84F4, background);
-  display.drawString("GLUCOSA", 120, 46, 1);
+  display.drawString(F("GLUCOSA"), 120, 46, 1);
   display.setTextColor(color, background);
   display.setTextSize(reading.available && reading.sgv >= 1000 ? 2 : 3);
   display.drawString(reading.available ? String(reading.sgv) : "---", 104, 88, 4);
   display.setTextSize(1);
   display.setTextColor(0x84F4, background);
-  display.drawString("mg/dL", 104, 124, 2);
+  display.drawString(F("mg/dL"), 104, 124, 2);
   display.setTextColor(color, background);
   if (reading.available) drawTrend(color);
   const auto plot = reading_ui::plot(history, now);
   display.setTextColor(0x740F, background);
-  display.drawString("-2 h", 50, 139, 1);
-  display.drawString("ahora", 188, 139, 1);
+  display.drawString(F("-30 min"), 50, 139, 1);
+  display.drawString(F("ahora"), 188, 139, 1);
   for (int value : {70, 180}) {
     if (value < plot.low || value > plot.high) continue;
     const int y = 148 + (plot.high - value) * 30 / (plot.high - plot.low);
@@ -928,7 +938,7 @@ void render() {
 void setup() {
   Serial.begin(115200);
   bootId = ESP.random();
-  Serial.printf("\nNightscout %s; reinicio: %s\n", VERSION, ESP.getResetReason().c_str());
+  Serial.printf_P(PSTR("\nNightscout %s; reinicio: %s\n"), VERSION, ESP.getResetReason().c_str());
   display.init();
   display.setRotation(0);
   EEPROM.begin(device_config::STORAGE_SIZE);
@@ -972,7 +982,7 @@ void setup() {
     lastWifiReason = static_cast<uint8_t>(event.reason);
     ++wifiDisconnects;
     lastFrame = "";
-    Serial.printf("Wi-Fi desconectado: motivo=%u heap=%u\n", lastWifiReason, ESP.getFreeHeap());
+    Serial.printf_P(PSTR("Wi-Fi desconectado: motivo=%u heap=%u\n"), lastWifiReason, ESP.getFreeHeap());
   });
   webEnabled = device_config::validAdmin(settings);
   if (!device_config::configured(settings)) startProvisioning();
@@ -980,7 +990,7 @@ void setup() {
     WiFi.mode(WIFI_STA);
     WiFi.setSleepMode(WIFI_NONE_SLEEP);
     WiFi.begin(settings.ssid, settings.wifiPassword);
-    message = "Conectando Wi-Fi";
+    message = F("Conectando Wi-Fi");
   }
   web.on("/", HTTP_GET, homePage);
   web.on("/api/state", HTTP_GET, statePage);
@@ -1021,7 +1031,7 @@ void loop() {
     }
   } else if (!setupMode) {
     clockSchedule.poll(false, device_clock::plausible(time(nullptr)), millis());
-    message = "Sin Wi-Fi";
+    message = F("Sin Wi-Fi");
     if (hasConnected && millis() - lastWifiReconnect >= 15000) {
       lastWifiReconnect = millis();
       WiFi.reconnect();

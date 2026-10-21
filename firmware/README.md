@@ -1,19 +1,20 @@
 # Firmware para Wemos D1 mini (ESP8266)
 
-Versión **0.5.1**, GC9A01 SPI 240 × 240, D1 mini con **4 MB de flash**.
+Versión **0.5.2**, GC9A01 SPI 240 × 240, D1 mini con **4 MB de flash**.
 
-- [Descargar el .bin](nightscout-d1-mini-v0.5.1.bin) (en GitHub: **Download raw file**).
+- [Descargar el .bin](nightscout-d1-mini-v0.5.2.bin) (en GitHub: **Download raw file**).
 - [SHA-256](SHA256SUMS).
 - [Datos de compilación](build-info.json).
 
 El binario no contiene credenciales de Wi-Fi ni de administración. En el primer
 arranque pide estos datos por web. Usa el cableado del [README principal](../README.md).
 
-La versión 0.5.1 decodifica cuerpos HTTP divididos en bloques, detecta respuestas
-incompletas y ofrece diagnóstico del análisis JSON. Si falla el historial,
-consulta la última lectura y reintenta la gráfica completa después de cinco
-minutos. Se ha retirado el servidor de pruebas y sus controles. La configuración
-guardada se conserva. La corrección necesita confirmación en la placa.
+La versión 0.5.2 reduce la gráfica a 30 minutos: consulta hasta 31 lecturas y
+conserva 7 puntos. Mueve textos fijos a flash y reserva 3.088 bytes menos de
+RAM estática que 0.5.1. Reduce también los documentos temporales y detecta un
+margen de memoria insuficiente antes de empezar el JSON. Conserva las mejoras
+del lector HTTP y la recuperación de última lectura si falla el historial.
+La corrección del fallo observado necesita confirmación en la placa.
 
 En **Ajustes → Nombre de la persona** puedes guardar hasta 24 caracteres para
 reemplazar NIGHTSCOUT en la pantalla y el visor web. Vacío recupera el título
@@ -21,14 +22,14 @@ predeterminado. El nombre permanece al reiniciar sin cambiar las credenciales.
 
 ## Pantalla y visor web
 
-La versión 0.5.1 incluye una interfaz oscura con glucosa grande, tendencia,
-antigüedad y una mini gráfica de dos horas. En `http://IP_DEL_WEMOS/` verás una
+La versión 0.5.2 incluye una interfaz oscura con glucosa grande, tendencia,
+antigüedad y una mini gráfica de 30 minutos. En `http://IP_DEL_WEMOS/` verás una
 copia de la pantalla, adaptada al teléfono o computador, con los mismos datos.
 Inicia sesión con tus credenciales de administración. El visor se actualiza
 automáticamente y conserva la última lectura con un aviso si pierde contacto
 con el Wemos. Los ajustes están en **Ajustes** y la carga OTA en **Actualizar**.
 
-La gráfica resume hasta 145 entradas en un máximo de 25 puntos. No requiere
+La gráfica resume hasta 31 entradas en un máximo de 7 puntos. No requiere
 FileSystem ni un servicio web externo. Al actualizar desde 0.4.x se conservan
 Wi-Fi, servidor, token, clave pública o CA y datos de administración.
 
@@ -42,7 +43,7 @@ Si utilizas Python y esptool 4.x, por ejemplo:
 
 ```bash
 python -m pip install esptool==4.8.1
-python -m esptool --chip esp8266 --port COM3 --baud 115200 write_flash --flash_mode dio --flash_size 4MB 0x00000 nightscout-d1-mini-v0.5.1.bin
+python -m esptool --chip esp8266 --port COM3 --baud 115200 write_flash --flash_mode dio --flash_size 4MB 0x00000 nightscout-d1-mini-v0.5.2.bin
 ```
 
 Cambia `COM3` por el puerto real. En Linux suele ser `/dev/ttyUSB0` y en macOS
