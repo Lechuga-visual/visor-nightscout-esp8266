@@ -1,20 +1,25 @@
 # Firmware para Wemos D1 mini (ESP8266)
 
-Versión **0.5.2**, GC9A01 SPI 240 × 240, D1 mini con **4 MB de flash**.
+Versión **0.6.0**, GC9A01 SPI 240 × 240, D1 mini con **4 MB de flash**.
 
-- [Descargar el .bin](nightscout-d1-mini-v0.5.2.bin) (en GitHub: **Download raw file**).
+- [Descargar el .bin](nightscout-d1-mini-v0.6.0.bin) (en GitHub: **Download raw file**).
 - [SHA-256](SHA256SUMS).
 - [Datos de compilación](build-info.json).
 
 El binario no contiene credenciales de Wi-Fi ni de administración. En el primer
 arranque pide estos datos por web. Usa el cableado del [README principal](../README.md).
 
-La versión 0.5.2 reduce la gráfica a 30 minutos: consulta hasta 31 lecturas y
-conserva 7 puntos. Mueve textos fijos a flash y reserva 3.088 bytes menos de
-RAM estática que 0.5.1. Reduce también los documentos temporales y detecta un
-margen de memoria insuficiente antes de empezar el JSON. Conserva las mejoras
-del lector HTTP y la recuperación de última lectura si falla el historial.
-La corrección del fallo observado necesita confirmación en la placa.
+La versión 0.6.0 incorpora los dos diseños de número grande además de la gráfica
+de 30 minutos. El nombre aparece más abajo y con letra mayor. El selector del
+panel cambia entre gráfica, flecha lateral y flecha debajo; se guarda para la
+pantalla física y la web sin borrar el historial.
+
+En **Ajustes → Apariencia** hay cinco temas (menta, rojo, azul, rosado y celeste)
+y colores personalizados para acento, fondo y número, con vista previa y
+comprobación de contraste. Los avisos mantienen texto y colores propios.
+La apariencia ocupa una extensión de 20 bytes; se conservan nombre, Wi-Fi,
+URL, token y clave PEM. La memoria y los dibujos se mantienen acotados,
+sin una imagen completa de pantalla en RAM.
 
 En **Ajustes → Nombre de la persona** puedes guardar hasta 24 caracteres para
 reemplazar NIGHTSCOUT en la pantalla y el visor web. Vacío recupera el título
@@ -22,8 +27,8 @@ predeterminado. El nombre permanece al reiniciar sin cambiar las credenciales.
 
 ## Pantalla y visor web
 
-La versión 0.5.2 incluye una interfaz oscura con glucosa grande, tendencia,
-antigüedad y una mini gráfica de 30 minutos. En `http://IP_DEL_WEMOS/` verás una
+La versión 0.6.0 incluye una interfaz oscura con glucosa grande, tendencia,
+antigüedad y el modo opcional de mini gráfica de 30 minutos. En `http://IP_DEL_WEMOS/` verás una
 copia de la pantalla, adaptada al teléfono o computador, con los mismos datos.
 Inicia sesión con tus credenciales de administración. El visor se actualiza
 automáticamente y conserva la última lectura con un aviso si pierde contacto
@@ -43,7 +48,7 @@ Si utilizas Python y esptool 4.x, por ejemplo:
 
 ```bash
 python -m pip install esptool==4.8.1
-python -m esptool --chip esp8266 --port COM3 --baud 115200 write_flash --flash_mode dio --flash_size 4MB 0x00000 nightscout-d1-mini-v0.5.2.bin
+python -m esptool --chip esp8266 --port COM3 --baud 115200 write_flash --flash_mode dio --flash_size 4MB 0x00000 nightscout-d1-mini-v0.6.0.bin
 ```
 
 Cambia `COM3` por el puerto real. En Linux suele ser `/dev/ttyUSB0` y en macOS

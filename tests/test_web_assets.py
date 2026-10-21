@@ -11,7 +11,7 @@ class WebAssetTests(unittest.TestCase):
     def test_checked_in_gzip_assets_match_the_browser_sources(self):
         generated = (ROOT / 'include/generated/web_assets.h').read_text()
         self.assertEqual(generated, generate())
-        for name in ('index.html', 'ui.css', 'app.js'):
+        for name in ('index.html', 'ui.css', 'app.js', 'appearance.js'):
             block = re.search(r'\b' + name.replace('.', '_') + r'\[\].*?\{(.*?)\};', generated, re.S)
             data = bytes(int(value,16) for value in re.findall(r'0x([0-9a-f]{2})', block[1]))
             self.assertEqual(gzip.decompress(data), (ROOT / 'web' / name).read_bytes())

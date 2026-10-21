@@ -1,6 +1,7 @@
 # Propuestas de visor y colores
 
-Maquetas para revisar **antes de implementar**. Muestran el modo de número grande,
+Maquetas originales previas a implementación. Los diseños A y B están disponibles
+en el firmware **0.6.0**, junto con los temas y la personalización de colores. Muestran el modo de número grande,
 su copia en la web y el selector para volver a la gráfica de **30 minutos**.
 «ALEX» y «142 mg/dL» son datos de ejemplo. Las imágenes son estáticas.
 
@@ -34,5 +35,5 @@ implementación, con dibujo directo y sin guardar imágenes de los temas en RAM.
 
 Las fuentes editables están junto a las imágenes: [A en SVG](propuesta-a.svg),
 [B en SVG](propuesta-b.svg) y [temas en SVG](temas-y-personalizacion.svg).
-Estas propuestas se publican para elegir el diseño; el firmware publicado sigue
-en la versión **0.5.2**.
+La implementación incorpora ambos diseños y un nombre de persona más grande
+y algo más abajo. Las capturas actuales están en el [README principal](../../README.md#tres-modos-de-visor-y-colores-en-060).

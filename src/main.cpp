@@ -20,6 +20,7 @@
 #include "reading_json.h"
 #include "http_body.h"
 #include "patient_label.h"
+#include "view_appearance.h"
 #include "generated/web_assets.h"
 
 #if __has_include("nightscout_config.h")
@@ -29,7 +30,7 @@
 #endif
 
 namespace {
-constexpr char VERSION[] = "0.5.2";
+constexpr char VERSION[] = "0.6.0";
 constexpr uint32_t POLL_MS = 30000;
 TFT_eSPI display;
 ESP8266WebServer web(80);
@@ -46,6 +47,7 @@ uint32_t lastRender = 0;
 String lastFrame;
 device_config::Settings settings{};
 patient_label::Label patient;
+view_appearance::Settings appearance;
 bool setupMode = false;
 bool hasConnected = false;
 bool restartPending = false;
@@ -336,6 +338,79 @@ bool patientFields(patient_label::Label& label) {
   return true;
 }
 
+String colorHex(uint32_t color) {
+  char value[8];
+  snprintf(value, sizeof(value), "#%06lx", static_cast<unsigned long>(color));
+  return String(value);
+}
+
+void appearanceOption(String& page, unsigned value, unsigned selected, const __FlashStringHelper* caption) {
+  page += F("<option value='"); page += String(value);
+  page += value == selected ? F("' selected>") : F("'>");
+  page += caption; page += F("</option>");
+}
+
+void appearanceColor(String& page, const __FlashStringHelper* name, const __FlashStringHelper* caption, uint32_t color) {
+  page += F("<label>"); page += caption;
+  page += F("<input type='color' name='"); page += name;
+  page += F("' value='"); page += colorHex(color); page += F("'></label>");
+}
+
+void appendAppearanceControls(String& page) {
+  page += F("<form id='appearance-form' class='card' method='post' action='/appearance'>"
+            "<h2>Apariencia</h2><input type='hidden' name='csrf' value='");
+  page += csrf;
+  page += F("'><label>Modo del visor<select name='mode'>");
+  appearanceOption(page, 0, static_cast<unsigned>(appearance.mode), F("Con gráfica · 30 minutos"));
+  appearanceOption(page, 1, static_cast<unsigned>(appearance.mode), F("Número grande · flecha lateral"));
+  appearanceOption(page, 2, static_cast<unsigned>(appearance.mode), F("Número centrado · flecha debajo"));
+  page += F("</select></label><label>Tema de colores<select name='theme'>");
+  appearanceOption(page, 0, static_cast<unsigned>(appearance.theme), F("Menta"));
+  appearanceOption(page, 1, static_cast<unsigned>(appearance.theme), F("Rojo"));
+  appearanceOption(page, 2, static_cast<unsigned>(appearance.theme), F("Azul"));
+  appearanceOption(page, 3, static_cast<unsigned>(appearance.theme), F("Rosado"));
+  appearanceOption(page, 4, static_cast<unsigned>(appearance.theme), F("Celeste"));
+  appearanceOption(page, 5, static_cast<unsigned>(appearance.theme), F("Personalizado"));
+  page += F("</select></label><div class='color-fields'>");
+  appearanceColor(page, F("accent"), F("Acento y flecha"), appearance.accent);
+  appearanceColor(page, F("background"), F("Fondo del visor"), appearance.background);
+  appearanceColor(page, F("number"), F("Número"), appearance.number);
+  page += F("</div><p>Los colores elegidos se usan en Personalizado. Los avisos de lectura baja, alta o antigua mantienen texto y colores propios.</p>"
+            "<div id='appearance-preview' class='appearance-preview' aria-label='Vista previa de colores'>"
+            "<span>Vista previa · datos de ejemplo</span><strong>142 <svg viewBox='0 0 40 40' aria-hidden='true'><path d='M7 33 33 7M10 7H33V30'/></svg></strong><small>mg/dL</small></div>"
+            "<p id='contrast-feedback' role='status'></p><button id='save-appearance'>Guardar apariencia</button> "
+            "<button id='reset-theme' class='button secondary' type='button'>Volver a menta</button>"
+            "<p>Se aplica a la pantalla y al visor web. El nombre se cambia en el formulario siguiente.</p></form>");
+}
+
+void saveAppearance() {
+  if (!authenticated()) return;
+  if (!currentForm()) return;
+  const String mode = web.arg("mode"), theme = web.arg("theme");
+  const String accent = web.arg("accent"), background = web.arg("background"), number = web.arg("number");
+  view_appearance::Settings candidate;
+  if (!view_appearance::update(appearance, web.hasArg("mode") ? mode.c_str() : nullptr,
+      web.hasArg("theme") ? theme.c_str() : nullptr, web.hasArg("accent") ? accent.c_str() : nullptr,
+      web.hasArg("background") ? background.c_str() : nullptr, web.hasArg("number") ? number.c_str() : nullptr, candidate)) {
+    web.send(400, "text/plain; charset=utf-8", F("Revisa el modo y los colores. Elige un fondo oscuro y colores con más contraste para mantener legibles la lectura y los avisos."));
+    return;
+  }
+  if (!storageReady) { web.send(503, "text/plain", F("No se puede guardar la apariencia.")); return; }
+  const bool changed = candidate.mode != appearance.mode || candidate.theme != appearance.theme ||
+                       candidate.accent != appearance.accent || candidate.background != appearance.background || candidate.number != appearance.number;
+  if (changed) {
+    EEPROM.put(view_appearance::OFFSET, candidate);
+    if (!EEPROM.commit()) {
+      EEPROM.put(view_appearance::OFFSET, appearance);
+      web.send(500, "text/plain", F("No se pudo guardar la apariencia.")); return;
+    }
+    appearance = candidate;
+    lastFrame = "";
+  }
+  if (web.arg("quick") == "1") web.send(200, "application/json", F("{\"ok\":true}"));
+  else { web.sendHeader("Location", "/settings?appearance=saved#appearance-form"); web.send(303); }
+}
+
 void configurationPage() {
   if (!setupMode && !authenticated()) return;
   web.sendHeader("Cache-Control", "no-store");
@@ -438,6 +513,7 @@ void settingsPage() {
   String page = F("<!doctype html><html lang='es'><meta charset='utf-8'>"
                   "<meta name='viewport' content='width=device-width,initial-scale=1'>"
                   "<meta name='color-scheme' content='dark'><link rel='stylesheet' href='/assets/ui.css'>"
+                  "<script src='/assets/appearance.js' defer></script>"
                   "<title>Ajustes · Glucosa</title><main class='settings'><a class='back' href='/'>← Volver al panel</a>"
                   "<p class='eyebrow'>TU DISPOSITIVO</p><h1>Ajustes</h1>"
                   "<p class='intro'>Conexión, servidor y mantenimiento de tu pantalla.</p><section class='card'>");
@@ -446,7 +522,10 @@ void settingsPage() {
   page += "<p>Estado: " + htmlEscape(message) + "</p>";
   page += "<p>Wi-Fi: " + String(WiFi.RSSI()) + " dBm · desconexiones: " + String(wifiDisconnects) +
           " · último motivo: " + String(lastWifiReason) + "</p>";
-  page += F("</section><form class='card' method='post' action='/settings'><h2>Servidor de lecturas</h2>");
+  page += F("</section>");
+  if (web.arg("appearance") == "saved") page += F("<p class='notice' role='status'>Apariencia guardada.</p>");
+  appendAppearanceControls(page);
+  page += F("<form class='card' method='post' action='/settings'><h2>Persona y servidor de lecturas</h2>");
   appendServerFields(page);
   page += "<input type='hidden' name='csrf' value='" + csrf + "'>";
   page += F("<button>Guardar servidor</button>"
@@ -720,7 +799,10 @@ void homePage() {
 
 void statePage() {
   if (!authenticated(false)) return;
-  DynamicJsonDocument document(1792);
+  static_assert(JSON_OBJECT_SIZE(24) + JSON_OBJECT_SIZE(5) + JSON_OBJECT_SIZE(3) +
+                JSON_ARRAY_SIZE(reading_ui::HISTORY_SIZE) + reading_ui::HISTORY_SIZE * JSON_ARRAY_SIZE(3) + 768 <= 2048,
+                "State JSON needs room for appearance, patient name and all history points");
+  DynamicJsonDocument document(2048);
   if (!document.capacity()) { web.send(503, "text/plain", F("Sin memoria para el visor")); return; }
   const auto now = static_cast<int64_t>(time(nullptr));
   const auto age = reading_ui::ageSeconds(reading.available, reading.dateMs, now);
@@ -729,6 +811,14 @@ void statePage() {
   const auto trend = reading_ui::trend(reading.direction.c_str());
   document[F("firmware")] = VERSION;
   document[F("patient_name")] = patient.name;
+  document[F("csrf")] = csrf;
+  const auto colors = view_appearance::palette(appearance);
+  JsonObject view = document.createNestedObject(F("appearance"));
+  view[F("mode")] = static_cast<unsigned>(appearance.mode);
+  view[F("theme")] = static_cast<unsigned>(appearance.theme);
+  view[F("accent")] = colorHex(colors.accent);
+  view[F("background")] = colorHex(colors.background);
+  view[F("number")] = colorHex(colors.number);
   document[F("available")] = reading.available;
   if (reading.available) {
     document[F("glucose")] = reading.sgv;
@@ -829,25 +919,73 @@ void diagnostics() {
   web.send(200, "application/json", body);
 }
 
-uint16_t readingColor(reading_ui::Tone tone) {
+uint16_t readingColor(reading_ui::Tone tone, const view_appearance::Palette& colors) {
   switch (tone) {
-    case reading_ui::Tone::Normal: return 0x7777;
-    case reading_ui::Tone::Low: return 0xFC11;
-    case reading_ui::Tone::High: case reading_ui::Tone::Old: return 0xFDEE;
-    default: return 0x84F4;
+    case reading_ui::Tone::Normal: return view_appearance::rgb565(colors.number);
+    case reading_ui::Tone::Low: return view_appearance::rgb565(0xFF828B);
+    case reading_ui::Tone::High: case reading_ui::Tone::Old: return view_appearance::rgb565(0xFFBD73);
+    default: return view_appearance::rgb565(0x879DA5);
   }
 }
 
-void drawTrend(uint16_t color) {
+void drawTrend(uint16_t color, int x, int y, int size) {
   const auto trend = reading_ui::trend(reading.direction.c_str());
-  if (!trend.dx && !trend.dy) { display.drawString(F("-"), 188, 88, 4); return; }
-  const int dx = trend.dx * (trend.dy ? 16 : 22), dy = trend.dy * (trend.dx ? 16 : 22);
-  for (int offset = -1; offset <= 1; ++offset) {
-    display.drawLine(188 - dx / 2 + offset, 88 - dy / 2, 188 + dx / 2 + offset, 88 + dy / 2, color);
-    display.drawLine(188 + dx / 2, 88 + dy / 2, 188 + dx / 2 - (dx + dy) / 3, 88 + dy / 2 - (dy - dx) / 3, color);
-    display.drawLine(188 + dx / 2, 88 + dy / 2, 188 + dx / 2 - (dx - dy) / 3, 88 + dy / 2 - (dy + dx) / 3, color);
+  if (!trend.dx && !trend.dy) { display.drawFastHLine(x - 6, y, 12, color); return; }
+  const int dx = trend.dx * (trend.dy ? size * 7 / 10 : size);
+  const int dy = trend.dy * (trend.dx ? size * 7 / 10 : size);
+  const int arrows = trend.doubled ? 2 : 1;
+  for (int arrow = 0; arrow < arrows; ++arrow) {
+    const int center = x + (arrows == 2 ? (arrow ? 5 : -5) : 0);
+    for (int offset = -1; offset <= 1; ++offset) {
+      display.drawLine(center - dx / 2 + offset, y - dy / 2, center + dx / 2 + offset, y + dy / 2, color);
+      display.drawLine(center + dx / 2 + offset, y + dy / 2, center + dx / 2 - (dx + dy) / 3 + offset, y + dy / 2 - (dy - dx) / 3, color);
+      display.drawLine(center + dx / 2 + offset, y + dy / 2, center + dx / 2 - (dx - dy) / 3 + offset, y + dy / 2 - (dy + dx) / 3, color);
+    }
   }
-  if (trend.doubled) display.drawString(F("2x"), 188, 112, 1);
+}
+
+void drawPatientName(uint16_t background) {
+  char label[25];
+  patient_label::displayName(patient, label);
+  if (!label[0]) strlcpy(label, "NIGHTSCOUT", sizeof(label));
+  display.setTextSize(1);
+  size_t length = strlen(label);
+  while (length > 3 && display.textWidth(label, 2) > 144) {
+    --length;
+    memcpy(label + length - 3, "...", 4);
+  }
+  display.setTextColor(view_appearance::rgb565(0xD3E0DD), background);
+  display.drawString(label, 120, 43, 2);
+}
+
+void drawValue(const String& value, int x, int y, int width, int height) {
+  display.setTextSize(1);
+  uint8_t scale = static_cast<uint8_t>(height / display.fontHeight(4));
+  if (scale > 4) scale = 4;
+  if (!scale) scale = 1;
+  display.setTextSize(scale);
+  while (scale > 1 && display.textWidth(value, 4) > width) display.setTextSize(--scale);
+  display.drawString(value, x, y, 4);
+  display.setTextSize(1);
+}
+
+void drawHistory(time_t now, uint16_t color, uint16_t background) {
+  const auto plot = reading_ui::plot(history, now);
+  display.setTextColor(view_appearance::rgb565(0x9AABB0), background);
+  display.drawString(F("-30 min"), 50, 139, 1);
+  display.drawString(F("ahora"), 188, 139, 1);
+  for (int value : {70, 180}) {
+    if (value < plot.low || value > plot.high) continue;
+    const int y = 148 + (plot.high - value) * 30 / (plot.high - plot.low);
+    for (int x = 38; x < 202; x += 5) display.drawFastHLine(x, y, 2, 0x3207);
+  }
+  for (size_t i = 0; i < plot.count; ++i) {
+    const int x = 38 + plot.points[i].x * 164 / 1000, y = 148 + plot.points[i].y * 30 / 1000;
+    if (i && !plot.points[i].start)
+      display.drawLine(38 + plot.points[i-1].x * 164 / 1000, 148 + plot.points[i-1].y * 30 / 1000, x, y, color);
+    display.fillCircle(x, y, 1, color);
+  }
+  if (!plot.count) display.drawString(device_clock::plausible(now) ? F("Esperando historial") : F("Hora sin sincronizar"), 120, 163, 1);
 }
 
 void render() {
@@ -871,67 +1009,59 @@ void render() {
     return;
   }
   const time_t now = time(nullptr);
-  const bool clockReady = device_clock::plausible(now);
   const int64_t age = reading_ui::ageSeconds(reading.available, reading.dateMs, now);
-  const bool stale = clockReady && reading.available && age >= 600;
-  const String ageText = !reading.available ? "Sin lecturas" :
-                         !clockReady ? "Hora sin sincronizar" :
-                         "Hace " + String(static_cast<unsigned long>(age / 60)) + " min";
+  const bool stale = reading.available && age >= 600;
+  const String ageText = !reading.available ? F("Sin lecturas") :
+                         age < 0 ? F("Hora sin sincronizar") :
+                         String(stale ? F("ANTIGUA ") : F("Hace ")) + String(static_cast<unsigned long>(age / 60)) + F(" min");
   String frame = String(reading.available) + reading.sgv + reading.direction + ageText +
-                 message + WiFi.localIP().toString() +
-                 String(historyVersion) + String(static_cast<uint32_t>(now / 60));
+                 message + WiFi.localIP().toString() + String(historyVersion) + String(static_cast<uint32_t>(now / 60));
   if (frame == lastFrame) return;
   lastFrame = frame;
   const auto tone = reading_ui::tone(reading.available, reading.sgv, age,
                                      WiFi.status() == WL_CONNECTED && lastReadingRequestOk);
-  const uint16_t accent = readingColor(tone);
-  const uint16_t color = stale ? 0x84F4 : accent;
-  constexpr uint16_t background = 0x0882;
+  const auto colors = view_appearance::palette(appearance);
+  const uint16_t background = view_appearance::rgb565(colors.background);
+  const uint16_t statusColor = readingColor(tone, colors);
+  const uint16_t valueColor = tone == reading_ui::Tone::Old ? view_appearance::rgb565(0xA4B4B6) : statusColor;
+  const uint16_t accent = tone == reading_ui::Tone::Normal ? view_appearance::rgb565(colors.accent) : statusColor;
+  const uint16_t trendColor = tone == reading_ui::Tone::Old ? valueColor : accent;
   display.fillScreen(background);
   display.drawCircle(120, 120, 115, accent);
   display.drawCircle(120, 120, 114, accent);
   display.setTextDatum(MC_DATUM);
-  display.setTextSize(1);
-  display.setTextColor(0xCEFB, background);
-  char displayLabel[25];
-  patient_label::displayName(patient, displayLabel);
-  display.drawString(displayLabel[0] ? displayLabel : "NIGHTSCOUT", 120, 28, 1);
-  display.setTextColor(0x84F4, background);
-  display.drawString(F("GLUCOSA"), 120, 46, 1);
-  display.setTextColor(color, background);
-  display.setTextSize(reading.available && reading.sgv >= 1000 ? 2 : 3);
-  display.drawString(reading.available ? String(reading.sgv) : "---", 104, 88, 4);
-  display.setTextSize(1);
-  display.setTextColor(0x84F4, background);
-  display.drawString(F("mg/dL"), 104, 124, 2);
-  display.setTextColor(color, background);
-  if (reading.available) drawTrend(color);
-  const auto plot = reading_ui::plot(history, now);
-  display.setTextColor(0x740F, background);
-  display.drawString(F("-30 min"), 50, 139, 1);
-  display.drawString(F("ahora"), 188, 139, 1);
-  for (int value : {70, 180}) {
-    if (value < plot.low || value > plot.high) continue;
-    const int y = 148 + (plot.high - value) * 30 / (plot.high - plot.low);
-    for (int x = 38; x < 202; x += 5) display.drawFastHLine(x, y, 2, 0x3207);
+  drawPatientName(background);
+  display.setTextColor(valueColor, background);
+  const String value = reading.available ? String(reading.sgv) : String(F("---"));
+  if (appearance.mode == view_appearance::Mode::Graph) {
+    drawValue(value, 104, 96, 150, 57);
+    if (reading.available) drawTrend(trendColor, 188, 96, 22);
+    display.setTextColor(view_appearance::rgb565(0x9AABB0), background);
+    display.drawString(F("mg/dL"), 104, 124, 2);
+    drawHistory(now, valueColor, background);
+  } else if (appearance.mode == view_appearance::Mode::Lateral) {
+    drawValue(value, 100, 118, 164, 90);
+    if (reading.available) drawTrend(trendColor, 201, 118, 29);
+    display.setTextColor(view_appearance::rgb565(0x9AABB0), background);
+    display.drawString(F("mg/dL"), 100, 166, 2);
+  } else {
+    drawValue(value, 120, 116, 196, 105);
+    display.setTextColor(view_appearance::rgb565(0x9AABB0), background);
+    display.drawString(F("mg/dL"), 102, 174, 2);
+    if (reading.available) drawTrend(trendColor, 155, 173, 20);
   }
-  for (size_t i = 0; i < plot.count; ++i) {
-    const int x = 38 + plot.points[i].x * 164 / 1000, y = 148 + plot.points[i].y * 30 / 1000;
-    if (i && !plot.points[i].start)
-      display.drawLine(38 + plot.points[i-1].x * 164 / 1000, 148 + plot.points[i-1].y * 30 / 1000, x, y, color);
-    display.fillCircle(x, y, 1, color);
-  }
-  if (!plot.count) {
-    display.setTextColor(0x84F4, background);
-    display.drawString(clockReady ? "Esperando historial" : "Hora sin sincronizar", 120, 163, 1);
-  }
-  display.fillRoundRect(30, 184, 180, 21, 10, stale ? 0x3143 : 0x1944);
-  display.setTextColor(stale ? 0xFDEE : 0xBF5A, stale ? 0x3143 : 0x1944);
-  display.drawString(stale ? "ANTIGUA: " + ageText : ageText, 120, 195, 2);
-  display.setTextColor(0x84F4, background);
-  display.drawString(message.length() > 23 ? message.substring(0,21) + ".." : message, 120, 213, 1);
+  const bool warning = tone == reading_ui::Tone::Low || tone == reading_ui::Tone::High || stale;
+  const uint16_t badge = view_appearance::rgb565(tone == reading_ui::Tone::Low ? 0x332025 : warning ? 0x33291E : 0x192A24);
+  display.fillRoundRect(48, 184, 144, 21, 10, badge);
+  display.setTextColor(warning ? statusColor : view_appearance::rgb565(0xBFE9D7), badge);
+  display.drawString(ageText, 120, 195, display.textWidth(ageText, 2) > 136 ? 1 : 2);
+  display.setTextColor(view_appearance::rgb565(0x9AABB0), background);
+  if (tone == reading_ui::Tone::Low) display.drawString(F("BAJA: menos de 70"), 120, 213, 1);
+  else if (tone == reading_ui::Tone::High) display.drawString(F("ALTA: mas de 180"), 120, 213, 1);
+  else if (tone == reading_ui::Tone::Normal && message == "Conectado") display.drawString(F("En intervalo"), 120, 213, 1);
+  else display.drawString(message.length() > 23 ? message.substring(0,21) + F("..") : message, 120, 213, 1);
   display.drawString(WiFi.status() == WL_CONNECTED ? WiFi.localIP().toString() :
-                     "Sin Wi-Fi (" + String(lastWifiReason) + ")", 120, 226, 1);
+                     String(F("Sin Wi-Fi (")) + String(lastWifiReason) + ')', 120, 226, 1);
 }
 }  // namespace
 
@@ -952,6 +1082,8 @@ void setup() {
   strlcpy(settings.token, NIGHTSCOUT_TOKEN, sizeof(settings.token));
   strncpy_P(settings.customCa, NIGHTSCOUT_ROOT_CA, sizeof(settings.customCa) - 1);
   if (storageReady) {
+    EEPROM.get(view_appearance::OFFSET, appearance);
+    if (!view_appearance::valid(appearance)) appearance = view_appearance::Settings{};
     EEPROM.get(patient_label::OFFSET, patient);
     if (!patient_label::valid(patient)) patient = patient_label::Label{};
     std::unique_ptr<device_config::Settings> saved(new (std::nothrow) device_config::Settings);
@@ -996,10 +1128,12 @@ void setup() {
   web.on("/api/state", HTTP_GET, statePage);
   web.on("/assets/ui.css", HTTP_GET, [] { sendAsset("text/css; charset=utf-8", web_assets::ui_css, sizeof(web_assets::ui_css)); });
   web.on("/assets/app.js", HTTP_GET, [] { sendAsset("application/javascript; charset=utf-8", web_assets::app_js, sizeof(web_assets::app_js)); });
+  web.on("/assets/appearance.js", HTTP_GET, [] { sendAsset("application/javascript; charset=utf-8", web_assets::appearance_js, sizeof(web_assets::appearance_js)); });
   web.on("/configure", HTTP_GET, configurationPage);
   web.on("/configure", HTTP_POST, saveConfiguration);
   web.on("/settings", HTTP_POST, saveSettings);
   web.on("/settings", HTTP_GET, settingsPage);
+  web.on("/appearance", HTTP_POST, saveAppearance);
   web.on("/firmware", HTTP_GET, firmwarePage);
   web.on("/clock/retry", HTTP_POST, retryNtp);
   web.on("/clock/browser", HTTP_POST, useBrowserClock);

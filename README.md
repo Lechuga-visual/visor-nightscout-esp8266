@@ -5,7 +5,7 @@ Muestra las lecturas de tu servidor Nightscout en una pantalla circular de
 240 × 240. El servidor web del Wemos permite consultar las mismas lecturas,
 cambiar la configuración y actualizar el firmware por Wi-Fi (OTA).
 
-**Diseños para revisar:** [propuestas de número grande, selector de modo y colores](docs/propuestas-visor/README.md).
+**Diseños y comparación:** [propuestas de número grande, selector de modo y colores](docs/propuestas-visor/README.md).
 
 Necesitas un servidor Nightscout con lecturas disponibles y una red Wi-Fi de
 2,4 GHz. La URL base tiene este formato: `https://tu-nightscout.example`.
@@ -37,7 +37,7 @@ conectarlo; la retroiluminación no está controlada por un GPIO en esta versió
 
 ### Binario listo para cargar
 
-Descarga [nightscout-d1-mini-v0.5.2.bin](firmware/nightscout-d1-mini-v0.5.2.bin)
+Descarga [nightscout-d1-mini-v0.6.0.bin](firmware/nightscout-d1-mini-v0.6.0.bin)
 desde la carpeta `firmware` (en GitHub utiliza **Download raw file**). Está
 compilado para **Wemos D1 mini ESP8266 con 4 MB de flash**, con los pines de la
 tabla anterior. No contiene datos privados ni requiere configurar el Wi-Fi
@@ -116,6 +116,41 @@ de los últimos 30 minutos. El color de la lectura es menta entre 70–180 mg/dL
 rojo por debajo y ámbar por encima. Ese intervalo visual está fijado en esta
 versión y no constituye una alarma personalizada. Las lecturas antiguas y los
 errores se distinguen por texto además del color. No hay alarmas sonoras.
+
+### Tres modos de visor y colores en 0.6.0
+
+En el panel web, usa **Modo del visor** para elegir:
+
+- **Con gráfica:** lectura y últimos 30 minutos.
+- **Número · flecha lateral:** lectura grande con la flecha a la derecha.
+- **Número · flecha debajo:** lectura centrada, con la flecha junto a la unidad.
+
+El cambio se guarda en el Wemos y se aplica a la pantalla y al visor web.
+La gráfica conserva siete puntos y las consultas siguen cada 30 segundos.
+Cambiar de modo no borra el historial ni fuerza una consulta a Nightscout.
+El nombre aparece más abajo y con letra mayor en los tres modos; los nombres
+largos se ajustan al ancho disponible. La lectura adapta su tamaño para cuatro
+cifras. Las flechas web son trazos SVG, incluidas las tendencias dobles.
+
+En **Ajustes → Apariencia** puedes elegir **menta, rojo, azul, rosado, celeste**
+o **Personalizado**. Esta última opción permite cambiar acento/flecha, fondo
+del visor y número con una vista previa. El dispositivo comprueba el contraste
+antes de guardar. Los avisos de lectura baja, alta o antigua mantienen texto
+y colores propios. Se conservan los colores personalizados al elegir otro tema.
+
+La compilación usa 37.764 bytes de RAM estática: 132 bytes más que 0.5.2.
+Los dibujos se hacen directamente, sin una imagen completa de pantalla en RAM.
+La apariencia se guarda en una extensión independiente de 20 bytes, después
+del nombre, sin cambiar el formato del Wi-Fi, servidor, token o clave PEM.
+Al actualizar desde 0.5.x comienza con gráfica y menta; el nombre y los ajustes
+anteriores se conservan. El selector requiere la sesión vigente del Wemos.
+El estado local devuelve el nonce CSRF de esa sesión para guardar cambios;
+no devuelve el token de acceso a Nightscout ni contraseñas.
+
+![Visor con número grande y flecha lateral; datos de ejemplo](docs/images/visor-lateral.png)
+
+[Ver el modo centrado en un teléfono](docs/images/visor-centrado-movil.png) ·
+[Ver el modo con gráfica](docs/images/visor-grafica.png).
 
 ### Menos memoria y gráfica de 30 minutos en 0.5.2
 
@@ -409,10 +444,25 @@ un minuto, antigüedad, huecos y lectura incremental de JSON, y una prueba que
 comprueba que los recursos gzip del firmware coincidan con sus fuentes. Otras dos
 pruebas cubren el cuerpo HTTP (fragmentación, bloques, truncamiento y límites) y
 el almacenamiento del nombre, la validación UTF-8 y los offsets anteriores. En la
-nube se usa el Python del venv para las diez pruebas completas.
+nube se usa el Python del venv para las once pruebas completas.
 La compilación verifica las bibliotecas para ESP8266; la prueba física de SPI,
 Wi-Fi, configuración desde el teléfono, persistencia en flash y OTA debe hacerse
 con el Wemos conectado.
 
 Después de modificar `web/`, ejecuta `python3 tools/embed_web_assets.py` y guarda
 `include/generated/web_assets.h` antes de compilar.
+
+Las pruebas de apariencia verifican los offsets anteriores de EEPROM, cambios
+parciales, rechazo atómico de valores inválidos y contraste después de convertir
+los colores al formato de la pantalla. Las pruebas de navegador interceptan
+solicitudes con recursos locales, sin iniciar un servidor de previsualización:
+
+```bash
+CHROMIUM_PATH=/usr/bin/chromium node tests/test_web_views.js
+```
+
+Cubren los tres modos y cinco temas en escritorio/móvil, tendencias simples y
+dobles, avisos, colores personalizados, sesión caducada, nombres como texto y
+conservación de la lectura al perder contacto. Las capturas usan datos de ejemplo;
+la grabación real en EEPROM, el servidor HTTP del Wemos y el panel SPI requieren
+comprobación en hardware.

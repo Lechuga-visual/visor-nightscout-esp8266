@@ -7,6 +7,7 @@
   <title>Glucosa · Nightscout</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/assets/ui.css">
+  <script src="/assets/appearance.js" defer></script>
   <script src="/assets/app.js" defer></script>
 </head>
 <body>
@@ -16,23 +17,23 @@
     <div class="dashboard-grid">
       <section class="card display-card" aria-label="Copia de la pantalla del Wemos">
         <div class="card-heading"><span class="eyebrow">PANTALLA EN VIVO</span></div>
+        <div class="view-controls"><label for="view-mode">Modo del visor</label><select id="view-mode" disabled><option value="0">Con gráfica · 30 minutos</option><option value="1">Número · flecha lateral</option><option value="2">Número · flecha debajo</option></select><p id="view-feedback" role="status" aria-live="polite"></p></div>
         <svg class="dial" id="dial" viewBox="0 0 240 240" role="img" aria-label="Esperando lectura" data-tone="empty">
           <circle class="dial-face" cx="120" cy="120" r="118"/>
           <circle class="dial-ring" cx="120" cy="120" r="114"/>
-          <text class="dial-brand" id="dial-brand" x="120" y="31">NIGHTSCOUT</text>
-          <text class="dial-caption" x="120" y="48">GLUCOSA</text>
+          <text class="dial-brand" id="dial-brand" x="120" y="47">NIGHTSCOUT</text>
           <text class="dial-value" id="glucose" x="104" y="108">---</text>
-          <text class="dial-trend" id="trend" x="188" y="99">—</text>
-          <text class="dial-unit" x="104" y="128">mg/dL</text>
-          <g class="graph-labels"><text x="38" y="141" text-anchor="start">−30 min</text><text x="202" y="141" text-anchor="end">ahora</text></g>
+          <g id="trend-vector" transform="translate(188 96)"><path class="dial-trend" id="trend" d="M-6 0H6"/></g>
+          <text class="dial-unit" id="dial-unit" x="104" y="132">mg/dL</text>
+          <g id="history-group"><g class="graph-labels"><text x="38" y="141" text-anchor="start">−30 min</text><text x="202" y="141" text-anchor="end">ahora</text></g>
           <g id="graph-grid"></g><path class="history-line" id="history-path"/><g id="history-dots"></g>
-          <text class="graph-empty" id="graph-empty" x="120" y="166">Esperando historial</text>
-          <rect class="age-background" x="30" y="184" width="180" height="21" rx="10"/>
+          <text class="graph-empty" id="graph-empty" x="120" y="166">Esperando historial</text></g>
+          <rect class="age-background" x="48" y="184" width="144" height="21" rx="10"/>
           <text class="dial-age" id="age" x="120" y="198">Sin lecturas</text>
           <text class="dial-status" id="dial-status" x="120" y="217">Esperando al dispositivo</text>
           <text class="dial-ip" id="dial-ip" x="120" y="230">—</text>
         </svg>
-        <div class="display-foot"><span><i class="live-dot"></i> Historial de los últimos 30 minutos</span><button class="button quiet" type="button" id="refresh">Actualizar visor <span aria-hidden="true">↻</span></button></div>
+        <div class="display-foot"><span><i class="live-dot"></i> <span id="view-scope">Últimos 30 minutos</span></span><button class="button quiet" type="button" id="refresh">Actualizar visor <span aria-hidden="true">↻</span></button></div>
       </section>
       <div class="side-column">
         <section class="card summary-card"><p class="eyebrow">LA LECTURA ACTUAL</p><h2 id="reading-state">Esperando datos</h2><p class="muted" id="server-status" role="status">Conectando con tu pantalla…</p><div class="metrics"><div><span>Tendencia</span><strong id="trend-label">—</strong></div><div><span>Antigüedad</span><strong id="age-detail">—</strong></div><div><span>Hora de la lectura</span><strong id="reading-time">—</strong></div><div><span>Último intento de consulta</span><strong id="checked-age">—</strong></div></div></section>
