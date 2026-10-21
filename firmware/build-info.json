@@ -1,9 +1,9 @@
 {
-  "version": "0.6.1",
-  "file": "nightscout-d1-mini-v0.6.1.bin",
-  "sha256": "60ced6a341099222699d571c23fe804e6451271fc36af2a50377b209329f41a1",
-  "size_bytes": 695184,
-  "source_commit": "351461d0e87809d1d12c379ab78241e2a815b822",
+  "version": "0.7.0",
+  "file": "nightscout-d1-mini-v0.7.0.bin",
+  "sha256": "d9f7a4dd0ef7328c919032cb08299096227615caee46a6ceae082611afc5cb1b",
+  "size_bytes": 702400,
+  "source_commit": "f02db9f65adcc5f6b32afc6a85c056266ee1df18",
   "board": "d1_mini",
   "mcu": "ESP8266",
   "flash_size_bytes": 4194304,
@@ -20,21 +20,24 @@
     "method": "Original PlatformIO builder with verified upstream packages and local cloud overrides"
   },
   "memory": {
-    "static_ram_bytes": 37764,
-    "application_flash_bytes": 691035,
+    "static_ram_bytes": 37812,
+    "application_flash_bytes": 698255,
     "request_stack_frame_bytes": 336,
     "json_parser_wrapper_stack_frame_bytes": 112,
     "json_parser_core_stack_frame_bytes": 448,
     "dashboard_state_stack_frame_bytes": 576,
     "display_stack_frame_bytes": 320,
-    "static_ram_saved_from_v051_bytes": 2956,
+    "static_ram_saved_from_v051_bytes": 2908,
     "dashboard_document_capacity_bytes": 2048,
     "appearance_save_stack_frame_bytes": 208,
-    "static_ram_increase_from_v052_bytes": 132
+    "static_ram_increase_from_v052_bytes": 180,
+    "static_ram_increase_from_v061_bytes": 48,
+    "welcome_stack_frame_bytes": 144,
+    "setup_page_stack_frame_bytes": 64
   },
   "private_compile_time_configuration": false,
   "validation": {
-    "tests_passed": 11,
+    "tests_passed": 12,
     "tests_skipped": 0,
     "boot_checksum": "valid",
     "arduino_full_image_crc": "valid",
@@ -45,14 +48,18 @@
     "clock_checks": "6 native groups: Wi-Fi startup, retry intervals, reconnect/manual retry, millis wraparound, browser epoch validation, HTTP Date validation",
     "pinned_tls": "Real OpenSSL/BearSSL TLS 1.2 handshakes: matching RSA, P-256, P-384 and P-521 keys accepted without clock/CA despite expired self-signed certificates; different keys rejected",
     "pin_export": "Verified TLS export succeeds; expired, untrusted and wrong-host certificates rejected",
-    "request_stack": "Compiled Xtensa prologues inspected: request 336 bytes, streamed parser core 448 plus 112-byte wrapper, dashboard state 576, render 320, appearance save 208 bytes; no framebuffer",
+    "request_stack": "Compiled Xtensa prologues inspected: request 336 bytes, streamed parser core 448 plus 112-byte wrapper, dashboard state 576, render 320, appearance save 208, welcome 144, setup-page assembly 64 bytes; no framebuffer",
     "browser_flow": "Request interception without HTTP server: 3 modes x 5 themes on desktop/mobile; all seven trend directions and unknown, low/high/old/no-clock/empty/error, custom contrast, authenticated CSRF mode-save payloads and rejected-session handling, safe name text, large-name width limits/ellipsis and offline retention; actual ESP8266 HTTP/EEPROM/SPI/OTA checks pending",
     "reading_history": "6 native groups updated for 30 minutes: freshness, 7-point sorted/bucketed history, plot boundaries and gaps, streamed 31-entry JSON with large ignored fields, invalid/empty readings, newest entry/trends",
     "web_assets": "Checked-in gzip flash assets verified against HTML/CSS/JS sources",
-    "external_api_smoke_test": "Last live API check in v0.5.2: count=31 returned HTTP 200, 9492 bytes accepted by native body/JSON decoder with identity and re-framed chunked transport. Fetch/TLS/parser behavior unchanged in v0.6.1; no glucose values retained",
+    "external_api_smoke_test": "Last live API check in v0.5.2: count=31 returned HTTP 200, 9492 bytes accepted by native body/JSON decoder with identity and re-framed chunked transport. TLS/clock/streaming decoding rules unchanged in v0.7.0; welcome progress hooks added, no glucose values retained",
     "http_body": "5 native groups: identity/content length, chunked framing/extensions/trailers, fragmented and short reads, truncation/trailing data, malformed chunks/body limits, raw-chunk regression and precise parser stages",
     "patient_name": "Original 3732-byte settings layout and trust-key offset unchanged; tagged EEPROM name extension, erased storage rejection, bounded UTF-8 validation and Spanish display transliteration tested",
-    "appearance": "3 native groups: tagged 20-byte extension at EEPROM offset 3836, old server/token/key/name preserved, erased storage defaults, partial mode updates, atomic rejection, presets/custom colors and contrast after RGB565 quantization"
+    "appearance": "3 native groups: tagged 20-byte extension at EEPROM offset 3836, old server/token/key/name preserved, erased storage defaults, partial mode updates, atomic rejection, presets/custom colors and contrast after RGB565 quantization",
+    "browser_suites_passed": 2,
+    "startup": "Native stage checks: Wi-Fi pending/connected, HTTP and network errors, rejected JSON, valid empty response, first valid reading, non-200 cannot finish startup, live view retained after later failures",
+    "browser_setup": "Actual C++ setup page renderer with host String/flash/send adaptations; request interception without HTTP server: mobile/desktop steps, UTF-8 SSID byte limit, Wi-Fi/URL/token/PEM/admin validation, hidden-details error focus, back/Enter without early POST, text-safe secret-free summary, CSRF payload, 400/401/403/500 and network failures retaining fields, duplicate-save guard, success clearing secrets, no-JavaScript fallback",
+    "startup_layout": "Representative longest labels, AP SSID/key/IP and footer checked against TFT_eSPI font 2 widths and 240x240 circular bounds; physical SPI output pending"
   },
   "setup": {
     "ssid": "glucosa-XXXXXX",
@@ -81,7 +88,7 @@
     "web_refresh_seconds": 5,
     "nightscout_poll_seconds": 30,
     "web_authentication": "Existing administrator credentials; per-boot CSRF nonce required for POST /appearance",
-    "assets": "Four gzip PROGMEM resources; no filesystem upload, framebuffer or external browser dependencies",
+    "assets": "Five gzip PROGMEM resources plus flash setup-template fragments; no filesystem upload, framebuffer or external browser dependencies",
     "patient_name_characters_max": 24,
     "patient_name_storage": "Tagged 104-byte EEPROM extension after the unchanged v3 settings; empty label uses NIGHTSCOUT",
     "history_minutes": 30,
@@ -109,7 +116,22 @@
       "tagged": true,
       "existing_settings_layout_unchanged": true
     },
-    "patient_name_header": "Named patient: TFT font 2 size 2 (32px) centered at y=43, width cap 120px; web 28px at baseline y=53, width cap 128px; ellipsis preserves large text and full stored name; empty-name fallback unchanged"
+    "patient_name_header": "Named patient: TFT font 2 size 2 (32px) centered at y=43, width cap 120px; web 28px at baseline y=53, width cap 128px; ellipsis preserves large text and full stored name; empty-name fallback unchanged",
+    "startup": {
+      "design": "B: actual Wi-Fi, HTTP 200 and first-reading stages",
+      "theme": "saved palette",
+      "patient_name": "same large font, centered at y=82, width cap 170px",
+      "exit": "first successfully decoded available reading; later errors keep live display"
+    },
+    "initial_setup": {
+      "design": "B: Wi-Fi, Nightscout/person, administrator/review",
+      "navigation": "retains fields within current visit; no persistent browser storage",
+      "save": "single final authenticated/CSRF-protected POST; encrypted setup AP with on-screen generated password before initial credentials exist",
+      "summary": "network, patient and base URL only; no passwords, token or PEM contents",
+      "no_javascript": "all three sections visible; original native form POST with CSRF",
+      "storage_layout_changed": false
+    },
+    "night_schedule": "Proposal only; not implemented"
   },
   "http_body": {
     "buffer_bytes": 512,
