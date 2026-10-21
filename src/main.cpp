@@ -12,9 +12,11 @@
 #include <sys/time.h>
 #include <coredecls.h>
 #include <limits>
+#include <sntp.h>
 #include "device_clock.h"
 #include "device_settings.h"
 #include "public_ca_store.h"
+#include "pinned_key.h"
 
 #if __has_include("nightscout_config.h")
 #include "nightscout_config.h"
@@ -23,7 +25,7 @@
 #endif
 
 namespace {
-constexpr char VERSION[] = "0.3.1";
+constexpr char VERSION[] = "0.4.0";
 constexpr uint32_t POLL_MS = 30000;
 constexpr time_t VALID_CLOCK = device_clock::EARLIEST_UNIX;
 TFT_eSPI display;
@@ -49,8 +51,17 @@ String setupPassword;
 device_clock::SyncSchedule clockSchedule;
 constexpr const char* NTP_SERVERS[] = {"pool.ntp.org", "time.google.com", "time.cloudflare.com"};
 uint32_t ntpAttempts = 0;
-enum class ClockSource { Unknown, Ntp, Browser };
+enum class ClockSource { Unknown, Ntp, Browser, Server };
 ClockSource clockSource = ClockSource::Unknown;
+WiFiEventHandler wifiDisconnectedHandler;
+uint8_t lastWifiReason = 0;
+uint32_t wifiDisconnects = 0;
+uint32_t lastWifiReconnect = 0;
+bool webRecentlyUsed = false;
+uint32_t lastWebActivity = 0;
+int lastTlsError = 0;
+uint32_t heapBeforeTls = 0;
+uint32_t largestBlockBeforeTls = 0;
 
 struct Reading {
   bool available = false;
@@ -97,10 +108,13 @@ bool persistSettings(const device_config::Settings& candidate) {
   }
   settings = candidate;
   baseUrl = settings.url;
+  if (device_config::pinnedPublicKey(settings.customCa)) sntp_stop();
   return true;
 }
 
 bool authenticated() {
+  webRecentlyUsed = true;
+  lastWebActivity = millis();
   web.sendHeader("Cache-Control", "no-store");
   if (!webEnabled) {
     web.send(503, "text/plain; charset=utf-8", "Completa primero la configuracion inicial.");
@@ -132,8 +146,11 @@ void appendClockControls(String& page) {
     strftime(formatted, sizeof(formatted), "%Y-%m-%d %H:%M:%S UTC", &utc);
     page += formatted;
     page += clockSource == ClockSource::Ntp ? F(" · NTP") :
-            clockSource == ClockSource::Browser ? F(" · hora del navegador") : F(" · reloj disponible");
-  } else page += F("Hora sin sincronizar. HTTPS espera una hora válida.");
+            clockSource == ClockSource::Browser ? F(" · hora del navegador") :
+            clockSource == ClockSource::Server ? F(" · hora del servidor HTTPS") : F(" · reloj disponible");
+  } else page += device_config::pinnedPublicKey(settings.customCa)
+                    ? F("Sin hora. La clave pública fija permite consultar HTTPS igualmente.")
+                    : F("Hora sin sincronizar. HTTPS con certificados CA espera una hora válida.");
   page += F("</p><p>Intentos NTP: ");
   page += String(ntpAttempts);
   page += F(". Servidores: pool.ntp.org, time.google.com y time.cloudflare.com (UDP 123).</p>"
@@ -147,7 +164,10 @@ void appendClockControls(String& page) {
             "<input type='hidden' name='csrf' value='");
   page += csrf;
   page += F("'><button>Usar hora de este teléfono/PC</button></form>"
-            "<p>Esta hora dura hasta el próximo reinicio. NTP sigue intentando sincronizar en segundo plano.</p></section>");
+            "<p>Esta hora dura hasta el próximo reinicio.</p>");
+  page += device_config::pinnedPublicKey(settings.customCa)
+              ? F("<p>En modo clave fija no se inicia NTP automáticamente. Se toma la hora de la respuesta HTTPS autenticada del servidor.</p></section>")
+              : F("<p>NTP sigue intentando sincronizar en segundo plano.</p></section>");
 }
 
 bool clockRequestAllowed() {
@@ -189,8 +209,10 @@ void useBrowserClock() {
   attemptedFetch = false;
   lastFrame = "";
   message = "Hora del navegador";
-  web.sendHeader("Location", "/");
-  web.send(303);
+  web.send(200, "text/html; charset=utf-8",
+           "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+           "<h1>Hora ajustada</h1><p>El reloj del Wemos recibió la hora del navegador. "
+           "La consulta al servidor se reanudará en unos segundos.</p><p><a href='/'>Volver</a></p>");
 }
 
 void appendServerFields(String& page) {
@@ -205,22 +227,40 @@ void appendServerFields(String& page) {
   page += F("<label><input name='clear_token' type='checkbox' value='1' style='width:auto'>"
             " Borrar token guardado</label><p>El token solo se envía por HTTPS. "
             "Al cambiar de servidor se borra el anterior; introduce el token del nuevo servidor.</p>"
-            "<details><summary>Certificados HTTPS (opcional)</summary><p>El firmware incluye ");
+            "<details><summary>Seguridad HTTPS y opción sin NTP</summary><p>El firmware incluye ");
   page += String(PublicCaStore::rootCount());
   page += F(" autoridades de confianza. Para servidores públicos normalmente no necesitas pegar un certificado.</p>"
-            "<label>CA propia en formato PEM, solo para servidores privados"
+            "<label>CA privada o clave pública fija del servidor (PEM, opcional)"
             "<textarea name='custom_ca' maxlength='3072' rows='6' style='width:100%;box-sizing:border-box' "
             "placeholder='-----BEGIN CERTIFICATE-----'></textarea></label>");
-  page += settings.customCa[0] ? F("<p>Hay una CA propia guardada. Dejar vacío la conserva para el mismo servidor.</p>")
-                               : F("<p>Se utilizarán los certificados públicos incluidos.</p>");
+  if (device_config::pinnedPublicKey(settings.customCa))
+    page += F("<p>Modo actual: clave pública fija, sin requerir NTP. Dejar vacío la conserva para el mismo servidor.</p>");
+  else page += settings.customCa[0] ? F("<p>Hay una CA privada guardada. Dejar vacío la conserva para el mismo servidor.</p>")
+                                  : F("<p>Se utilizarán los certificados públicos incluidos.</p>");
   page += F("<label><input name='clear_ca' type='checkbox' value='1' style='width:auto'>"
-            " Borrar CA propia y usar certificados públicos</label>"
-            "<p>Solo certificados públicos de CA; nunca claves privadas. Se verifican certificado, "
-            "nombre del servidor y hora.</p></details>");
+            " Borrar CA o clave fija y usar certificados públicos</label>"
+            "<p>Para consultar sin NTP, pega la clave pública verificada del servidor, con "
+            "BEGIN PUBLIC KEY, obtenida desde un PC con tools/export_server_key.py. "
+            "HTTPS exige que el servidor demuestre que posee esa clave; en este modo "
+            "la identidad se fija por clave, sin comprobar la cadena, el nombre ni las fechas del certificado. "
+            "Si el proveedor cambia la clave, deberás actualizarla. No se acepta automáticamente una clave nueva.</p>"
+            "<p>Con certificados CA se comprueban cadena, nombre y hora. Nunca pegues una clave privada.</p></details>");
 }
 
-bool validCustomCa(const char* pem) {
+bool validPinnedKey(BearSSL::PublicKey& key) {
+  if (key.isRSA()) return true;
+  if (!key.isEC()) return false;
+  // PublicKey owns a mutable malloc-backed point despite its const accessor.
+  return normalizeOwnedPinnedEcPoint(*const_cast<br_ec_public_key*>(key.getEC()));
+}
+
+bool validCustomTrust(const char* pem) {
   if (!pem[0]) return true;
+  if (!device_config::trustPemEnvelope(pem)) return false;
+  if (device_config::pinnedPublicKey(pem)) {
+    BearSSL::PublicKey key;
+    return key.parse(pem) && validPinnedKey(key);
+  }
   BearSSL::X509List certificate;
   return certificate.append(pem) && certificate.getCount() == 1 &&
          (certificate.getTrustAnchors()[0].flags & BR_X509_TA_CA);
@@ -234,7 +274,7 @@ bool serverFields(device_config::Settings& candidate, const String& url) {
   return device_config::updateServer(settings, url.c_str(), token.c_str(),
                                     web.arg("clear_token") == "1", ca.c_str(),
                                     web.arg("clear_ca") == "1", candidate) &&
-         validCustomCa(candidate.customCa);
+         validCustomTrust(candidate.customCa);
 }
 
 void configurationPage() {
@@ -289,7 +329,7 @@ void saveConfiguration() {
   std::unique_ptr<device_config::Settings> candidate(new (std::nothrow) device_config::Settings);
   if (!candidate) { web.send(503, "text/plain", "Memoria insuficiente. Intenta nuevamente."); return; }
   if (!serverFields(*candidate, url)) {
-    web.send(400, "text/plain; charset=utf-8", "Revisa el token y la CA. El token requiere HTTPS; la CA debe ser un certificado de autoridad válido. No combines borrar con introducir un valor nuevo.");
+    web.send(400, "text/plain; charset=utf-8", "Revisa el token y el PEM: una CA válida o una clave pública RSA/EC. Nunca una clave privada. El token requiere HTTPS. No combines borrar con introducir un valor nuevo.");
     return;
   }
   ssid.toCharArray(candidate->ssid, sizeof(candidate->ssid));
@@ -343,6 +383,8 @@ void homePage() {
                   "button{padding:10px;margin-top:10px}</style><h1>Pantalla de glucosa</h1>");
   page += "<p>Firmware " + String(VERSION) + " · IP " + WiFi.localIP().toString() + "</p>";
   page += "<p>Estado: " + htmlEscape(message) + "</p>";
+  page += "<p>Wi-Fi: " + String(WiFi.RSSI()) + " dBm · desconexiones: " + String(wifiDisconnects) +
+          " · último motivo: " + String(lastWifiReason) + "</p>";
   appendClockControls(page);
   page += F("<form method='post' action='/settings'>");
   appendServerFields(page);
@@ -352,7 +394,7 @@ void homePage() {
             "<code>http://192.168.1.100:8000</code>.</p>");
   if (!storageReady) page += F("<p>No se puede guardar la URL: EEPROM no esta disponible.</p>");
   page += F("<p><a href='/configure'>Configurar Wi-Fi y contraseñas</a></p>"
-            "<p><a href='/update'>Actualizar firmware (.bin)</a></p>"
+            "<p><a href='/update'>Actualizar firmware (.bin)</a> · <a href='/diagnostics'>Diagnóstico</a></p>"
             "<p>Actualizaciones disponibles solo para uso en una red local de confianza.</p></html>");
   web.send(200, "text/html; charset=utf-8", page);
 }
@@ -374,7 +416,7 @@ void saveSettings() {
   std::unique_ptr<device_config::Settings> saved(new (std::nothrow) device_config::Settings);
   if (!saved) { web.send(503, "text/plain", "Memoria insuficiente."); return; }
   if (!serverFields(*saved, candidate)) {
-    web.send(400, "text/plain; charset=utf-8", "Revisa el token, HTTPS y el certificado de CA.");
+    web.send(400, "text/plain; charset=utf-8", "Revisa el token, HTTPS y el PEM de CA o clave pública.");
     return;
   }
   if (!persistSettings(*saved)) {
@@ -427,6 +469,12 @@ void parseReading(HTTPClient& http) {
 void fetchReading() {
   String endpoint = baseUrl + "/api/v1/entries.json?count=1";
   const bool https = baseUrl.startsWith("https://");
+  const bool pinned = device_config::pinnedPublicKey(settings.customCa);
+  // Avoid allocating the TLS stack and buffers until a connection is possible.
+  if (https && !pinned && !device_clock::plausible(time(nullptr))) {
+    message = ntpAttempts < 2 ? "Esperando hora NTP" : "Sin hora: abre la web";
+    return;
+  }
   if (settings.token[0]) {
     if (!https) {
       message = "Token requiere HTTPS";
@@ -434,26 +482,33 @@ void fetchReading() {
     }
     endpoint += "&token=" + urlEncode(settings.token);
   }
-  // Destruction order matters: HTTPClient -> TLS client -> optional trust anchors.
+  // Destruction order matters: HTTPClient -> TLS client -> pinned key / trust anchors.
   WiFiClient plain;
   std::unique_ptr<BearSSL::X509List> trust;
-  BearSSL::WiFiClientSecure secure;
+  std::unique_ptr<BearSSL::PublicKey> key;
+  std::unique_ptr<BearSSL::WiFiClientSecure> secure;
   HTTPClient http;
   http.useHTTP10(true);  // A non-chunked body can be parsed straight from the stream.
   http.setTimeout(2500);
   http.setReuse(false);
   if (https) {
-    if (!device_clock::plausible(time(nullptr))) {
-      message = ntpAttempts < 2 ? "Esperando hora NTP" : "Sin hora: abre la web";
-      return;
-    }
-    if (settings.customCa[0]) {
+    heapBeforeTls = ESP.getFreeHeap();
+    largestBlockBeforeTls = ESP.getMaxFreeBlockSize();
+    secure.reset(new (std::nothrow) BearSSL::WiFiClientSecure);
+    if (!secure) { message = "Sin memoria para TLS"; return; }
+    if (pinned) {
+      key.reset(new (std::nothrow) BearSSL::PublicKey(settings.customCa));
+      if (!key || !validPinnedKey(*key)) { message = "Clave publica invalida"; return; }
+      secure->setKnownKey(key.get());
+    } else if (settings.customCa[0]) {
       trust.reset(new (std::nothrow) BearSSL::X509List(settings.customCa));
       if (!trust || trust->getCount() != 1) { message = "CA propia invalida"; return; }
-      secure.setTrustAnchors(trust.get());
-    } else secure.setCertStore(&publicRoots);
-    secure.setTimeout(2500);
-    if (!http.begin(secure, endpoint)) {
+      secure->setTrustAnchors(trust.get());
+    } else secure->setCertStore(&publicRoots);
+    secure->setTimeout(5000);
+    Serial.printf("TLS inicio: modo=%s heap=%u bloque=%u RSSI=%d\n",
+                  pinned ? "clave" : "CA", heapBeforeTls, largestBlockBeforeTls, WiFi.RSSI());
+    if (!http.begin(*secure, endpoint)) {
       message = "URL HTTPS invalida";
       return;
     }
@@ -461,16 +516,60 @@ void fetchReading() {
     message = "URL HTTP invalida";
     return;
   }
+  const char* responseHeaders[] = {"Date", "Age"};
+  http.collectHeaders(responseHeaders, 2);
+  http.addHeader("Cache-Control", "no-cache, no-store");
   const int result = http.GET();
+  lastTlsError = secure ? secure->getLastSSLError() : 0;
+  Serial.printf("Consulta: HTTP=%d TLS=%d WiFi=%d heap=%u\n", result, lastTlsError,
+                WiFi.status(), ESP.getFreeHeap());
   if (result == HTTP_CODE_OK) {
+    if (pinned && https) {
+      // The pinned key authenticated TLS before any response headers were read.
+      // Ignore cached responses; a reading's own date is never used as 'now'.
+      const String age = http.header("Age");
+      int64_t epoch = 0;
+      if ((!age.length() || age == "0") && device_clock::parseHttpDate(http.header("Date").c_str(), epoch) &&
+          epoch <= static_cast<int64_t>(std::numeric_limits<time_t>::max())) {
+        struct timeval value{};
+        value.tv_sec = static_cast<time_t>(epoch);
+        if (settimeofday(&value, nullptr) == 0) clockSource = ClockSource::Server;
+      }
+    }
     parseReading(http);
   } else {
     // Never print the endpoint or token to Serial or the web UI.
     if (result == 401 || result == 403) message = "Revisa token (" + String(result) + ")";
-    else if (result < 0 && https && secure.getLastSSLError() != 0) message = "Error TLS " + String(secure.getLastSSLError());
+    else if (result < 0 && lastTlsError != 0) message = "Error TLS " + String(lastTlsError);
     else message = result > 0 ? "Error HTTP " + String(result) : "Error de conexion";
   }
   http.end();
+}
+
+void diagnostics() {
+  if (!authenticated()) return;
+  StaticJsonDocument<512> document;
+  document["firmware"] = VERSION;
+  document["uptime_seconds"] = millis() / 1000;
+  document["wifi_connected"] = WiFi.status() == WL_CONNECTED;
+  document["wifi_status"] = static_cast<int>(WiFi.status());
+  document["rssi_dbm"] = WiFi.RSSI();
+  document["wifi_disconnects"] = wifiDisconnects;
+  document["last_wifi_reason"] = lastWifiReason;
+  document["free_heap"] = ESP.getFreeHeap();
+  document["largest_free_block"] = ESP.getMaxFreeBlockSize();
+  document["heap_before_tls"] = heapBeforeTls;
+  document["largest_block_before_tls"] = largestBlockBeforeTls;
+  document["last_tls_error"] = lastTlsError;
+  document["clock_valid"] = device_clock::plausible(time(nullptr));
+  document["clock_source"] = clockSource == ClockSource::Server ? "https_server" :
+                             clockSource == ClockSource::Browser ? "browser" :
+                             clockSource == ClockSource::Ntp ? "ntp" : "unknown";
+  document["ntp_attempts"] = ntpAttempts;
+  document["tls_authentication"] = device_config::pinnedPublicKey(settings.customCa) ? "pinned_public_key" : "certificate_authority";
+  String body;
+  serializeJson(document, body);
+  web.send(200, "application/json", body);
 }
 
 void drawTrend(uint16_t color) {
@@ -542,12 +641,14 @@ void render() {
   display.setTextColor(stale ? TFT_ORANGE : TFT_WHITE, TFT_BLACK);
   display.drawString(stale ? "LECTURA ANTIGUA" : ageText, 120, 174, 2);
   display.drawString(message, 120, 195, 2);
-  display.drawString(WiFi.status() == WL_CONNECTED ? WiFi.localIP().toString() : "Sin Wi-Fi", 120, 215, 2);
+  display.drawString(WiFi.status() == WL_CONNECTED ? WiFi.localIP().toString() :
+                     "Sin Wi-Fi (" + String(lastWifiReason) + ")", 120, 215, 2);
 }
 }  // namespace
 
 void setup() {
   Serial.begin(115200);
+  Serial.printf("\nNightscout %s; reinicio: %s\n", VERSION, ESP.getResetReason().c_str());
   display.init();
   display.setRotation(0);
   EEPROM.begin(device_config::STORAGE_SIZE);
@@ -579,17 +680,23 @@ void setup() {
   baseUrl = settings.url;
   csrf = String(ESP.random(), HEX) + String(ESP.random(), HEX);
   settimeofday_cb([](bool fromSntp) {
-    if (fromSntp) clockSource = ClockSource::Ntp;
-    attemptedFetch = false;
+    if (fromSntp) { clockSource = ClockSource::Ntp; attemptedFetch = false; }
     lastFrame = "";
   });
   WiFi.persistent(false);
   WiFi.hostname(DEVICE_HOSTNAME);
   WiFi.setAutoReconnect(true);
+  wifiDisconnectedHandler = WiFi.onStationModeDisconnected([](const WiFiEventStationModeDisconnected& event) {
+    lastWifiReason = static_cast<uint8_t>(event.reason);
+    ++wifiDisconnects;
+    lastFrame = "";
+    Serial.printf("Wi-Fi desconectado: motivo=%u heap=%u\n", lastWifiReason, ESP.getFreeHeap());
+  });
   webEnabled = device_config::validAdmin(settings);
   if (!device_config::configured(settings)) startProvisioning();
   else {
     WiFi.mode(WIFI_STA);
+    WiFi.setSleepMode(WIFI_NONE_SLEEP);
     WiFi.begin(settings.ssid, settings.wifiPassword);
     message = "Conectando Wi-Fi";
   }
@@ -599,6 +706,7 @@ void setup() {
   web.on("/settings", HTTP_POST, saveSettings);
   web.on("/clock/retry", HTTP_POST, retryNtp);
   web.on("/clock/browser", HTTP_POST, useBrowserClock);
+  web.on("/diagnostics", HTTP_GET, diagnostics);
   if (webEnabled) updater.setup(&web, "/update", settings.webUsername, settings.webPassword);
   web.begin();
   render();
@@ -610,11 +718,15 @@ void loop() {
   if (!setupMode && WiFi.status() == WL_CONNECTED) {
     hasConnected = true;
     // Start/retry DNS and SNTP only after the station has acquired a connection.
-    if (clockSchedule.poll(true, device_clock::plausible(time(nullptr)), millis())) startNtp();
+    if (!device_config::pinnedPublicKey(settings.customCa)) {
+      if (clockSchedule.poll(true, device_clock::plausible(time(nullptr)), millis())) startNtp();
+    } else clockSchedule.poll(false, device_clock::plausible(time(nullptr)), millis());
     static bool mdnsStarted = false;
     if (!mdnsStarted) mdnsStarted = MDNS.begin(DEVICE_HOSTNAME);
     if (mdnsStarted) MDNS.update();
-    if (!attemptedFetch || millis() - lastFetch >= POLL_MS) {
+    // Let the browser receive its clock/settings response before starting TLS.
+    const bool webIdle = !webRecentlyUsed || millis() - lastWebActivity >= 2000;
+    if (webIdle && (!attemptedFetch || millis() - lastFetch >= POLL_MS)) {
       attemptedFetch = true;
       fetchReading();
       lastFetch = millis();
@@ -622,6 +734,10 @@ void loop() {
   } else if (!setupMode) {
     clockSchedule.poll(false, device_clock::plausible(time(nullptr)), millis());
     message = "Sin Wi-Fi";
+    if (hasConnected && millis() - lastWifiReconnect >= 15000) {
+      lastWifiReconnect = millis();
+      WiFi.reconnect();
+    }
     // Recover from wrong credentials at boot without having to recompile or use USB.
     if (!hasConnected && millis() >= 60000) startProvisioning();
   }

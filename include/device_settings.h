@@ -27,6 +27,8 @@ struct Settings {
   char webUsername[33];
   char webPassword[65];
   char token[257];
+  // One CA certificate or one explicitly pinned server public key (PEM).
+  // Keep the v3 layout so existing devices retain their settings on upgrade.
   char customCa[3073];
 };
 
@@ -114,6 +116,24 @@ inline bool withUpdatedUrl(const Settings& current, const char* url, Settings& u
   return true;
 }
 
+inline bool pinnedPublicKey(const char* pem) {
+  return pem && strncmp(pem, "-----BEGIN PUBLIC KEY-----", 26) == 0;
+}
+
+inline bool trustPemEnvelope(const char* pem) {
+  if (!pem || !*pem) return true;
+  const bool key = pinnedPublicKey(pem);
+  const char* begin = key ? "-----BEGIN PUBLIC KEY-----" : "-----BEGIN CERTIFICATE-----";
+  const char* end = key ? "-----END PUBLIC KEY-----" : "-----END CERTIFICATE-----";
+  if (strncmp(pem, begin, strlen(begin)) != 0 || strstr(pem, "PRIVATE KEY")) return false;
+  const char* ending = strstr(pem + strlen(begin), end);
+  if (!ending || strstr(pem + strlen(begin), "-----BEGIN ")) return false;
+  for (const char* c = ending + strlen(end); *c; ++c) {
+    if (*c != '\r' && *c != '\n' && *c != ' ' && *c != '\t') return false;
+  }
+  return true;
+}
+
 inline bool updateServer(const Settings& current, const char* url, const char* token,
                          bool clearToken, const char* ca, bool clearCa, Settings& updated) {
   if (!url || !token || !ca || strlen(token) > 256 || strlen(ca) > 3072 ||
@@ -121,8 +141,7 @@ inline bool updateServer(const Settings& current, const char* url, const char* t
   for (const unsigned char* c = reinterpret_cast<const unsigned char*>(token); *c; ++c) {
     if (*c <= ' ' || *c >= 127) return false;
   }
-  if (*ca && (!strstr(ca, "-----BEGIN CERTIFICATE-----") ||
-              !strstr(ca, "-----END CERTIFICATE-----") || strstr(ca, "PRIVATE KEY"))) return false;
+  if (!trustPemEnvelope(ca)) return false;
   if (!withUpdatedUrl(current, url, updated)) return false;
   if (clearToken) memset(updated.token, 0, sizeof(updated.token));
   else if (*token) { memset(updated.token, 0, sizeof(updated.token)); memcpy(updated.token, token, strlen(token)); }

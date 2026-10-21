@@ -55,11 +55,29 @@ void testBrowserEpochValidation() {
   assert(!plausible(LATEST_UNIX + 1));
 }
 
+void testAuthenticatedHttpDateParsing() {
+  int64_t epoch = -1;
+  assert(parseHttpDate("Thu, 29 Feb 2024 12:00:00 GMT", epoch) && epoch == 1709208000);
+  assert(parseHttpDate("Mon, 01 Jan 2024 00:00:00 GMT", epoch) && epoch == EARLIEST_UNIX);
+  assert(parseHttpDate("Fri, 01 Jan 2100 00:00:00 GMT", epoch) && epoch == LATEST_UNIX);
+  const char* invalid[] = {nullptr, "", "1709208000000", "Thu, 29 Feb 2023 12:00:00 GMT",
+      "Thu, 30 Feb 2024 12:00:00 GMT", "Thu, 29 Feb 2024 24:00:00 GMT",
+      "Thu, 29 Feb 2024 12:60:00 GMT", "Thu, 29 Feb 2024 12:00:60 GMT",
+      "Thu, 29 Feb 2024 12:00:00 UTC", "Fri, 29 Feb 2024 12:00:00 GMT",
+      "Thu, 29 Feb 2024 12:00:00 GMT junk", "Thu, 29 Xxx 2024 12:00:00 GMT"};
+  for (const char* value : invalid) {
+    epoch = -1;
+    assert(!parseHttpDate(value, epoch));
+    assert(epoch == -1);
+  }
+}
+
 int main() {
   testWaitsForWifiAndStartsOnConnection();
   testRetriesWithoutBusyLoopAndStopsWhenClockReady();
   testReconnectAndManualRetryRestartSchedule();
   testMillisWraparound();
   testBrowserEpochValidation();
-  puts("5 clock test groups passed");
+  testAuthenticatedHttpDateParsing();
+  puts("6 clock test groups passed");
 }

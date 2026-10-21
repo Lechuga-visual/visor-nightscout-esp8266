@@ -72,7 +72,7 @@ conectarlo; la retroiluminación no está controlada por un GPIO en esta versió
 
 ### Binario listo para cargar
 
-Descarga [nightscout-d1-mini-v0.3.1.bin](firmware/nightscout-d1-mini-v0.3.1.bin)
+Descarga [nightscout-d1-mini-v0.4.0.bin](firmware/nightscout-d1-mini-v0.4.0.bin)
 desde la carpeta `firmware` (en GitHub utiliza **Download raw file**). Está
 compilado para **Wemos D1 mini ESP8266 con 4 MB de flash**, con los pines de la
 tabla anterior. No contiene datos privados ni requiere configurar el Wi-Fi
@@ -160,11 +160,11 @@ La página permite guardar otra **URL base**, sin `/api/v1`, credenciales ni
 parámetros. La URL se conserva en EEPROM emulada y se vuelve a consultar sin
 reiniciar. Guardar otra URL descarta la lectura del servidor anterior y conserva
 las claves de Wi-Fi y administración. También permite guardar un token de solo
-lectura y, opcionalmente, una CA privada. Los campos de token nunca se rellenan
+lectura y, opcionalmente, una CA privada o una clave pública fija. Los campos de token nunca se rellenan
 con el valor guardado.
 
 Dejar el token vacío conserva el anterior **solo para el mismo origen HTTPS**
-(protocolo, dominio y puerto). Al cambiar de origen se borran el token y la CA
+(protocolo, dominio y puerto). Al cambiar de origen se borran el token y la CA o clave
 propia anteriores para no enviarlos a otro servidor. Puedes introducir el token
 del nuevo servidor en ese mismo formulario. Para eliminar uno existente, marca
 **Borrar token guardado**; no escribas a la vez un token nuevo.
@@ -206,14 +206,16 @@ Wemos introduce:
 2. **Token de solo lectura:** generado en la administración de tu Nightscout,
    si el servidor exige autenticación. No uses el `API_SECRET` de administrador.
    El firmware rechaza guardar/enviar tokens con una URL HTTP.
-3. **Certificados HTTPS:** normalmente deja esta sección sin modificar.
+3. **Seguridad HTTPS y opción sin NTP:** puedes usar certificados CA o fijar la
+   clave pública del servidor, como se explica debajo.
 
 El firmware incluye **120 raíces públicas de confianza** de Mozilla, distribuidas
 por certifi 2026.10.19. Están en flash y solo se carga en RAM la raíz necesaria.
 No se necesita un certificado propio para el Wemos ni subir una imagen de
-filesystem. Se verifican la cadena, el nombre del servidor y la hora; el reloj
-se sincroniza por NTP o desde el navegador, como se explica debajo. Hasta tener
-una hora válida se espera antes de consultar HTTPS. Las renovaciones del certificado del servidor funcionan mientras la
+filesystem. En el modo predeterminado se verifican la cadena, el nombre del servidor
+y la hora; el reloj se sincroniza por NTP o desde el navegador. En este modo,
+hasta tener una hora válida se espera antes de consultar HTTPS. Las renovaciones
+del certificado del servidor funcionan mientras la
 cadena siga siendo válida bajo una raíz admitida. Nuevas raíces se distribuyen
 con actualizaciones del firmware.
 
@@ -221,7 +223,7 @@ Si tu instalación utiliza una **CA privada**, abre la sección opcional y pega
 un certificado público de esa autoridad en PEM (máximo 3072 bytes). Debe ser
 un único certificado CA válido, sin claves privadas. Esa CA reemplaza el
 almacén público para ese servidor; no desactiva la validación. Para volver al
-almacén incluido, marca **Borrar CA propia y usar certificados públicos**.
+almacén incluido, marca **Borrar CA o clave fija y usar certificados públicos**.
 
 El token y la CA quedan en la configuración local del dispositivo y se cambian
 sin recompilar. El repositorio y el binario distribuido no incluyen tokens ni
@@ -231,9 +233,53 @@ La API consultada sigue siendo v1 y las entradas `sgv` se muestran en mg/dL;
 aún no se puede seleccionar mmol/L en pantalla. Ver [certs/README.md](certs/README.md)
 para la procedencia y reproducción del almacén de confianza.
 
+### HTTPS sin NTP: fijar la clave pública del servidor
+
+Desde 0.4.0 puedes autenticar el servidor mediante su clave pública RSA o EC
+fijada en el Wemos. No necesitas crear un certificado autofirmado ni cambiar
+Nightscout. TLS sigue cifrando la conexión y exige demostrar la posesión de la
+clave privada correspondiente; **no se comprueban cadena, nombre ni fechas del
+certificado**, porque la identidad queda fijada por esa clave. El token puede
+seguir usándose. Si el servidor cambia de clave, la conexión falla hasta que
+actualices la clave guardada; no hay aceptación automática de claves nuevas.
+
+Obtén la clave desde un PC de confianza con Python y su reloj correctamente ajustado.
+Descarga [export_server_key.py](tools/export_server_key.py) y, en esa carpeta, ejecuta:
+
+```bash
+python -m pip install cryptography
+python export_server_key.py https://tu-nightscout.example --output clave-servidor.pem
+```
+
+La herramienta verifica normalmente el certificado y el nombre del servidor
+antes de exportar la clave. No envía tokens ni consulta glucosa. Si utilizas
+una CA privada, puedes añadir `--ca-file tu-ca.pem`. No obtengas la clave desde
+una conexión sin verificar ni desde un proxy que sustituya el certificado del
+servidor: estarías fijando la identidad equivocada.
+
+En el Wemos, abre **Seguridad HTTPS y opción sin NTP**, pega todo el contenido
+de `clave-servidor.pem` (desde `BEGIN PUBLIC KEY` hasta `END PUBLIC KEY`) y pulsa
+**Guardar servidor**, sin marcar la casilla de borrar. El modo se reconoce por
+el PEM y se conserva después de reiniciar. La clave es pública; nunca pegues
+la clave privada del servidor. Se conserva únicamente para el mismo origen HTTPS.
+
+En este modo NTP no arranca automáticamente. Después de autenticar la conexión,
+el Wemos ajusta su reloj con la cabecera **Date** de una respuesta HTTPS correcta
+y calcula la antigüedad usando la fecha de cada lectura. Pide respuestas sin
+caché y descarta la hora si la respuesta declara una antigüedad de caché mayor
+que cero. **La fecha de una lectura nunca se usa como hora actual**: una lectura
+antigua debe seguir apareciendo como antigua. Si falta una cabecera Date válida,
+puede mostrar el valor con **Hora sin sincronizar**, sin afirmar su antigüedad;
+puedes darle la hora desde el navegador.
+
+Un Nightscout con lectura pública puede funcionar con el campo token vacío.
+Si ya había uno guardado, marca **Borrar token guardado** para eliminarlo.
+La lectura pública permite que otras personas con la URL consulten esos datos;
+quitar el token no cambia el funcionamiento de HTTPS.
+
 ### Si se queda esperando la hora NTP
 
-Desde 0.3.1, NTP arranca después de conectar el Wi-Fi y reintenta cada 30 segundos
+En el modo de certificados CA, NTP arranca después de conectar el Wi-Fi y reintenta cada 30 segundos
 mientras falta la hora. Alterna entre `pool.ntp.org`, `time.google.com` y
 `time.cloudflare.com`, por UDP al puerto 123. Algunas redes bloquean esas consultas.
 
@@ -253,6 +299,22 @@ repetir este paso después de reiniciarlo. No es necesario abrir puertos entrant
 en el router. Esta opción requiere el firmware 0.3.1; puedes actualizar por
 `/update` aunque todavía no se haya sincronizado la hora.
 
+### Si aparece Sin Wi-Fi
+
+Desde 0.4.0 la pantalla añade el motivo de la última desconexión, por ejemplo
+`Sin Wi-Fi (200)`. El firmware desactiva el ahorro de energía del Wi-Fi y añade
+reintentos de reconexión cada 15 segundos después de una conexión correcta.
+Esto no demuestra la causa de una desconexión en una placa concreta.
+Cuando reconecte, abre `/diagnostics`: muestra señal, contador y motivo de
+desconexiones, memoria libre, estado del reloj y último error TLS. Requiere
+la misma autenticación de administración y no muestra contraseñas ni tokens.
+También se registran estos eventos por USB a 115200 baudios. Algunos motivos:
+200 = se perdió la señal periódica del router; 201 = no se encuentra el punto
+de acceso; 202 = fallo de autenticación; 204 = se agotó el tiempo de negociación.
+
+Al ajustar la hora, la web confirma **Hora ajustada** y deja dos segundos antes
+de consultar HTTPS para que el navegador pueda recibir la respuesta.
+
 ## Verificación
 
 ```bash
@@ -262,17 +324,21 @@ python3 -m unittest discover -s tests -v
 
 Las pruebas Python hacen solicitudes HTTP reales a un servidor efímero local
 y comprueban el contrato de la API, fechas, historial y los escenarios de error.
-Si está disponible `g++`, también ejecutan nueve grupos de pruebas nativas de
+Si está disponible `g++`, también ejecutan diez grupos de pruebas nativas de
 validación de ajustes, migración del formato anterior y conservación de claves
-al cambiar la URL. Otros cinco grupos comprueban el inicio de NTP después del
+al cambiar la URL. Otros seis grupos comprueban el inicio de NTP después del
 Wi-Fi, los reintentos, la reconexión, el desbordamiento de `millis()` y la
-validación de la hora del navegador. Sin `g++`, esas pruebas se informan como omitidas.
+validación de la hora del navegador y de la fecha HTTP. Sin `g++`, esas pruebas se informan como omitidas.
 Con `cryptography`, `make`, compiladores nativos y las fuentes de BearSSL del
 núcleo ESP8266 instalado, otras dos pruebas verifican las 120 raíces con el
 propio decodificador BearSSL y comprueban cadenas válidas, nombres incorrectos,
 certificados vencidos, emisores no confiables y firmas manipuladas. Si faltan
-esas herramientas, las pruebas TLS se informan como omitidas. En la nube se usa
-el Python del venv preparado para ejecutar las doce pruebas completas.
+esas herramientas, las pruebas TLS se informan como omitidas. Dos pruebas más
+hacen conexiones TLS locales entre BearSSL y OpenSSL: claves RSA/EC correctas
+aceptadas sin reloj, claves distintas rechazadas y exportación que rechaza
+certificados no confiables, vencidos o de otro nombre. Cubren P-256, P-384 y P-521,
+incluida la reparación del marcador de punto EC que omite el decodificador del
+núcleo 3.1.2. En la nube se usa el Python del venv para las catorce pruebas completas.
 La compilación verifica las bibliotecas para ESP8266; la prueba física de SPI,
 Wi-Fi, configuración desde el teléfono, persistencia en flash y OTA debe hacerse
 con el Wemos conectado.

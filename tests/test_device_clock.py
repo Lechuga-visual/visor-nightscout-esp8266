@@ -17,4 +17,4 @@ class DeviceClockTests(unittest.TestCase):
                 "-o", str(binary),
             ], check=True, capture_output=True, text=True)
             result = subprocess.run([str(binary)], check=True, capture_output=True, text=True)
-            self.assertIn("5 clock test groups passed", result.stdout)
+            self.assertIn("6 clock test groups passed", result.stdout)

@@ -20,6 +20,19 @@ python tools/generate_trust_store.py
 
 The generator rejects unsupported public-key types, non-CA certificates and
 ambiguous duplicate subject names. Standard certificate-chain, server-name and
-time checks remain enabled. A private CA can be explicitly supplied through
+time checks remain enabled in CA mode. A private CA can be explicitly supplied through
 the device's authenticated configuration page; it replaces the public store
 for that server instead of bypassing certificate verification.
+
+Firmware 0.4.0 also supports an explicit server public-key pin supplied through
+the authenticated UI. This separate mode uses BearSSL's known-key TLS
+authenticator: the peer must prove possession of the pinned private key, without
+certificate-chain, hostname or certificate-date validation. It never accepts an
+unknown key automatically. `tools/export_server_key.py` exports a key only after
+normal hostname and certificate validation on a trusted PC. Pins are bound to
+the configured HTTPS origin and cleared on origin changes. A key rotation needs
+an explicit pin update. No server key is embedded in the distributed firmware.
+
+Only after a successful pinned TLS request does the device use a fresh HTTP
+Date header to synchronize its clock. Glucose timestamps are never treated as
+the current time, and unverified HTTP responses never set the clock.

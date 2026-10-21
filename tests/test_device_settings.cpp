@@ -160,6 +160,28 @@ void testVersionTwoMigrationKeepsWifiAndAdmin() {
   assert(!migrateV2(old, migrated));
 }
 
+void testPinnedKeyStorageAndEnvelopeValidation() {
+  const char* key = "-----BEGIN PUBLIC KEY-----\nfixture\n-----END PUBLIC KEY-----";
+  Settings current = sample();
+  Settings updated{};
+  assert(pinnedPublicKey(key));
+  assert(trustPemEnvelope(key));
+  assert(updateServer(current, "https://nightscout.example", "", false, key, false, updated));
+  current = updated;
+  assert(updateServer(current, current.url, "", false, "", false, updated));
+  assert(strcmp(updated.customCa, key) == 0);
+  assert(updateServer(current, current.url, "", false, "", true, updated));
+  assert(!updated.customCa[0]);
+  assert(withUpdatedUrl(current, "https://another-nightscout.example", updated));
+  assert(!updated.customCa[0]);
+  assert(!trustPemEnvelope("-----BEGIN PRIVATE KEY-----\nx\n-----END PRIVATE KEY-----"));
+  assert(!trustPemEnvelope("-----BEGIN PUBLIC KEY-----\nx\n-----END CERTIFICATE-----"));
+  assert(!trustPemEnvelope("-----BEGIN PUBLIC KEY-----\nx\n-----END PUBLIC KEY-----garbage"));
+  assert(!trustPemEnvelope("-----BEGIN PUBLIC KEY-----\n-----BEGIN PUBLIC KEY-----\n-----END PUBLIC KEY-----"));
+  assert(!trustPemEnvelope("prefix-----BEGIN CERTIFICATE-----\nx\n-----END CERTIFICATE-----"));
+  assert(trustPemEnvelope("-----BEGIN CERTIFICATE-----\nx\n-----END CERTIFICATE-----\n"));
+}
+
 int main() {
   testFirstBootNeedsProvisioning();
   testWifiValidation();
@@ -170,5 +192,6 @@ int main() {
   testTokenIsBoundToHttpsOrigin();
   testServerTokenUpdateAndClear();
   testVersionTwoMigrationKeepsWifiAndAdmin();
-  puts("9 settings test groups passed");
+  testPinnedKeyStorageAndEnvelopeValidation();
+  puts("10 settings test groups passed");
 }
