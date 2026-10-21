@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Configura tu pantalla · Glucosa</title>
+<link rel="stylesheet" href="/assets/ui.css">
+<script src="/assets/setup.js" defer></script>
+</head>
+<body>
+<main class="settings setup-page">
+{{back_link}}
+<header class="setup-brand"><span class="brand">glucosa<span class="brand-dot">.</span></span><span class="setup-context">{{context}}</span></header>
+<form id="setup-form" class="card" method="post" action="/configure">
+<p id="setup-counter" class="eyebrow" aria-live="polite">CONFIGURA TU PANTALLA</p>
+<ol class="setup-progress" aria-label="Progreso de configuración" hidden><li><span class="sr-only">Wi-Fi</span></li><li><span class="sr-only">Nightscout</span></li><li><span class="sr-only">Acceso</span></li></ol>
+<p id="setup-error" class="network-notice" role="alert" hidden></p>
+<fieldset data-step="0">
+<h1 tabindex="-1">Tu Wi-Fi</h1>
+<p class="intro">Conecta el Wemos a tu red de casa.</p>
+<label>Nombre de tu Wi-Fi<input name="ssid" maxlength="32" autocomplete="off" required value="{{ssid}}"></label>
+<label>Contraseña de tu Wi-Fi<input name="wifi_password" type="password" maxlength="64" autocomplete="off"></label>
+<p class="notice">Usa una red de <strong>2,4 GHz</strong>. Aquí va la contraseña de tu casa, no la clave temporal del Wemos. Déjala vacía solo si la red es abierta.</p>
+</fieldset>
+<fieldset data-step="1">
+<h1 tabindex="-1">Tu Nightscout</h1>
+<p class="intro">Elige de dónde llegan los datos.</p>
+{{server_fields}}
+</fieldset>
+<fieldset data-step="2">
+<h1 tabindex="-1">Tu acceso</h1>
+<p class="intro">Protege tu pantalla y revisa los datos.</p>
+<label>Usuario de administración<input name="web_username" maxlength="32" autocomplete="username" required value="{{username}}"></label>
+<label>Contraseña de administración<input name="web_password" type="password" minlength="12" maxlength="64" autocomplete="new-password" required></label>
+<p>Esta contraseña protege el visor, los ajustes y las actualizaciones.</p>
+<section id="setup-review" class="notice" aria-label="Revisión de datos" hidden>
+<p class="eyebrow">REVISA ANTES DE GUARDAR</p>
+<dl><div><dt>Red</dt><dd id="review-ssid"></dd></div><div><dt>Persona</dt><dd id="review-patient"></dd></div><div><dt>Nightscout</dt><dd id="review-url"></dd></div></dl>
+<p>Contraseñas y token ocultos.</p>
+</section>
+<p class="notice">Al guardar, el Wemos se reinicia. Reconecta tu teléfono a tu Wi-Fi y abre la IP que muestre la pantalla.</p>
+<input type="hidden" name="csrf" value="{{csrf}}">
+<button id="setup-save" type="submit">Guardar y reiniciar</button>
+</fieldset>
+<div class="setup-navigation" hidden><button id="setup-next" type="button">Continuar</button><button id="setup-back" type="button" class="secondary">Volver al paso anterior</button></div>
+<noscript><p>Completa los tres grupos y pulsa Guardar y reiniciar al terminar.</p></noscript>
+</form>
+<section id="setup-success" class="card" hidden aria-live="polite"><p class="eyebrow">CONFIGURACIÓN GUARDADA</p><h1>Todo listo</h1><p>El Wemos se está reiniciando para conectar a tu Wi-Fi.</p><p>Reconecta tu teléfono a esa red y abre la IP que aparecerá en la pantalla del dispositivo.</p></section>
+<p class="setup-note">Los colores se ajustan después, desde Ajustes.</p>
+</main>
+</body>
+</html>

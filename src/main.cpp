@@ -21,6 +21,7 @@
 #include "http_body.h"
 #include "patient_label.h"
 #include "view_appearance.h"
+#include "startup_view.h"
 #include "generated/web_assets.h"
 
 #if __has_include("nightscout_config.h")
@@ -30,7 +31,7 @@
 #endif
 
 namespace {
-constexpr char VERSION[] = "0.6.1";
+constexpr char VERSION[] = "0.7.0";
 constexpr uint32_t POLL_MS = 30000;
 TFT_eSPI display;
 ESP8266WebServer web(80);
@@ -93,6 +94,8 @@ struct Reading {
 } reading;
 reading_ui::History history;
 uint32_t historyVersion = 0;
+startup_view::Progress startup;
+void renderWelcome();
 
 String htmlEscape(String value) {
   value.replace("&", "&amp;");
@@ -414,28 +417,19 @@ void saveAppearance() {
 void configurationPage() {
   if (!setupMode && !authenticated()) return;
   web.sendHeader("Cache-Control", "no-store");
-  String page = F("<!doctype html><html lang='es'><meta charset='utf-8'>"
-                  "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-                  "<meta name='color-scheme' content='dark'><link rel='stylesheet' href='/assets/ui.css'>"
-                  "<title>Configurar pantalla</title><main class='settings'><a class='back' href='/'>← Volver al panel</a>"
-                  "<p class='eyebrow'>TU DISPOSITIVO</p><h1>Configurar pantalla</h1>"
-                  "<p class='intro'>Guarda tu red Wi-Fi de 2,4 GHz y el servidor de datos.</p>"
-                  "<form class='card' method='post' action='/configure'><label>Nombre de tu Wi-Fi (SSID)"
-                  "<input name='ssid' maxlength='32' required value='");
+  String page = FPSTR(web_assets::setup_html_0);
+  if (!setupMode) page += F("<a class='back' href='/'>← Volver al panel</a>");
+  page += FPSTR(web_assets::setup_html_1);
+  page += setupMode ? F("PRIMER INICIO") : F("CAMBIAR CONEXIÓN");
+  page += FPSTR(web_assets::setup_html_2);
   page += htmlEscape(settings.ssid);
-  page += F("'></label><label>Contraseña de tu Wi-Fi"
-            "<input name='wifi_password' type='password' maxlength='64' autocomplete='off'>"
-            "</label><p>Introduce de nuevo la clave al guardar. Déjala vacía solo si la red es abierta.</p>");
+  page += FPSTR(web_assets::setup_html_3);
   appendServerFields(page);
-  page += F("<p>Ejemplo de URL base: https://tu-nightscout.example</p>"
-            "<label>Usuario de administración<input name='web_username' maxlength='32' required value='");
+  page += FPSTR(web_assets::setup_html_4);
   page += htmlEscape(settings.webUsername);
-  page += F("'></label><label>Contraseña para administrar y actualizar el Wemos"
-            "<input name='web_password' type='password' minlength='12' maxlength='64' required "
-            "autocomplete='new-password'></label><input type='hidden' name='csrf' value='");
+  page += FPSTR(web_assets::setup_html_5);
   page += csrf;
-  page += F("'><button>Guardar y reiniciar</button></form>"
-            "<p>Las contraseñas se guardan en el Wemos. No se muestran en esta página.</p></main></html>");
+  page += FPSTR(web_assets::setup_html_6);
   web.send(200, "text/html; charset=utf-8", page);
 }
 
@@ -479,9 +473,13 @@ void saveConfiguration() {
     return;
   }
   web.send(200, "text/html; charset=utf-8",
-           F("<meta name='viewport' content='width=device-width,initial-scale=1'>"
-           "<h1>Configuración guardada</h1><p>El Wemos se reiniciará. Vuelve a conectar tu teléfono "
-           "a tu Wi-Fi y abre la IP que aparecerá en la pantalla del Wemos.</p>"));
+           F("<!doctype html><html lang='es'><meta charset='utf-8'>"
+           "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+           "<meta name='color-scheme' content='dark'><link rel='stylesheet' href='/assets/ui.css'>"
+           "<title>Configuración guardada</title><main class='settings setup-page'><section class='card'>"
+           "<p class='eyebrow'>CONFIGURACIÓN GUARDADA</p><h1>Todo listo</h1>"
+           "<p>El Wemos se reiniciará. Vuelve a conectar tu teléfono "
+           "a tu Wi-Fi y abre la IP que aparecerá en la pantalla del Wemos.</p></section></main></html>"));
   restartPending = true;
   lastOperation = "restart_requested";
   restartRequestedAt = millis();
@@ -686,6 +684,8 @@ void fetchReading() {
     }
     endpoint += "&token=" + urlEncode(settings.token);
   }
+  startup.beginRequest();
+  if (!startup.finished) { message = F("Consultando servidor"); renderWelcome(); }
   // Destruction order matters: HTTPClient -> TLS client -> pinned key / trust anchors.
   WiFiClient plain;
   std::unique_ptr<BearSSL::X509List> trust;
@@ -731,6 +731,7 @@ void fetchReading() {
   Serial.printf_P(PSTR("Consulta inicio: pila=%u\n"), ESP.getFreeContStack());
   const int result = http.GET();
   lastHttpStatus = result;
+  startup.response(result);
   responseLength = http.getSize();
   String transfer = http.header("Transfer-Encoding");
   transfer.trim(); transfer.toLowerCase();
@@ -756,11 +757,13 @@ void fetchReading() {
         if (settimeofday(&value, nullptr) == 0) clockSource = ClockSource::Server;
       }
     }
+    if (!startup.finished) { message = F("Esperando lectura"); renderWelcome(); }
     bool parsedOk = false;
     if (!strcmp(transferMode, "unsupported") || !strcmp(contentEncoding, "unsupported")) {
       parseDiagnostic.stage = "unsupported_encoding";
       message = F("Codificacion HTTP no admitida");
     } else parsedOk = parseReading(http, latestOnlyRequest, chunked);
+    startup.parsed(parsedOk, reading.available);
     if (parsedOk) {
       if (!latestOnlyRequest) { historyRetryPending = false; historyErrorStage = "none"; }
     } else if (!latestOnlyRequest) {
@@ -944,20 +947,20 @@ void drawTrend(uint16_t color, int x, int y, int size) {
   }
 }
 
-void drawPatientName(uint16_t background) {
+void drawPatientName(uint16_t background, int y = 43, int width = 120) {
   char label[25];
   patient_label::displayName(patient, label);
   if (!label[0]) strlcpy(label, "NIGHTSCOUT", sizeof(label));
   const bool named = patient.name[0] != '\0';
   display.setTextSize(named ? 2 : 1);
-  const int maximumWidth = named ? 120 : 144;
+  const int maximumWidth = named ? width : 144;
   size_t length = strlen(label);
   while (length > 3 && display.textWidth(label, 2) > maximumWidth) {
     --length;
     memcpy(label + length - 3, "...", 4);
   }
   display.setTextColor(view_appearance::rgb565(0xD3E0DD), background);
-  display.drawString(label, 120, 43, 2);
+  display.drawString(label, 120, y, 2);
   display.setTextSize(1);
 }
 
@@ -991,26 +994,102 @@ void drawHistory(time_t now, uint16_t color, uint16_t background) {
   if (!plot.count) display.drawString(device_clock::plausible(now) ? F("Esperando historial") : F("Hora sin sincronizar"), 120, 163, 1);
 }
 
-void render() {
-  if (setupMode) {
-    if (lastFrame == "setup") return;
-    lastFrame = "setup";
-    display.fillScreen(TFT_BLACK);
-    display.drawCircle(120, 120, 116, TFT_CYAN);
-    display.setTextDatum(MC_DATUM);
-    display.setTextSize(1);
-    display.setTextColor(TFT_CYAN, TFT_BLACK);
-    display.drawString(F("CONFIGURAR"), 120, 30, 2);
-    display.setTextColor(TFT_WHITE, TFT_BLACK);
-    display.drawString(F("Conectate a esta Wi-Fi:"), 120, 57, 2);
-    display.drawString(setupSsid, 120, 79, 2);
-    display.drawString(F("Clave de acceso:"), 120, 106, 2);
-    display.drawString(setupPassword, 120, 128, 2);
-    display.drawString(F("Abre en el navegador:"), 120, 158, 2);
-    display.drawString(WiFi.softAPIP().toString(), 120, 181, 2);
-    display.drawString(F("Guarda tu red Wi-Fi"), 120, 207, 2);
-    return;
+void drawStartupStage(startup_view::Stage stage, int y) {
+  const auto colors = view_appearance::palette(appearance);
+  const uint16_t background = view_appearance::rgb565(colors.background);
+  const uint16_t accent = view_appearance::rgb565(colors.accent);
+  const uint16_t color = stage == startup_view::Stage::Error ? view_appearance::rgb565(0xFFBD73) :
+                         stage == startup_view::Stage::Pending ? view_appearance::rgb565(0x52666D) : accent;
+  if (stage == startup_view::Stage::Done) {
+    display.fillCircle(53, y, 5, accent);
+    display.drawLine(50, y, 52, y + 2, background);
+    display.drawLine(52, y + 2, 56, y - 2, background);
+  } else {
+    display.drawCircle(53, y, 5, color);
+    if (stage == startup_view::Stage::Error) {
+      display.drawLine(53, y - 2, 53, y, color);
+      display.drawPixel(53, y + 2, color);
+    }
   }
+  display.setTextColor(stage == startup_view::Stage::Done ? view_appearance::rgb565(0xD3E0DD) : color, background);
+}
+
+// Used before TLS allocation and between response headers and parsing; no framebuffer.
+void renderWelcome() {
+  const bool connected = WiFi.status() == WL_CONNECTED;
+  const String frame = String(F("boot:")) + String(connected) + String(startup.responseCode) +
+                       String(startup.parseFailed) + message;
+  if (lastFrame == frame) return;
+  lastFrame = frame;
+  const auto colors = view_appearance::palette(appearance);
+  const uint16_t background = view_appearance::rgb565(colors.background);
+  const uint16_t accent = view_appearance::rgb565(colors.accent);
+  display.fillScreen(background);
+  display.drawCircle(120, 120, 115, accent);
+  display.setTextDatum(MC_DATUM);
+  display.setTextSize(1);
+  display.drawLine(106, 47, 112, 47, accent);
+  display.drawLine(112, 47, 117, 37, accent);
+  display.drawLine(117, 37, 123, 55, accent);
+  display.drawLine(123, 55, 128, 47, accent);
+  display.drawLine(128, 47, 134, 47, accent);
+  drawPatientName(background, 82, 170);
+  display.setTextDatum(ML_DATUM);
+  drawStartupStage(startup.wifi(connected), 121);
+  display.drawString(connected ? F("Wi-Fi conectado") : F("Conectando Wi-Fi"), 67, 121, 2);
+  drawStartupStage(startup.server(connected), 147);
+  const bool waitingClock = baseUrl.startsWith("https://") && !device_config::pinnedPublicKey(settings.customCa) &&
+                            !device_clock::plausible(time(nullptr));
+  display.drawString(!connected ? F("Esperando Wi-Fi") :
+                     startup.responseCode == 200 ? F("Servidor conectado") :
+                     startup.responseCode ? F("Error de servidor") :
+                     waitingClock ? F("Esperando hora") :
+                     !attemptedFetch ? F("Esperando consulta") : F("Consultando servidor"), 67, 147, 2);
+  drawStartupStage(startup.reading(connected), 173);
+  display.drawString(startup.parseFailed ? F("Reintentando lectura") : F("Esperando lectura"), 67, 173, 2);
+  display.setTextDatum(MC_DATUM);
+  display.setTextColor(view_appearance::rgb565(0x9AABB0), background);
+  // Preserve specific clock, authentication and parse errors on the welcome screen.
+  if (!connected || message == "Sin Wi-Fi" || message == "Conectando Wi-Fi") display.drawString(F("Preparando tu pantalla"), 120, 207, 1);
+  else display.drawString(message.length() > 23 ? message.substring(0, 21) + F("..") : message, 120, 207, 1);
+  if (connected) display.drawString(WiFi.localIP().toString(), 120, 220, 1);
+}
+
+void renderProvisioning() {
+  if (lastFrame == "setup") return;
+  lastFrame = "setup";
+  const auto colors = view_appearance::palette(appearance);
+  const uint16_t background = view_appearance::rgb565(colors.background);
+  const uint16_t accent = view_appearance::rgb565(colors.accent);
+  display.fillScreen(background);
+  display.drawCircle(120, 120, 115, accent);
+  display.setTextDatum(MC_DATUM);
+  display.setTextSize(1);
+  display.setTextColor(accent, background);
+  display.drawString(F("CONFIGURAR"), 120, 30, 2);
+  for (int i = 0; i < 3; ++i) {
+    const int y = 72 + i * 50;
+    display.fillCircle(42, y, 8, accent);
+    display.setTextColor(background, accent);
+    display.drawString(String(i + 1), 42, y, 1);
+  }
+  display.setTextDatum(ML_DATUM);
+  display.setTextColor(view_appearance::rgb565(0x9AABB0), background);
+  display.drawString(F("Conecta a esta Wi-Fi"), 60, 63, 1);
+  display.drawString(F("Usa esta clave"), 60, 113, 1);
+  display.drawString(F("Abre en el navegador"), 60, 163, 1);
+  display.setTextColor(view_appearance::rgb565(0xD3E0DD), background);
+  display.drawString(setupSsid, 60, 80, 2);
+  display.drawString(setupPassword, 60, 130, 2);
+  display.drawString(WiFi.softAPIP().toString(), 60, 180, 2);
+  display.setTextDatum(MC_DATUM);
+  display.setTextColor(view_appearance::rgb565(0x9AABB0), background);
+  display.drawString(F("Continua en tu telefono"), 120, 208, 1);
+}
+
+void render() {
+  if (setupMode) { renderProvisioning(); return; }
+  if (!startup.finished) { renderWelcome(); return; }
   const time_t now = time(nullptr);
   const int64_t age = reading_ui::ageSeconds(reading.available, reading.dateMs, now);
   const bool stale = reading.available && age >= 600;
@@ -1132,6 +1211,7 @@ void setup() {
   web.on("/assets/ui.css", HTTP_GET, [] { sendAsset("text/css; charset=utf-8", web_assets::ui_css, sizeof(web_assets::ui_css)); });
   web.on("/assets/app.js", HTTP_GET, [] { sendAsset("application/javascript; charset=utf-8", web_assets::app_js, sizeof(web_assets::app_js)); });
   web.on("/assets/appearance.js", HTTP_GET, [] { sendAsset("application/javascript; charset=utf-8", web_assets::appearance_js, sizeof(web_assets::appearance_js)); });
+  web.on("/assets/setup.js", HTTP_GET, [] { sendAsset("application/javascript; charset=utf-8", web_assets::setup_js, sizeof(web_assets::setup_js)); });
   web.on("/configure", HTTP_GET, configurationPage);
   web.on("/configure", HTTP_POST, saveConfiguration);
   web.on("/settings", HTTP_POST, saveSettings);

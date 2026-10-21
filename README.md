@@ -7,7 +7,7 @@ cambiar la configuración y actualizar el firmware por Wi-Fi (OTA).
 
 **Diseños y comparación:** [propuestas de número grande, selector de modo y colores](docs/propuestas-visor/README.md).
 
-**Para revisar antes de implementar:** [bienvenida, configuración inicial y horario nocturno](docs/propuestas-inicio/README.md).
+**Bienvenida y configuración:** [diseños B elegidos y propuesta de horario nocturno](docs/propuestas-inicio/README.md).
 
 Necesitas un servidor Nightscout con lecturas disponibles y una red Wi-Fi de
 2,4 GHz. La URL base tiene este formato: `https://tu-nightscout.example`.
@@ -39,7 +39,7 @@ conectarlo; la retroiluminación no está controlada por un GPIO en esta versió
 
 ### Binario listo para cargar
 
-Descarga [nightscout-d1-mini-v0.6.1.bin](firmware/nightscout-d1-mini-v0.6.1.bin)
+Descarga [nightscout-d1-mini-v0.7.0.bin](firmware/nightscout-d1-mini-v0.7.0.bin)
 desde la carpeta `firmware` (en GitHub utiliza **Download raw file**). Está
 compilado para **Wemos D1 mini ESP8266 con 4 MB de flash**, con los pines de la
 tabla anterior. No contiene datos privados ni requiere configurar el Wi-Fi
@@ -119,6 +119,38 @@ rojo por debajo y ámbar por encima. Ese intervalo visual está fijado en esta
 versión y no constituye una alarma personalizada. Las lecturas antiguas y los
 errores se distinguen por texto además del color. No hay alarmas sonoras.
 
+### Bienvenida y configuración B en 0.7.0
+
+Al encender, el Wemos muestra tu nombre y las etapas **Wi-Fi → servidor → primera
+lectura**, con el tema guardado. Los indicadores avanzan según la conexión y la
+respuesta real; un error conserva su mensaje y la IP para abrir Ajustes. Al recibir
+la primera lectura válida aparece el visor habitual. Un fallo posterior mantiene
+ese visor con sus avisos, sin volver a la bienvenida.
+
+Si necesita configuración, la pantalla muestra tres instrucciones numeradas:
+conectar a la red temporal, usar su clave y abrir `http://192.168.4.1/`.
+
+El formulario inicial y `/configure` ahora tienen tres pasos:
+
+1. **Tu Wi-Fi:** red de 2,4 GHz y su contraseña.
+2. **Tu Nightscout:** nombre, URL base, token opcional y opciones HTTPS.
+3. **Tu acceso:** usuario, contraseña de administración y resumen.
+
+Volver atrás conserva los campos durante esa visita. Solo **Guardar y reiniciar**
+en el último paso envía los ajustes; se bloquea la doble pulsación. Los errores
+se muestran sin borrar lo escrito y el resumen oculta contraseñas y token. Sin
+JavaScript se ofrecen los tres grupos juntos y un único guardado final.
+La autenticación, el nonce CSRF y las validaciones del dispositivo se conservan.
+
+[Captura móvil: Wi-Fi](docs/images/configuracion-wifi-movil.png) ·
+[Captura móvil: Nightscout](docs/images/configuracion-nightscout-movil.png) ·
+[Captura: revisión final](docs/images/configuracion-resumen.png).
+Las capturas muestran datos de ejemplo generados por el constructor HTML del
+firmware en una prueba local; la conexión y el reinicio reales requieren la placa.
+
+Actualizar normalmente conserva Wi-Fi, token, clave HTTPS, nombre y apariencia.
+El horario nocturno sigue como propuesta y no forma parte de 0.7.0.
+
 ### Tres modos de visor y colores en 0.6.0
 
 En el panel web, usa **Modo del visor** para elegir:
@@ -142,7 +174,7 @@ del visor y número con una vista previa. El dispositivo comprueba el contraste
 antes de guardar. Los avisos de lectura baja, alta o antigua mantienen texto
 y colores propios. Se conservan los colores personalizados al elegir otro tema.
 
-La compilación usa 37.764 bytes de RAM estática: 132 bytes más que 0.5.2.
+La compilación 0.7.0 usa 37.812 bytes de RAM estática: 48 bytes más que 0.6.1.
 Los dibujos se hacen directamente, sin una imagen completa de pantalla en RAM.
 La apariencia se guarda en una extensión independiente de 20 bytes, después
 del nombre, sin cambiar el formato del Wi-Fi, servidor, token o clave PEM.
@@ -449,7 +481,9 @@ un minuto, antigüedad, huecos y lectura incremental de JSON, y una prueba que
 comprueba que los recursos gzip del firmware coincidan con sus fuentes. Otras dos
 pruebas cubren el cuerpo HTTP (fragmentación, bloques, truncamiento y límites) y
 el almacenamiento del nombre, la validación UTF-8 y los offsets anteriores. En la
-nube se usa el Python del venv para las once pruebas completas.
+nube se usa el Python del venv para las doce pruebas completas. El estado de
+bienvenida cubre conexión, errores HTTP, JSON rechazado, respuesta vacía y el
+paso definitivo al visor después de la primera lectura válida.
 La compilación verifica las bibliotecas para ESP8266; la prueba física de SPI,
 Wi-Fi, configuración desde el teléfono, persistencia en flash y OTA debe hacerse
 con el Wemos conectado.
@@ -464,6 +498,7 @@ solicitudes con recursos locales, sin iniciar un servidor de previsualización:
 
 ```bash
 CHROMIUM_PATH=/usr/bin/chromium node tests/test_web_views.js
+CHROMIUM_PATH=/usr/bin/chromium node tests/test_setup_views.js
 ```
 
 Cubren los tres modos y cinco temas en escritorio/móvil, tendencias simples y
@@ -471,3 +506,8 @@ dobles, avisos, colores personalizados, sesión caducada, nombres como texto y
 conservación de la lectura al perder contacto. Las capturas usan datos de ejemplo;
 la grabación real en EEPROM, el servidor HTTP del Wemos y el panel SPI requieren
 comprobación en hardware.
+
+El asistente se prueba con HTML producido por las funciones C++ reales y los
+recursos web locales: validaciones, regreso entre pasos, Enter, resumen sin
+secretos, CSRF, respuestas de error, guardado único, confirmación y uso sin
+JavaScript. No utiliza un servidor de simulación.
