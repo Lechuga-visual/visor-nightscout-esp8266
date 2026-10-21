@@ -1,0 +1,40 @@
+{
+  "version": "0.2.0",
+  "file": "nightscout-d1-mini-v0.2.0.bin",
+  "sha256": "9c9e234b190114f5c4fc40b8ac27044c1f6c4b717a072021f52bbc3822cec594",
+  "size_bytes": 485536,
+  "source_commit": "98f1fa777ec1cea7e33d0d61046797c4b3f85d1f",
+  "board": "d1_mini",
+  "mcu": "ESP8266",
+  "flash_size_bytes": 4194304,
+  "flash_mode": "dio",
+  "flash_offset": "0x00000",
+  "build": {
+    "platformio": "6.1.18",
+    "platform": "espressif8266 4.2.1",
+    "arduino_core": "3.1.2",
+    "compiler": "xtensa-lx106-elf GCC 10.3",
+    "scons": "4.8.1",
+    "TFT_eSPI": "2.5.43",
+    "ArduinoJson": "6.21.5",
+    "method": "Original PlatformIO builder with verified upstream packages and local cloud overrides"
+  },
+  "memory": {
+    "static_ram_bytes": 32184,
+    "application_flash_bytes": 481391
+  },
+  "private_compile_time_configuration": false,
+  "validation": {
+    "tests_passed": 9,
+    "tests_skipped": 0,
+    "boot_checksum": "valid",
+    "arduino_full_image_crc": "valid",
+    "application_segment_checksum_before_arduino_crc_metadata": "valid",
+    "hardware_tested": false
+  },
+  "setup": {
+    "ssid": "glucosa-XXXXXX",
+    "password": "Generated on-device and shown on the display",
+    "url": "http://192.168.4.1/"
+  }
+}
