@@ -1,0 +1,5 @@
+.pio/
+.venv/
+__pycache__/
+*.py[cod]
+include/nightscout_config.h
