@@ -5,6 +5,8 @@ Muestra las lecturas de tu servidor Nightscout en una pantalla circular de
 240 × 240. El servidor web del Wemos permite consultar las mismas lecturas,
 cambiar la configuración y actualizar el firmware por Wi-Fi (OTA).
 
+**Diseños para revisar:** [propuestas de número grande, selector de modo y colores](docs/propuestas-visor/README.md).
+
 Necesitas un servidor Nightscout con lecturas disponibles y una red Wi-Fi de
 2,4 GHz. La URL base tiene este formato: `https://tu-nightscout.example`.
 

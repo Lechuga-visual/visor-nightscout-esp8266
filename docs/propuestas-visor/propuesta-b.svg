@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1300" viewBox="0 0 1200 1300" role="img" aria-labelledby="title desc">
+<title id="title">B · Número centrado + flecha inferior</title>
+<desc id="desc">El valor ocupa el centro y aprovecha más ancho de la pantalla. Propuesta estática de pantalla y visor web con selector de modo. Datos de ejemplo: Alex, 142 mg/dL, hace dos minutos.</desc>
+<rect width="1200" height="1300" fill="#0b1012"/>
+<g font-family="Arial,Helvetica,sans-serif">
+<text x="54" y="54" font-size="12" fill="#74edbc" font-weight="700" text-anchor="start" letter-spacing="2">GLUCOSA / PROPUESTA VISUAL</text>
+<text x="1146" y="54" font-size="11" fill="#9aabb0" font-weight="600" text-anchor="end" >ANTES DE IMPLEMENTAR</text>
+<text x="54" y="115" font-size="38" fill="#f2f7f6" font-weight="700" text-anchor="start" >B · Número centrado + flecha inferior</text>
+<text x="54" y="151" font-size="18" fill="#9aabb0" font-weight="400" text-anchor="start" >El valor ocupa el centro y aprovecha más ancho de la pantalla.</text>
+<text x="54" y="207" font-size="11" fill="#9aabb0" font-weight="700" text-anchor="start" letter-spacing="1.5">01 / PANTALLA REDONDA</text>
+<text x="626" y="207" font-size="11" fill="#9aabb0" font-weight="700" text-anchor="start" letter-spacing="1.5">02 / VISOR WEB</text>
+<svg x="58" y="240" width="450" height="450" viewBox="0 0 240 240"><circle cx="120" cy="120" r="119" fill="#070c0f" stroke="#26343a"/><circle cx="120" cy="120" r="114" fill="none" stroke="#74edbc" stroke-width="1.5"/><text x="120" y="35" font-size="10" fill="#d3e0dd" font-weight="600" text-anchor="middle" letter-spacing="1.5">ALEX</text><text x="120" y="135" font-size="100" fill="#74edbc" font-weight="700" text-anchor="middle" letter-spacing="-6" font-family="Arial,Helvetica,sans-serif">142</text><text x="102" y="167" font-size="10" fill="#9aabb0" font-weight="400" text-anchor="middle" >mg/dL</text><g transform="translate(153 160) scale(0.7692307692307693)" fill="none" stroke="#74edbc" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M-11 11 11-11 M-8-11H11V8"/></g><rect x="63" y="185" width="114" height="21" rx="10" fill="#192a24" stroke="none"/><text x="120" y="199" font-size="9" fill="#bfe9d7" font-weight="500" text-anchor="middle" >Hace 2 min</text><circle cx="94" cy="220" r="2" fill="#74edbc"/><text x="124" y="223" font-size="7" fill="#9aabb0" font-weight="400" text-anchor="middle" >Conectado</text></svg>
+<text x="283" y="725" font-size="14" fill="#9aabb0" font-weight="400" text-anchor="middle" >GC9A01 · 240 × 240</text>
+<rect x="600" y="230" width="546" height="534" rx="20" fill="#121a1e" stroke="#26343a"/>
+<text x="626" y="270" font-size="24" fill="#f2f7f6" font-weight="700" text-anchor="start" >glucosa.</text>
+<text x="1120" y="268" font-size="12" fill="#9aabb0" font-weight="400" text-anchor="end" >Panel    Ajustes</text>
+<path d="M626 289H1120" stroke="#26343a"/>
+<text x="626" y="324" font-size="23" fill="#f2f7f6" font-weight="600" text-anchor="start" >Tu glucosa, de un vistazo.</text>
+<rect x="626" y="346" width="494" height="43" rx="10" fill="#0b1114" stroke="#26343a"/>
+<text x="749" y="373" font-size="13" fill="#9aabb0" font-weight="500" text-anchor="middle" >Con gráfica</text>
+<rect x="875" y="350" width="241" height="35" rx="7" fill="#1e3c2f" stroke="none"/>
+<text x="995" y="373" font-size="13" fill="#74edbc" font-weight="700" text-anchor="middle" >Número grande</text>
+<svg x="735" y="410" width="276" height="276" viewBox="0 0 240 240"><circle cx="120" cy="120" r="119" fill="#070c0f" stroke="#26343a"/><circle cx="120" cy="120" r="114" fill="none" stroke="#74edbc" stroke-width="1.5"/><text x="120" y="35" font-size="10" fill="#d3e0dd" font-weight="600" text-anchor="middle" letter-spacing="1.5">ALEX</text><text x="120" y="135" font-size="100" fill="#74edbc" font-weight="700" text-anchor="middle" letter-spacing="-6" font-family="Arial,Helvetica,sans-serif">142</text><text x="102" y="167" font-size="10" fill="#9aabb0" font-weight="400" text-anchor="middle" >mg/dL</text><g transform="translate(153 160) scale(0.7692307692307693)" fill="none" stroke="#74edbc" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M-11 11 11-11 M-8-11H11V8"/></g><rect x="63" y="185" width="114" height="21" rx="10" fill="#192a24" stroke="none"/><text x="120" y="199" font-size="9" fill="#bfe9d7" font-weight="500" text-anchor="middle" >Hace 2 min</text><circle cx="94" cy="220" r="2" fill="#74edbc"/><text x="124" y="223" font-size="7" fill="#9aabb0" font-weight="400" text-anchor="middle" >Conectado</text></svg>
+<text x="626" y="728" font-size="13" fill="#d3e0dd" font-weight="400" text-anchor="start" >Subiendo</text>
+<text x="1120" y="728" font-size="12" fill="#9aabb0" font-weight="400" text-anchor="end" >Visor conectado</text>
+<text x="54" y="795" font-size="16" fill="#d3e0dd" font-weight="400" text-anchor="start" >Número centrado y más grande; tendencia en la fila inferior.</text>
+<text x="54" y="822" font-size="16" fill="#9aabb0" font-weight="400" text-anchor="start" >La flecha comparte espacio con la unidad, sin invadir el valor.</text>
+<rect x="54" y="858" width="1092" height="300" rx="18" fill="#121a1e" stroke="#26343a"/>
+<text x="80" y="894" font-size="11" fill="#9aabb0" font-weight="700" text-anchor="start" letter-spacing="1.5">03 / AJUSTES · APARIENCIA</text>
+<text x="80" y="927" font-size="21" fill="#f2f7f6" font-weight="600" text-anchor="start" >Modo de visualización</text>
+<rect x="80" y="949" width="347" height="56" rx="10" fill="#0b1114" stroke="#35484e"/>
+<circle cx="104" cy="977" r="7" fill="none" stroke="#647981"/>
+<text x="122" y="982" font-size="14" fill="#b5c3c7" font-weight="400" text-anchor="start" >Con gráfica · 30 minutos</text>
+<rect x="441" y="949" width="347" height="56" rx="10" fill="#14291f" stroke="#74edbc"/>
+<circle cx="465" cy="977" r="7" fill="#74edbc"/><circle cx="465" cy="977" r="3" fill="#14291f"/>
+<text x="483" y="982" font-size="14" fill="#e1f6eb" font-weight="600" text-anchor="start" >Número grande</text>
+<rect x="812" y="949" width="306" height="56" rx="10" fill="#74edbc" stroke="none"/>
+<text x="965" y="982" font-size="14" fill="#08251a" font-weight="700" text-anchor="middle" >Guardar apariencia</text>
+<text x="80" y="1038" font-size="13" fill="#9aabb0" font-weight="600" text-anchor="start" >Color del tema</text>
+<rect x="80" y="1052" width="116" height="36" rx="8" fill="#0b1114" stroke="#74edbc"/>
+<circle cx="98" cy="1070" r="5" fill="#74edbc"/>
+<text x="112" y="1075" font-size="12" fill="#e1e9e8" font-weight="400" text-anchor="start" >Menta</text>
+<rect x="208" y="1052" width="116" height="36" rx="8" fill="#0b1114" stroke="#35484e"/>
+<circle cx="226" cy="1070" r="5" fill="#ff675e"/>
+<text x="240" y="1075" font-size="12" fill="#e1e9e8" font-weight="400" text-anchor="start" >Rojo</text>
+<rect x="336" y="1052" width="116" height="36" rx="8" fill="#0b1114" stroke="#35484e"/>
+<circle cx="354" cy="1070" r="5" fill="#699bff"/>
+<text x="368" y="1075" font-size="12" fill="#e1e9e8" font-weight="400" text-anchor="start" >Azul</text>
+<rect x="464" y="1052" width="116" height="36" rx="8" fill="#0b1114" stroke="#35484e"/>
+<circle cx="482" cy="1070" r="5" fill="#f69bd1"/>
+<text x="496" y="1075" font-size="12" fill="#e1e9e8" font-weight="400" text-anchor="start" >Rosado</text>
+<rect x="592" y="1052" width="116" height="36" rx="8" fill="#0b1114" stroke="#35484e"/>
+<circle cx="610" cy="1070" r="5" fill="#72d9f5"/>
+<text x="624" y="1075" font-size="12" fill="#e1e9e8" font-weight="400" text-anchor="start" >Celeste</text>
+<rect x="722" y="1052" width="214" height="36" rx="8" fill="#0b1114" stroke="#35484e"/>
+<text x="829" y="1075" font-size="12" fill="#e1e9e8" font-weight="400" text-anchor="middle" >Personalizado…</text>
+<text x="80" y="1125" font-size="14" fill="#9aabb0" font-weight="400" text-anchor="start" >Modo y colores se aplicarían a la pantalla y al visor web.</text>
+<text x="54" y="1210" font-size="11" fill="#9aabb0" font-weight="700" text-anchor="start" letter-spacing="1.5">MODO CON GRÁFICA</text>
+<text x="54" y="1235" font-size="14" fill="#9aabb0" font-weight="400" text-anchor="start" >Seguiría disponible con el historial de 30 minutos.</text>
+<text x="54" y="1265" font-size="11" fill="#6f858c" font-weight="400" text-anchor="start" >Datos de ejemplo · Maqueta estática · Firmware actual: 0.5.2</text>
+<svg x="1043" y="1183" width="86" height="86" viewBox="0 0 240 240"><circle cx="120" cy="120" r="119" fill="#070c0f" stroke="#26343a"/><circle cx="120" cy="120" r="114" fill="none" stroke="#74edbc" stroke-width="1.5"/><text x="120" y="32" font-size="9" fill="#d3e0dd" font-weight="600" text-anchor="middle" >ALEX</text><text x="100" y="104" font-size="61" fill="#74edbc" font-weight="700" text-anchor="middle" letter-spacing="-3">142</text><g transform="translate(188 84) scale(0.7692307692307693)" fill="none" stroke="#74edbc" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M-11 11 11-11 M-8-11H11V8"/></g><text x="100" y="124" font-size="9" fill="#9aabb0" font-weight="400" text-anchor="middle" >mg/dL</text><text x="38" y="140" font-size="6" fill="#9aabb0" font-weight="400" text-anchor="start" >−30 min</text><text x="202" y="140" font-size="6" fill="#9aabb0" font-weight="400" text-anchor="end" >ahora</text><path d="M38 162H202" stroke="#34443e" stroke-dasharray="2 3"/><path d="M38 171 65 169 92 164 119 166 146 158 173 156 202 150" fill="none" stroke="#74edbc" stroke-width="2"/><circle cx="202" cy="150" r="2" fill="#74edbc"/><rect x="63" y="185" width="114" height="21" rx="10" fill="#192a24" stroke="none"/><text x="120" y="199" font-size="9" fill="#bfe9d7" font-weight="500" text-anchor="middle" >Hace 2 min</text><text x="120" y="223" font-size="7" fill="#9aabb0" font-weight="400" text-anchor="middle" >Conectado</text></svg>
+</g></svg>
