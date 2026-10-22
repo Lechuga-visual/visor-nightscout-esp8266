@@ -128,7 +128,9 @@ administración. Introduce el token en la web después de actualizar. La imagen
 Desde 0.4.0 puedes pegar una **clave pública fija del servidor** en
 **Ajustes → Seguridad HTTPS y opción sin NTP**. El archivo PEM debe obtenerse desde un
 PC verificando primero el certificado; se incluye la herramienta
-[export_server_key.py](../tools/export_server_key.py). Consulta los pasos en el
+[export_server_key.py](../tools/export_server_key.py). También están los
+[lanzadores con ventana para Windows, Linux y macOS](../tools/key-export/README.md),
+que generan un `.txt` sin instalar `cryptography`. Consulta los pasos en el
 [README principal](../README.md#https-sin-ntp-fijar-la-clave-pública-del-servidor).
 
 TLS autentica por esa clave y cifra los datos, sin comprobar cadena, nombre

@@ -78,9 +78,9 @@ case "$URL" in https://*) ;; *) fail 'Usa una URL completa que comience por http
 case "$URL" in *'?'*|*'#'*|*'@'*|*'\'*|*[[:space:]]*) fail 'Usa una URL sin usuario, contraseña, token, parámetros ni espacios.' ;; esac
 AUTHORITY=${URL#https://}; AUTHORITY=${AUTHORITY%%/*}; HOST=''; PORT=443; VERIFY_FLAG=-verify_hostname
 if [[ "$AUTHORITY" =~ ^\[([0-9a-fA-F:]+)\](:([0-9]+))?$ ]]; then
-  HOST=${BASH_REMATCH[1]}; [ -z "${BASH_REMATCH[3]}" ] || PORT=${BASH_REMATCH[3]}; ADDRESS="[$HOST]"; VERIFY_FLAG=-verify_ip
+  HOST=${BASH_REMATCH[1]}; [ -z "${BASH_REMATCH[3]:-}" ] || PORT=${BASH_REMATCH[3]:-}; ADDRESS="[$HOST]"; VERIFY_FLAG=-verify_ip
 elif [[ "$AUTHORITY" =~ ^([a-zA-Z0-9][a-zA-Z0-9.-]*)(:([0-9]+))?$ ]]; then
-  HOST=${BASH_REMATCH[1]}; [ -z "${BASH_REMATCH[3]}" ] || PORT=${BASH_REMATCH[3]}; HOST=${HOST%.}; ADDRESS=$HOST
+  HOST=${BASH_REMATCH[1]}; [ -z "${BASH_REMATCH[3]:-}" ] || PORT=${BASH_REMATCH[3]:-}; HOST=${HOST%.}; ADDRESS=$HOST
   [[ "$HOST" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] && VERIFY_FLAG=-verify_ip
 else fail 'La dirección del sitio no es válida. Ejemplo: https://tu-nightscout.example/'; fi
 [ "${#PORT}" -le 5 ] || fail 'Puerto no válido.'
@@ -106,8 +106,8 @@ if [ "$OS" = Darwin ]; then
   fi
   printf '' | "$KEY_OPENSSL" s_client -tls1_2 "${ROOT_ARGS[@]}" -connect "$ADDRESS:$PORT" -servername "$HOST" -showcerts >"$WORK/chain.log" 2>"$WORK/tls.log" &
 else
-  ROOT_ARGS=(); [ -z "$CA_FILE" ] || ROOT_ARGS=( -CAfile "$CA_FILE" )
-  "$KEY_OPENSSL" s_client -tls1_2 "${ROOT_ARGS[@]}" -connect "$ADDRESS:$PORT" -servername "$HOST" -showcerts -verify_return_error "$VERIFY_FLAG" "$HOST" </dev/null >"$WORK/chain.log" 2>"$WORK/tls.log" &
+  ROOT_ARGS=( -tls1_2 ); [ -z "$CA_FILE" ] || ROOT_ARGS+=( -CAfile "$CA_FILE" )
+  "$KEY_OPENSSL" s_client "${ROOT_ARGS[@]}" -connect "$ADDRESS:$PORT" -servername "$HOST" -showcerts -verify_return_error "$VERIFY_FLAG" "$HOST" </dev/null >"$WORK/chain.log" 2>"$WORK/tls.log" &
 fi
 PROCESS=$!
 (
@@ -128,8 +128,8 @@ if [ "$OS" = Darwin ]; then
   [ "$START_EPOCH" -le "$(date -u '+%s')" ] || fail 'El certificado del sitio todavía no está vigente. Revisa el reloj del equipo.'
   # Leaf first, followed by intermediates; the final trust decision uses macOS roots.
   CERTS=(); for cert in "$WORK"/cert-*.pem; do CERTS+=( -c "$cert" ); done
-  ROOT_ARGS=(); [ -z "$CA_FILE" ] || ROOT_ARGS=( -r "$CA_FILE" )
-  /usr/bin/security verify-cert "${CERTS[@]}" "${ROOT_ARGS[@]}" -p ssl -s "$HOST" >"$WORK/verify.log" 2>&1 || fail 'macOS no pudo verificar el certificado del sitio. Revisa la URL y la fecha y hora. No se guardó una clave.'
+  VERIFY_ARGS=( -p ssl -s "$HOST" ); [ -z "$CA_FILE" ] || VERIFY_ARGS+=( -r "$CA_FILE" )
+  /usr/bin/security verify-cert "${CERTS[@]}" "${VERIFY_ARGS[@]}" >"$WORK/verify.log" 2>&1 || fail 'macOS no pudo verificar el certificado del sitio. Revisa la URL y la fecha y hora. No se guardó una clave.'
 fi
 "$KEY_OPENSSL" x509 -in "$WORK/cert-1.pem" -pubkey -noout >"$WORK/public.pem" 2>"$WORK/key.log" || fail 'No se pudo leer la clave pública verificada.'
 "$KEY_OPENSSL" asn1parse -in "$WORK/public.pem" >"$WORK/algorithm.txt" 2>>"$WORK/key.log" || fail 'La clave pública no es válida.'

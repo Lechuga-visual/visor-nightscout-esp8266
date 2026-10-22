@@ -1,2 +1,3 @@
 tools/key-export/*.cmd text eol=crlf
 tools/key-export/*.sh text eol=lf
+tools/key-export/*.command text eol=lf

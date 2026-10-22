@@ -1,6 +1,6 @@
 param([Parameter(Mandatory=$true)][string]$Tool,
       [string]$Url, [string]$Directory, [string]$TrustCertificate,
-      [switch]$Screenshot)
+      [switch]$Screenshot, [string]$PublicKeyFixture)
 $ErrorActionPreference='Stop'
 $source=[IO.File]::ReadAllText($Tool)
 $marker='#==NIGHTSCOUT_POWERSHELL=='
@@ -37,6 +37,14 @@ if($Screenshot){
         Remove-Item -LiteralPath $file
     } finally {$sample.Dispose();$rsa.Dispose()}
     Write-Output 'Windows forms rendered'
+    exit 0
+}
+if($PublicKeyFixture){
+    # Conversion unit test only: the downloaded tool exports only after TLS validation.
+    try { . $script:KeyExportCore -Url 'http://invalid' } catch { }
+    $fixture=New-Object Security.Cryptography.X509Certificates.X509Certificate2($PublicKeyFixture)
+    try { Save-PublicKey (ConvertTo-PublicPem $fixture) 'fixture' $Directory }
+    finally { $fixture.Dispose() }
     exit 0
 }
 $store=$null;$certificate=$null

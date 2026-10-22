@@ -87,7 +87,10 @@ class KeyLauncherTests(unittest.TestCase):
 
     def exercise(self, platform):
         from cryptography.hazmat.primitives import serialization
-        for kind in ('rsa','ec','ec384','ec521'):
+        # Windows Schannel's default TLS 1.2 curve policy excludes P-521.
+        # Its SPKI conversion is tested separately, without changing OS TLS policy.
+        kinds=('rsa','ec','ec384') if platform == 'windows' and os.name == 'nt' else ('rsa','ec','ec384','ec521')
+        for kind in kinds:
             with self.subTest(platform=platform,key=kind),tempfile.TemporaryDirectory(prefix='key output ') as target:
                 out=Path(target)
                 # Repeated exports make distinct TXT files instead of overwriting any existing one.
@@ -108,13 +111,30 @@ class KeyLauncherTests(unittest.TestCase):
                     result=self.run_tool(platform,f'https://{host}:{port}',out,self.fixtures[trust][0] if trust else None)
                 self.assertNotEqual(result.returncode,0)
                 self.assertEqual(list(out.iterdir()),[existing]);self.assertEqual(existing.read_text(),'keep existing file')
-        for url in ('http://localhost','https://user:password@localhost','https://localhost/?token=secret','https://localhost/#secret','https://localhost:0','https://localhost:65536','https://localhost/\\unsafe'):
+        for url in ('http://localhost','https://user:password@localhost','https://localhost/?token=secret','https://localhost/#secret','https://localhost:0','https://localhost:65536','https://localhost/\\unsafe','https://localhost/no-port'):
             with self.subTest(platform=platform,url=url),tempfile.TemporaryDirectory() as target:
                 result=self.run_tool(platform,url,Path(target));self.assertNotEqual(result.returncode,0)
                 self.assertFalse(list(Path(target).iterdir()))
+                self.assertNotIn('unbound variable',result.stderr)
+
+    @unittest.skipUnless(PWSH,'PowerShell required')
+    def test_windows_spki_encoding_including_p521(self):
+        from cryptography.hazmat.primitives import serialization
+        for kind in ('rsa','ec','ec384','ec521'):
+            with self.subTest(kind=kind),tempfile.TemporaryDirectory() as directory:
+                result=subprocess.run([PWSH,'-NoLogo','-NoProfile','-File',str(ROOT/'tests/key_export_windows.ps1'),
+                    '-Tool',str(WINDOWS),'-Directory',directory,'-PublicKeyFixture',str(self.fixtures[kind][0])],
+                    capture_output=True,text=True,timeout=20)
+                self.assertEqual(result.returncode,0,result.stderr)
+                pem=next(Path(directory).glob('*.txt')).read_bytes()
+                der=serialization.load_pem_public_key(pem).public_bytes(serialization.Encoding.DER,serialization.PublicFormat.SubjectPublicKeyInfo)
+                self.assertEqual(der,self.fixtures[kind][2])
 
     @unittest.skipIf(os.name=='nt' or not shutil.which('openssl'),'Unix shell and OpenSSL required')
     def test_shell_export_and_rejection(self):self.exercise('shell')
 
     @unittest.skipUnless(PWSH and __import__('sys').platform != 'darwin','PowerShell on Windows/Linux required')
-    def test_windows_export_and_rejection(self):self.exercise('windows')
+    def test_windows_export_and_rejection(self):
+        if os.name == 'nt' and os.environ.get('GITHUB_ACTIONS') != 'true':
+            self.skipTest('Windows OS-trust fixtures run only in disposable CI runners')
+        self.exercise('windows')

@@ -391,7 +391,13 @@ seguir usándose. Si el servidor cambia de clave, la conexión falla hasta que
 actualices la clave guardada; no hay aceptación automática de claves nuevas.
 
 Obtén la clave desde un PC de confianza con Python y su reloj correctamente ajustado.
-Descarga [export_server_key.py](tools/export_server_key.py) y, en esa carpeta, ejecuta:
+Para hacerlo con una ventana y sin instalar `cryptography`, utiliza las
+[herramientas para Windows, Linux y macOS](tools/key-export/README.md). Solo piden
+la URL y generan un `.txt` con la clave, listo para copiar al Wemos. Hay paquetes
+ZIP y capturas de las ventanas. No requieren actualizar el firmware.
+
+Como alternativa por terminal, descarga
+[export_server_key.py](tools/export_server_key.py) y, en esa carpeta, ejecuta:
 
 ```bash
 python -m pip install cryptography
@@ -513,7 +519,7 @@ un minuto, antigüedad, huecos y lectura incremental de JSON, y una prueba que
 comprueba que los recursos gzip del firmware coincidan con sus fuentes. Otras dos
 pruebas cubren el cuerpo HTTP (fragmentación, bloques, truncamiento y límites) y
 el almacenamiento del nombre, la validación UTF-8 y los offsets anteriores. En la
-nube se usa el Python del venv para las trece pruebas completas. El estado de
+nube se usa el Python del venv para las pruebas completas. El estado de
 bienvenida cubre conexión, errores HTTP, JSON rechazado, respuesta vacía y el
 paso definitivo al visor después de la primera lectura válida.
 La compilación verifica las bibliotecas para ESP8266; la prueba física de SPI,
