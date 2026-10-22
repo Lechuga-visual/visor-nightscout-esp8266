@@ -6,8 +6,8 @@ Muestra el número, una flecha de tendencia y cuánto tiempo tiene la lectura,
 con una interfaz oscura y letras grandes.
 
 La versión actual funciona con **Wemos D1 mini ESP8266 y pantalla GC9A01 de
-240 × 240 píxeles**. Aunque el repositorio se llame `nightscout-esp32`, el soporte
-para ESP32 es parte de la evolución futura y todavía no está implementado.
+240 × 240 píxeles**. El soporte para ESP32 es parte de la evolución futura y
+todavía no está implementado.
 
 ![Panel web con lectura grande y flecha lateral; datos de ejemplo](docs/images/visor-lateral.png)
 

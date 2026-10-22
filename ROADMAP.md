@@ -101,7 +101,7 @@ insulina y las decisiones automáticas de tratamiento quedan fuera de este plan.
 
 ## Cómo proponer un cambio
 
-Puedes [abrir una propuesta en GitHub](https://github.com/Lechuga-visual/nightscout-esp32/issues)
+Puedes [abrir una propuesta en GitHub](https://github.com/Lechuga-visual/visor-nightscout-esp8266/issues)
 con lo que necesitas, en qué situación lo usarías y qué placa o pantalla tienes.
 No publiques contraseñas, tokens ni datos personales de salud. Antes de ampliar
 funciones, buscaremos una propuesta visual o técnica que se pueda revisar y una
