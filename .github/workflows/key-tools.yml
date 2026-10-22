@@ -1,0 +1,45 @@
+name: Key export tools
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'tools/key-export/**'
+      - 'tests/test_key_launchers.py'
+      - 'tests/key_export_windows.ps1'
+      - '.github/workflows/key-tools.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install cryptography
+      - name: TLS verification and public-key output
+        if: runner.os != 'macOS'
+        run: python -m unittest discover -s tests -p test_key_launchers.py -v
+      - name: macOS system LibreSSL and Keychain verification
+        if: runner.os == 'macOS'
+        env:
+          NIGHTSCOUT_OPENSSL: /usr/bin/openssl
+        run: python -m unittest discover -s tests -p test_key_launchers.py -v
+      - name: Capture native Windows forms
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path key-screenshots | Out-Null
+          ./tests/key_export_windows.ps1 -Tool "$PWD/tools/key-export/Obtener-clave-Nightscout.cmd" -Directory "$PWD/key-screenshots" -Screenshot
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'Windows'
+        with:
+          name: key-windows-screenshots
+          path: key-screenshots/*.png
