@@ -43,7 +43,7 @@ $store=$null;$certificate=$null
 try {
     if($TrustCertificate){
         $certificate=New-Object Security.Cryptography.X509Certificates.X509Certificate2($TrustCertificate)
-        $store=New-Object Security.Cryptography.X509Certificates.X509Store('Root','CurrentUser')
+        $store=New-Object Security.Cryptography.X509Certificates.X509Store('Root','LocalMachine')
         $store.Open('ReadWrite');$store.Add($certificate)
     }
     $result=& $script:KeyExportCore -Url $Url
