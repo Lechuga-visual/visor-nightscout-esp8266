@@ -98,7 +98,7 @@ if [ "$OS" = Darwin ]; then
   # Apple's system OpenSSL/LibreSSL may lack hostname verification. Authenticate
   # the SAME captured chain with the macOS SSL policy and system keychain below.
   ROOT_ARGS=(); [ -z "$CA_FILE" ] || ROOT_ARGS=( -CAfile "$CA_FILE" )
-  "$KEY_OPENSSL" s_client -tls1_2 "${ROOT_ARGS[@]}" -connect "$ADDRESS:$PORT" -servername "$HOST" -showcerts </dev/null >"$WORK/chain.log" 2>"$WORK/tls.log" &
+  printf '' | "$KEY_OPENSSL" s_client -tls1_2 "${ROOT_ARGS[@]}" -connect "$ADDRESS:$PORT" -servername "$HOST" -showcerts >"$WORK/chain.log" 2>"$WORK/tls.log" &
 else
   ROOT_ARGS=(); [ -z "$CA_FILE" ] || ROOT_ARGS=( -CAfile "$CA_FILE" )
   "$KEY_OPENSSL" s_client -tls1_2 "${ROOT_ARGS[@]}" -connect "$ADDRESS:$PORT" -servername "$HOST" -showcerts -verify_return_error "$VERIFY_FLAG" "$HOST" </dev/null >"$WORK/chain.log" 2>"$WORK/tls.log" &
