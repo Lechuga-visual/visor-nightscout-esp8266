@@ -42,7 +42,12 @@ PY
       ;;
   esac
 }
-fail() { printf '%s\n' "$1" >&2; message "$1" || :; exit 1; }
+fail() {
+  if [ "${NIGHTSCOUT_KEY_DEBUG:-0}" = 1 ] && [ -n "${WORK:-}" ]; then
+    [ ! -f "$WORK/tls.log" ] || cat "$WORK/tls.log" >&2
+    [ ! -f "$WORK/verify.log" ] || cat "$WORK/verify.log" >&2
+  fi
+  printf '%s\n' "$1" >&2; message "$1" || :; exit 1; }
 if [ -z "$URL" ]; then
   [ "$HEADLESS" -eq 0 ] || fail 'Falta --url con la dirección HTTPS del sitio.'
   case "$DIALOG" in
@@ -92,10 +97,11 @@ trap 'exit 130' INT TERM
 if [ "$OS" = Darwin ]; then
   # Apple's system OpenSSL/LibreSSL may lack hostname verification. Authenticate
   # the SAME captured chain with the macOS SSL policy and system keychain below.
-  "$KEY_OPENSSL" s_client -connect "$ADDRESS:$PORT" -servername "$HOST" -showcerts </dev/null >"$WORK/chain.log" 2>"$WORK/tls.log" &
+  ROOT_ARGS=(); [ -z "$CA_FILE" ] || ROOT_ARGS=( -CAfile "$CA_FILE" )
+  "$KEY_OPENSSL" s_client -tls1_2 "${ROOT_ARGS[@]}" -connect "$ADDRESS:$PORT" -servername "$HOST" -showcerts </dev/null >"$WORK/chain.log" 2>"$WORK/tls.log" &
 else
   ROOT_ARGS=(); [ -z "$CA_FILE" ] || ROOT_ARGS=( -CAfile "$CA_FILE" )
-  "$KEY_OPENSSL" s_client "${ROOT_ARGS[@]}" -connect "$ADDRESS:$PORT" -servername "$HOST" -showcerts -verify_return_error "$VERIFY_FLAG" "$HOST" </dev/null >"$WORK/chain.log" 2>"$WORK/tls.log" &
+  "$KEY_OPENSSL" s_client -tls1_2 "${ROOT_ARGS[@]}" -connect "$ADDRESS:$PORT" -servername "$HOST" -showcerts -verify_return_error "$VERIFY_FLAG" "$HOST" </dev/null >"$WORK/chain.log" 2>"$WORK/tls.log" &
 fi
 PROCESS=$!
 (

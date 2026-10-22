@@ -24,6 +24,9 @@ def export_key(url, ca_file=None):
             or parsed.password is not None or parsed.query or parsed.fragment):
         raise ValueError("Usa solo una URL HTTPS, sin usuario, contraseña, token ni parámetros.")
     context = ssl.create_default_context(cafile=ca_file)
+    # Match the ESP8266 TLS version when a host serves different keys by protocol.
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
+    context.maximum_version = ssl.TLSVersion.TLSv1_2
     # Intentionally fail on untrusted/expired certificates or a hostname mismatch.
     # Never fetch a pin with verification disabled, and never trust a new key automatically.
     with socket.create_connection((parsed.hostname, parsed.port or 443), timeout=10) as tcp:

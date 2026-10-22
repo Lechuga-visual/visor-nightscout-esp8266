@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'tools/key-export/**'
+      - 'tools/export_server_key.py'
       - 'tests/test_key_launchers.py'
       - 'tests/key_export_windows.ps1'
       - '.github/workflows/key-tools.yml'
@@ -31,6 +32,7 @@ jobs:
         if: runner.os == 'macOS'
         env:
           NIGHTSCOUT_OPENSSL: /usr/bin/openssl
+          NIGHTSCOUT_KEY_DEBUG: 1
         run: python -m unittest discover -s tests -p test_key_launchers.py -v
       - name: Capture native Windows forms
         if: runner.os == 'Windows'

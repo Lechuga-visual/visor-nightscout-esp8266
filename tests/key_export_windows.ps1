@@ -36,7 +36,7 @@ if($Screenshot){
         } finally { $bitmap.Dispose();$done.Close();$done.Dispose() }
         Remove-Item -LiteralPath $file
     } finally {$sample.Dispose();$rsa.Dispose()}
-    Write-Output 'Windows forms rendered' 
+    Write-Output 'Windows forms rendered'
     exit 0
 }
 $store=$null;$certificate=$null
