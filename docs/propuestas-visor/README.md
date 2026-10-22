@@ -36,4 +36,4 @@ implementación, con dibujo directo y sin guardar imágenes de los temas en RAM.
 Las fuentes editables están junto a las imágenes: [A en SVG](propuesta-a.svg),
 [B en SVG](propuesta-b.svg) y [temas en SVG](temas-y-personalizacion.svg).
 La implementación incorpora ambos diseños y un nombre de persona más grande
-y algo más abajo. Las capturas actuales están en el [README principal](../../README.md#tres-modos-de-visor-y-colores-en-060).
+y algo más abajo. Las capturas actuales están en el [README principal](../../README.md#pantallas-y-personalización).

@@ -1,187 +1,54 @@
-# Firmware para Wemos D1 mini (ESP8266)
+# Firmware para Wemos D1 mini ESP8266
 
-Versión **0.7.1**, GC9A01 SPI 240 × 240, D1 mini con **4 MB de flash**.
+**Versión 0.7.1** · **4 MB de flash** · pantalla **GC9A01 SPI 240 × 240**.
+Este archivo sirve para ese hardware y el cableado del proyecto; no es un binario ESP32.
 
-- [Descargar el .bin](nightscout-d1-mini-v0.7.1.bin) (en GitHub: **Download raw file**).
-- [SHA-256](SHA256SUMS).
-- [Datos de compilación](build-info.json).
-
-El binario no contiene credenciales de Wi-Fi ni de administración. En el primer
-arranque pide estos datos por web. Usa el cableado del [README principal](../README.md).
-
-La versión 0.7.1 añade **Ajustes → Brillo y horario nocturno**: activación,
-horario, zona horaria e intensidades de día y noche entre 10 y 100 %. Incluye una
-prueba nocturna de cinco segundos que se restaura sin guardar. El horario se
-guarda en una extensión independiente y conserva los ajustes anteriores.
-
-Se atenúan los colores de la pantalla física; **la luz de fondo mantiene su
-intensidad**, porque este módulo no tiene pin BL/BLK. El visor web sigue igual.
-Al actualizar, el horario queda desactivado. Puedes activar 22:00–07:00 con
-100 % de día y 25 % de noche, o elegir tus valores. Santiago ajusta el horario de
-verano; sin hora válida se utiliza la intensidad de día. El modo de clave fija
-sigue obteniendo la hora del servidor HTTPS autenticado, sin NTP.
-
-La versión 0.7.0 incorpora los dos diseños B elegidos: bienvenida con etapas
-reales de Wi-Fi, servidor y primera lectura, y configuración en tres pasos.
-El nombre grande y el tema aparecen desde el arranque; una vez recibida la
-primera lectura se abre el visor habitual.
-
-El asistente conserva los campos al volver atrás, revisa los datos antes de
-guardar y muestra los errores sin borrarlos. El resumen oculta contraseñas y
-token. Solo el botón final guarda y reinicia; la autenticación y la protección
-CSRF siguen activas. Puedes verlo en `/configure`; en el modo inicial se abre
-directamente en `http://192.168.4.1/`.
-
-La versión 0.6.1 duplica el tamaño del nombre: 32 píxeles en la pantalla y 28 en
-el visor web. Los nombres largos se acortan con puntos, sin cambiar el nombre
-guardado. Mantiene la posición del nombre, la lectura, el estado y la IP.
-Conserva Wi-Fi, servidor, token, clave HTTPS y apariencia al actualizar normalmente.
-
-Los [diseños de bienvenida y configuración inicial](../docs/propuestas-inicio/README.md)
-quedan como referencia. El horario nocturno está implementado desde 0.7.1.
-
-La versión 0.6.0 incorpora los dos diseños de número grande además de la gráfica
-de 30 minutos. El nombre aparece más abajo y con letra mayor. El selector del
-panel cambia entre gráfica, flecha lateral y flecha debajo; se guarda para la
-pantalla física y la web sin borrar el historial.
-
-En **Ajustes → Apariencia** hay cinco temas (menta, rojo, azul, rosado y celeste)
-y colores personalizados para acento, fondo y número, con vista previa y
-comprobación de contraste. Los avisos mantienen texto y colores propios.
-La apariencia ocupa una extensión de 20 bytes; se conservan nombre, Wi-Fi,
-URL, token y clave PEM. La memoria y los dibujos se mantienen acotados,
-sin una imagen completa de pantalla en RAM.
-
-En **Ajustes → Nombre de la persona** puedes guardar hasta 24 caracteres para
-reemplazar NIGHTSCOUT en la pantalla y el visor web. Vacío recupera el título
-predeterminado. El nombre permanece al reiniciar sin cambiar las credenciales.
-
-## Pantalla y visor web
-
-La versión 0.6.0 incluye una interfaz oscura con glucosa grande, tendencia,
-antigüedad y el modo opcional de mini gráfica de 30 minutos. En `http://IP_DEL_WEMOS/` verás una
-copia de la pantalla, adaptada al teléfono o computador, con los mismos datos.
-Inicia sesión con tus credenciales de administración. El visor se actualiza
-automáticamente y conserva la última lectura con un aviso si pierde contacto
-con el Wemos. Los ajustes están en **Ajustes** y la carga OTA en **Actualizar**.
-
-La gráfica resume hasta 31 entradas en un máximo de 7 puntos. No requiere
-FileSystem ni un servicio web externo. Al actualizar desde 0.4.x se conservan
-Wi-Fi, servidor, token, clave pública o CA y datos de administración.
-
-## Primera carga por USB
-
-Conecta el Wemos por USB con un cable de datos. En tu herramienta de flasheo
-ESP8266 selecciona el puerto de la placa y escribe el `.bin` en **0x00000**.
-Usa flash de **4 MB** y modo **DIO**. No se necesita una imagen de filesystem.
-
-Si utilizas Python y esptool 4.x, por ejemplo:
-
-```bash
-python -m pip install esptool==4.8.1
-python -m esptool --chip esp8266 --port COM3 --baud 115200 write_flash --flash_mode dio --flash_size 4MB 0x00000 nightscout-d1-mini-v0.7.1.bin
-```
-
-Cambia `COM3` por el puerto real. En Linux suele ser `/dev/ttyUSB0` y en macOS
-`/dev/cu.usbserial-...`. Ejecuta el comando desde la carpeta donde descargaste
-el archivo. Reinicia la placa al terminar la carga.
-
-## Datos de la red de configuración
-
-| Dato | Valor |
+| Archivo | Uso |
 | --- | --- |
-| Red del Wemos | `glucosa-XXXXXX` (sufijo propio de tu placa) |
-| Clave de esa red | 12 caracteres mostrados en la pantalla; cambia al reiniciar el modo de configuración |
-| Página de configuración | `http://192.168.4.1/` |
-| Usuario de administración | El que elijas en el formulario; sugiere `admin` |
-| Clave de administración/OTA | La que elijas, de al menos 12 caracteres |
+| [nightscout-d1-mini-v0.7.1.bin](nightscout-d1-mini-v0.7.1.bin) | Programa listo para cargar. En GitHub pulsa **Download raw file**. |
+| [SHA256SUMS](SHA256SUMS) | Sumas para comprobar la descarga. |
+| [build-info.json](build-info.json) | Placa, herramientas de compilación, memoria y validaciones del binario. |
 
-La clave de la red inicial permite conectar el teléfono al Wemos. La contraseña
-de tu Wi-Fi habitual se introduce después en el formulario; son claves distintas.
-Mantén la conexión aunque el teléfono avise que esta red no tiene Internet.
+**Para instalarlo sigue la [guía paso a paso](../docs/INSTALACION.md).** Incluye el
+[diagrama nuevo](../docs/INSTALACION.md#2-conectar-la-pantalla), primera carga USB,
+configuración desde el teléfono y solución de problemas. El
+[README del proyecto](../README.md) presenta las funciones y capturas.
 
-Guarda tu Wi-Fi de 2,4 GHz, su contraseña, la URL base de tu Nightscout y los datos de
-administración. El Wemos reinicia y muestra su nueva IP en la red de tu casa.
-Si no puede conectar en un minuto tras arrancar, vuelve a crear la red de
-configuración. Sin la pantalla no podrás leer la clave inicial.
+## Primera carga y actualizaciones
 
-## Nightscout y HTTPS
+- **Primera vez:** por USB, dirección **`0x00000`**, modo **DIO**, memoria **4 MB**.
+  La guía ofrece una herramienta con ventana en Windows y una alternativa por
+  terminal para Windows, macOS y Linux.
+- **Si ya funciona:** abre la web del Wemos y pulsa **Actualizar**. Selecciona el
+  `.bin` en **Firmware**, no en FileSystem. [Ver los pasos](../docs/INSTALACION.md#7-actualizar-por-wi-fi).
+- El archivo no contiene Wi-Fi, tokens ni contraseñas de usuarios. Los introduces
+  en el asistente del primer arranque, entrando a la red `glucosa-…` con la clave
+  que muestra la pantalla.
+- Una actualización normal conserva los ajustes. Un borrado completo de flash
+  los elimina. El proyecto no ofrece reversión automática de firmware.
 
-Puedes configurar tu propio Nightscout desde la misma web: URL base y token de
-solo lectura, si es necesario. El token no se muestra al volver a abrir la
-página y no se envía por HTTP. Dejar vacío lo conserva para el mismo origen
-HTTPS; al cambiar de servidor se borra el anterior. El `API_SECRET` de
-administrador no es necesario.
+## Qué incluye 0.7.1
 
-Hay 120 certificados raíz públicos incluidos, sin pasos extra de instalación.
-Normalmente deja vacía la sección de certificados. Si tu servidor usa una CA
-privada, puedes introducir su PEM público desde esa sección. La cadena, el
-nombre y la hora se verifican en el modo de CA; el dispositivo no necesita un certificado
-de cliente. El token y cualquier CA propia permanecen solo en el Wemos.
+Visor físico y web, tres modos de lectura, gráfica de 30 minutos, nombre grande,
+cinco temas y colores personalizados, bienvenida con progreso real y asistente
+de configuración de tres pasos. Añade **Brillo y horario nocturno**, con intensidad
+de día/noche y una prueba de cinco segundos. El horario viene desactivado.
 
-Al actualizar desde 0.2.0 se conservan la red Wi-Fi, la URL y los datos de
-administración. Introduce el token en la web después de actualizar. La imagen
-0.2.0 anterior permanece disponible para referencia, pero no tiene estos campos.
+**Se atenúa el contenido; la luz de fondo mantiene su intensidad.** El módulo de
+siete pines no tiene entrada BL/BLK. El visor web mantiene su intensidad normal.
 
-## Consultar sin NTP
+Para HTTPS puedes usar los certificados públicos incluidos o una clave pública
+fija. Consulta [HTTPS, hora y clave pública](../docs/INSTALACION.md#8-https-hora-y-clave-pública)
+y las [herramientas con ventana](../tools/key-export/README.md).
 
-Desde 0.4.0 puedes pegar una **clave pública fija del servidor** en
-**Ajustes → Seguridad HTTPS y opción sin NTP**. El archivo PEM debe obtenerse desde un
-PC verificando primero el certificado; se incluye la herramienta
-[export_server_key.py](../tools/export_server_key.py). También están los
-[lanzadores con ventana para Windows, Linux y macOS](../tools/key-export/README.md),
-que generan un `.txt` sin instalar `cryptography`. Consulta los pasos en el
-[README principal](../README.md#https-sin-ntp-fijar-la-clave-pública-del-servidor).
+## Identificación y comprobaciones
 
-TLS autentica por esa clave y cifra los datos, sin comprobar cadena, nombre
-ni fechas del certificado. No se necesita crear otro certificado. Si el proveedor
-cambia la clave, debes volver a obtenerla y guardarla. El token sigue siendo
-opcional según los permisos de Nightscout.
+- Tamaño del archivo: **710.464 bytes**.
+- SHA-256: `ad24cd0ffe530928a73e95510bee81aaec989356d8547a767d2fc9bffd2b389e`.
+- RAM estática de la compilación: **38.084 bytes**.
+- Compilación y pruebas nativas/de navegador registradas en `build-info.json`;
+  la validación completa de esta versión en hardware físico sigue pendiente.
 
-Después de autenticar HTTPS, el Wemos toma la hora de la cabecera **Date** del
-servidor y calcula cuánto tiempo tiene la lectura. No toma la fecha de la lectura
-como hora actual. Sin Date válida muestra **Hora sin sincronizar**. NTP no se
-inicia automáticamente en este modo; la clave permanece guardada al reiniciar.
-
-## Si queda esperando NTP en el modo de CA
-
-La versión 0.3.1 inicia NTP al conectar el Wi-Fi y reintenta cada 30 segundos
-mientras no tiene hora, alternando tres servidores. Si tu red no permite NTP,
-abre `http://IP_DEL_WEMOS/settings`, inicia sesión y, en **Hora del dispositivo**, pulsa
-**Usar hora de este teléfono/PC**. Comprueba primero que la fecha y hora de ese
-teléfono o computador sean correctas. El Wemos volverá a consultar Nightscout
-manteniendo la validación HTTPS. Si reinicias la placa y NTP sigue sin responder,
-necesitarás volver a darle la hora desde el navegador.
-
-Puedes subir esta actualización por `/update` incluso sin hora sincronizada;
-al pasar desde 0.3.x o 0.4.0 se conservan Wi-Fi, URL, token, CA o clave pública y datos de administración.
-
-Si se desconecta del Wi-Fi, la pantalla muestra ahora el motivo numérico.
-Cuando reconecte, `/diagnostics` permite revisar señal, memoria y errores sin
-mostrar credenciales. No se ha determinado aún la causa en tu placa.
-
-## Formulario caducado o fallo al guardar la clave
-
-El aviso de formulario caducado indica que su sesión no coincide con la sesión
-actual del Wemos. Se rechaza antes de validar el PEM, sin cambiar los ajustes.
-Después de actualizar o reiniciar, abre de nuevo **Ajustes** desde la
-IP del dispositivo y vuelve a pegar la clave; no recuperes el formulario con Atrás.
-
-La versión 0.4.1 muestra una confirmación **Servidor guardado** antes de iniciar
-HTTPS. Espera a cerrar la conexión del navegador y al menos tres segundos desde
-la última solicitud. Reduce la reserva de pila durante TLS y añade a
-`/diagnostics` el identificador de arranque, su motivo, la última operación y
-el margen mínimo de pila, para distinguir errores de formulario de reinicios.
-
-## Actualizaciones siguientes
-
-Con el Wemos conectado a tu Wi-Fi, abre `http://IP_DEL_WEMOS/update`, inicia
-sesión con tus datos de administración y sube el `.bin` en **Firmware**. No lo
-subas en **FileSystem**. La configuración guardada se conserva al actualizar
-normalmente; un borrado completo de flash la elimina.
-
-El archivo se ha compilado y se han probado el reloj, la configuración, los
-certificados y conexiones TLS reales con claves fijas RSA y EC, usando la
-biblioteca BearSSL del núcleo ESP8266 en el entorno de
-desarrollo. La conexión Wi-Fi, HTTPS en el dispositivo, el panel SPI, la grabación
-de ajustes y la actualización OTA necesitan validación física en la placa.
+El [historial](../docs/HISTORIAL.md) conserva las notas de implementación.
+Para compilar desde el código o revisar diagnóstico y seguridad, utiliza la
+[referencia técnica](../docs/REFERENCIA-TECNICA.md).
