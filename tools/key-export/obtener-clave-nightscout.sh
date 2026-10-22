@@ -17,9 +17,11 @@ KEY_OPENSSL=${NIGHTSCOUT_OPENSSL:-openssl}
 OS=$(uname -s)
 DIALOG=terminal
 if [ "$OS" = Darwin ] && command -v osascript >/dev/null 2>&1; then DIALOG=mac
-elif command -v zenity >/dev/null 2>&1; then DIALOG=zenity
-elif command -v kdialog >/dev/null 2>&1; then DIALOG=kdialog
-elif command -v python3 >/dev/null 2>&1 && python3 -c 'import tkinter' >/dev/null 2>&1; then DIALOG=tk
+elif [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; then
+  if command -v zenity >/dev/null 2>&1; then DIALOG=zenity
+  elif command -v kdialog >/dev/null 2>&1; then DIALOG=kdialog
+  elif command -v python3 >/dev/null 2>&1 && python3 -c 'import tkinter' >/dev/null 2>&1; then DIALOG=tk
+  fi
 fi
 message() {
   [ "$HEADLESS" -eq 0 ] || return 0
@@ -97,7 +99,11 @@ trap 'exit 130' INT TERM
 if [ "$OS" = Darwin ]; then
   # Apple's system OpenSSL/LibreSSL may lack hostname verification. Authenticate
   # the SAME captured chain with the macOS SSL policy and system keychain below.
-  ROOT_ARGS=(); [ -z "$CA_FILE" ] || ROOT_ARGS=( -CAfile "$CA_FILE" )
+  if [ -n "$CA_FILE" ]; then ROOT_ARGS=( -CAfile "$CA_FILE" )
+  else
+    /usr/bin/security find-certificate -a -p /System/Library/Keychains/SystemRootCertificates.keychain >"$WORK/mac-roots.pem" 2>/dev/null || fail 'No se pudieron leer las autoridades de confianza de macOS.'
+    ROOT_ARGS=( -CAfile "$WORK/mac-roots.pem" )
+  fi
   printf '' | "$KEY_OPENSSL" s_client -tls1_2 "${ROOT_ARGS[@]}" -connect "$ADDRESS:$PORT" -servername "$HOST" -showcerts >"$WORK/chain.log" 2>"$WORK/tls.log" &
 else
   ROOT_ARGS=(); [ -z "$CA_FILE" ] || ROOT_ARGS=( -CAfile "$CA_FILE" )
@@ -117,6 +123,9 @@ awk -v dir="$WORK" '/-----BEGIN CERTIFICATE-----/{n++;file=dir "/cert-" n ".pem"
 [ -s "$WORK/cert-1.pem" ] || fail 'El sitio no entregó un certificado válido.'
 "$KEY_OPENSSL" x509 -in "$WORK/cert-1.pem" -checkend 0 -noout >/dev/null 2>&1 || fail 'El certificado del sitio está vencido. No se guardó una clave.'
 if [ "$OS" = Darwin ]; then
+  NOT_BEFORE=$("$KEY_OPENSSL" x509 -in "$WORK/cert-1.pem" -startdate -noout | sed -n 's/^notBefore=//p')
+  START_EPOCH=$(LC_ALL=C date -j -u -f '%b %e %T %Y %Z' "$NOT_BEFORE" '+%s' 2>/dev/null) || fail 'No se pudo validar la fecha del certificado.'
+  [ "$START_EPOCH" -le "$(date -u '+%s')" ] || fail 'El certificado del sitio todavía no está vigente. Revisa el reloj del equipo.'
   # Leaf first, followed by intermediates; the final trust decision uses macOS roots.
   CERTS=(); for cert in "$WORK"/cert-*.pem; do CERTS+=( -c "$cert" ); done
   ROOT_ARGS=(); [ -z "$CA_FILE" ] || ROOT_ARGS=( -r "$CA_FILE" )

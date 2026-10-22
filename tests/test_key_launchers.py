@@ -30,13 +30,13 @@ class KeyLauncherTests(unittest.TestCase):
         cls.addClassCleanup(cls.temp.cleanup)
         cls.directory = Path(cls.temp.name)
         cls.fixtures = {}
-        for kind in ('rsa', 'ec', 'ec384', 'ec521', 'expired', 'untrusted'):
+        for kind in ('rsa', 'ec', 'ec384', 'ec521', 'expired', 'future', 'untrusted'):
             key = rsa.generate_private_key(public_exponent=65537, key_size=2048) if kind == 'rsa' else ec.generate_private_key(
                 ec.SECP384R1() if kind == 'ec384' else ec.SECP521R1() if kind == 'ec521' else ec.SECP256R1())
             subject = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, 'localhost')])
             now = datetime.now(timezone.utc)
             cert = (x509.CertificateBuilder().subject_name(subject).issuer_name(subject).public_key(key.public_key())
-                    .serial_number(x509.random_serial_number()).not_valid_before(now-timedelta(days=10))
+                    .serial_number(x509.random_serial_number()).not_valid_before(now+timedelta(days=1) if kind == 'future' else now-timedelta(days=10))
                     .not_valid_after(now+timedelta(days=10) if kind != 'expired' else now-timedelta(days=1))
                     .add_extension(x509.BasicConstraints(ca=True,path_length=None),critical=True)
                     .add_extension(x509.SubjectAlternativeName([x509.DNSName('localhost')]),critical=False)
@@ -101,7 +101,7 @@ class KeyLauncherTests(unittest.TestCase):
                     self.assertTrue(pem.rstrip().endswith(b'-----END PUBLIC KEY-----'))
                     der=serialization.load_pem_public_key(pem).public_bytes(serialization.Encoding.DER,serialization.PublicFormat.SubjectPublicKeyInfo)
                     self.assertEqual(der,self.fixtures[kind][2]);self.assertLessEqual(len(pem),3072)
-        for kind,host,trust in [('ec','127.0.0.1','ec'),('expired','localhost','expired'),('untrusted','localhost',None)]:
+        for kind,host,trust in [('ec','127.0.0.1','ec'),('expired','localhost','expired'),('future','localhost','future'),('untrusted','localhost',None)]:
             with self.subTest(platform=platform,rejected=(kind,host)),tempfile.TemporaryDirectory() as target:
                 out=Path(target);existing=out/'previous.txt';existing.write_text('keep existing file')
                 with self.server(kind) as port:

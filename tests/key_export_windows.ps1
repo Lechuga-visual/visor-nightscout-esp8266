@@ -22,7 +22,7 @@ if($Screenshot){
     } finally { $bitmap.Dispose();$form.Close();$form.Dispose();$timer.Dispose() }
     # Render the actual result window with an in-memory, synthetic certificate.
     try { . $script:KeyExportCore -Url 'http://invalid' } catch { }
-    $rsa=[Security.Cryptography.RSA]::Create();$rsa.KeySize=2048
+    $rsa=New-Object Security.Cryptography.RSACryptoServiceProvider(2048);$rsa.PersistKeyInCsp=$false
     $request=New-Object Security.Cryptography.X509Certificates.CertificateRequest('CN=example.invalid',$rsa,[Security.Cryptography.HashAlgorithmName]::SHA256,[Security.Cryptography.RSASignaturePadding]::Pkcs1)
     $sample=$request.CreateSelfSigned([DateTimeOffset]::Now.AddDays(-1),[DateTimeOffset]::Now.AddDays(1))
     try {
