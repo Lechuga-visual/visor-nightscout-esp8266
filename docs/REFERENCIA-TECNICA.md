@@ -391,6 +391,9 @@ CSRF, errores y desconexión, bloqueo de doble prueba y guardado nativo.
 
 ## Idiomas desde 0.8.0
 
+RAM estática de 0.8.0: **38.012 bytes**, 72 menos que 0.7.1; el binario ocupa
+744.400 bytes y la aplicación usa 740.243 bytes de flash.
+
 Un único firmware incluye Español / English. El selector del inicio y Ajustes
 guarda una extensión etiquetada de ocho bytes desde el offset 3872, después del
 horario nocturno. Datos borrados o inválidos recuperan español; ningún offset

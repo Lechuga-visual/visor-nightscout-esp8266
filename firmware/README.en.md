@@ -41,3 +41,6 @@ unchanged** on the seven-pin module. The web viewer keeps its normal intensity.
 Firmware builds and native/browser checks are recorded in `build-info.json`.
 Full SPI/Wi-Fi/EEPROM/OTA verification on the physical board remains pending.
 See [release history](../docs/HISTORY.en.md) and [technical reference](../docs/TECHNICAL.en.md).
+
+Image size: **744,400 bytes**. Static RAM: **38,012 bytes**.
+SHA-256: `71d615206e59bee0abed2ced76a3cfad7f2f25d807675bc01ae5e1084e5e6416`.

@@ -50,7 +50,9 @@ y las [herramientas con ventana](../tools/key-export/README.md).
 
 ## Identificación y comprobaciones
 
-- Tamaño, SHA-256 y memoria medidos: consulta `build-info.json` y `SHA256SUMS`.
+- Tamaño del archivo: **744.400 bytes**.
+- SHA-256: `71d615206e59bee0abed2ced76a3cfad7f2f25d807675bc01ae5e1084e5e6416`.
+- RAM estática de la compilación: **38.012 bytes** (72 menos que 0.7.1).
 - Compilación y pruebas nativas/de navegador registradas en `build-info.json`;
   la validación completa de esta versión en hardware físico sigue pendiente.
 
