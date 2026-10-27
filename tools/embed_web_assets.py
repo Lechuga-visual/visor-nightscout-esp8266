@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def english_assets():
     result = {}
     for name in ('index.html', 'app.js', 'appearance.js', 'setup.js', 'night.js', 'setup.html'):
-        source = (ROOT / 'web' / name).read_text()
+        source = (ROOT / 'web' / name).read_text(encoding='utf-8')
         result[name] = javascript(source) if name.endswith('.js') else translate(source)
     return result
 
@@ -35,7 +35,7 @@ def generate():
         lines.append(f'const unsigned char {symbol}[] PROGMEM = {{')
         lines.extend('  ' + ', '.join(f'0x{b:02x}' for b in data[i:i+16]) + ',' for i in range(0,len(data),16))
         lines.append('};')
-    template = (ROOT / 'web/setup.html').read_text()
+    template = (ROOT / 'web/setup.html').read_text(encoding='utf-8')
     placeholders = re.findall(r'{{([a-z_]+)}}', template)
     assert placeholders == ['back_link', 'context', 'language_form', 'ssid', 'server_fields', 'username', 'csrf']
     for i, fragment in enumerate(re.split(r'{{[a-z_]+}}', template)):
@@ -52,9 +52,9 @@ def generate():
 if __name__ == '__main__':
     target = ROOT / 'include/generated/web_assets.h'
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(generate())
-    (ROOT / 'include/generated/ui_translations.h').write_text(header())
+    target.write_text(generate(), encoding='utf-8')
+    (ROOT / 'include/generated/ui_translations.h').write_text(header(), encoding='utf-8')
     (ROOT / 'web/en').mkdir(exist_ok=True)
     for name, content in english_assets().items():
-        (ROOT / 'web/en' / name).write_text(content)
+        (ROOT / 'web/en' / name).write_text(content, encoding='utf-8')
     print('Embedded web assets:', target.relative_to(ROOT))

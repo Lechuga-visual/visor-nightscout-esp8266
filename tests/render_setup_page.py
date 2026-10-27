@@ -9,7 +9,7 @@ import tempfile
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-source = (ROOT / 'src/main.cpp').read_text()
+source = (ROOT / 'src/main.cpp').read_text(encoding='utf-8')
 
 
 def function(start, following):
@@ -82,7 +82,7 @@ int main() {
 with tempfile.TemporaryDirectory() as directory:
     path = pathlib.Path(directory)
     (path / 'Arduino.h').write_text('#pragma once\n#define PROGMEM\n')
-    (path / 'render.cpp').write_text(harness)
+    (path / 'render.cpp').write_text(harness, encoding='utf-8')
     subprocess.run(['g++', '-std=c++11', '-I', str(path), '-I', str(ROOT / 'include'),
                     str(path / 'render.cpp'), '-o', str(path / 'render')], check=True)
     subprocess.run([str(path / 'render')], check=True)

@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-CATALOG = json.loads((ROOT / 'translations/en.json').read_text())
+CATALOG = json.loads((ROOT / 'translations/en.json').read_text(encoding='utf-8'))
 PATTERN = re.compile('|'.join(re.escape(key) for key in sorted(CATALOG, key=len, reverse=True)))
 CPP_LITERAL = re.compile(r'\b(?:F|L|PSTR)\(\s*((?:"(?:\\.|[^"\\])*"\s*)+)\)')
 # The checked-in scripts contain no quotes inside regular-expression literals.
@@ -42,7 +42,7 @@ def hash_text(text):
 
 
 def header():
-    source = (ROOT / 'src/main.cpp').read_text()
+    source = (ROOT / 'src/main.cpp').read_text(encoding='utf-8')
     translations = {literal(m): translate(literal(m)) for m in CPP_LITERAL.finditer(source)}
     translations = {a:b for a,b in translations.items() if a != b}
     # Canonical internal statuses stay in Spanish. Only their user-facing copies

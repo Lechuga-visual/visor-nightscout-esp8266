@@ -22,15 +22,15 @@ class KeyPackageTests(unittest.TestCase):
             for name in ['obtener-clave-nightscout.sh','Obtener-clave-Nightscout.command']:
                 self.assertEqual(package.read(name),unix)
                 self.assertEqual((package.getinfo(name).external_attr>>16)&0o777,0o755)
-        for line in (TOOLS/'SHA256SUMS').read_text().splitlines():
+        for line in (TOOLS/'SHA256SUMS').read_text(encoding='utf-8').splitlines():
             digest,name=line.split('  ')
             data=(TOOLS/name).read_bytes()
             self.assertEqual(hashlib.sha256(data).hexdigest(),digest)
 
     def test_english_packages_share_sources_and_preserve_launch_permissions(self):
-        windows=translate((TOOLS/'Obtener-clave-Nightscout.cmd').read_text()).replace('\n','\r\n').encode()
-        unix=translate((TOOLS/'obtener-clave-nightscout.sh').read_text()).encode()
-        self.assertEqual((TOOLS/'Get-Nightscout-Key.cmd').read_text(),windows.decode().replace('\r\n','\n'))
+        windows=translate((TOOLS/'Obtener-clave-Nightscout.cmd').read_text(encoding='utf-8')).replace('\n','\r\n').encode()
+        unix=translate((TOOLS/'obtener-clave-nightscout.sh').read_text(encoding='utf-8')).encode()
+        self.assertEqual((TOOLS/'Get-Nightscout-Key.cmd').read_text(encoding='utf-8'),windows.decode().replace('\r\n','\n'))
         self.assertEqual((TOOLS/'get-nightscout-key.sh').read_bytes(),unix)
         self.assertEqual((TOOLS/'Get-Nightscout-Key.command').read_bytes(),unix)
         with zipfile.ZipFile(TOOLS/'nightscout-key-windows-en.zip') as package:

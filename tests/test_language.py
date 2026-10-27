@@ -9,7 +9,7 @@ ROOT=pathlib.Path(__file__).resolve().parents[1]
 
 class LanguageTests(unittest.TestCase):
     def test_saved_language_only_changes_its_extension_and_requires_current_access(self):
-        main=(ROOT/'src/main.cpp').read_text()
+        main=(ROOT/'src/main.cpp').read_text(encoding='utf-8')
         handler=main[main.index('void saveLanguage()'):main.index('void saveConfiguration()')]
         harness=r'''
 #include <cassert>
@@ -73,9 +73,9 @@ int main(){
 '''
         with tempfile.TemporaryDirectory() as directory:
             source=pathlib.Path(directory)/'language.cpp';target=pathlib.Path(directory)/'language'
-            source.write_text(harness)
+            source.write_text(harness, encoding='utf-8')
             subprocess.run(['g++','-std=c++11','-Wall','-Wextra','-Werror','-Wno-class-memaccess','-I',str(ROOT/'include'),str(source),'-o',str(target)],check=True)
             subprocess.run([str(target)],check=True)
 
     def test_generated_translation_catalog_is_current(self):
-        self.assertEqual((ROOT/'include/generated/ui_translations.h').read_text(),header())
+        self.assertEqual((ROOT/'include/generated/ui_translations.h').read_text(encoding='utf-8'),header())

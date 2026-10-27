@@ -97,5 +97,5 @@ text(80,1666,'Alimenta el Wemos por USB después de revisar todo el cableado.','
 text(60,1735,'Esquema ilustrativo · Sigue las etiquetas de tus módulos · Guía completa: docs/INSTALACION.md','small')
 s.append('</svg>')
 content='\n'.join(s)+'\n'
-out.write_text(translate(content) if args.language=='en' else content)
+out.write_text(translate(content) if args.language=='en' else content, encoding='utf-8')
 print(out.relative_to(root))
