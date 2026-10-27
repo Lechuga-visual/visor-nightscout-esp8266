@@ -68,6 +68,13 @@ If the key changes, repeat the verified export and save it on the Wemos.
 
 ## Screenshots and provenance
 
+Actual English Windows forms, captured on the Windows CI runner with a synthetic
+public key:
+
+![English Windows URL window](../../docs/images/key-windows-en.png)
+
+![English Windows public-key result](../../docs/images/key-windows-result-en.png)
+
 English Linux input and result windows, captured from the actual Tk interface
 with a verified local test key:
 
@@ -75,9 +82,9 @@ with a verified local test key:
 
 ![English Linux public-key result](../../docs/images/key-linux-result-en.png)
 
-The [Spanish documentation](README.md#capturas) also contains real Windows captures.
-The Windows English edition uses those same forms with translated labels; macOS
-uses native dialogs. Examples are synthetic and do not identify a patient.
+macOS uses native dialogs. Examples are synthetic and do not identify a patient.
+Windows, Linux and macOS checks passed in
+[this CI run](https://github.com/Lechuga-visual/visor-nightscout-esp8266/actions/runs/40446942292).
 The [sample TXT](../../docs/examples/clave-publica-ejemplo.txt) is not a key for
 your server. Generate your own from its verified URL.
 
