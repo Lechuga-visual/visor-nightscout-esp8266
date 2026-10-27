@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Set up your display · Glucose</title>
+<link rel="stylesheet" href="/assets/ui.css">
+<script src="/assets/setup.js" defer></script>
+</head>
+<body>
+<main class="settings setup-page">
+{{back_link}}
+<header class="setup-brand"><span class="brand">glucosa<span class="brand-dot">.</span></span><span class="setup-context">{{context}}</span></header>
+{{language_form}}
+<form id="setup-form" class="card" method="post" action="/configure">
+<p id="setup-counter" class="eyebrow" aria-live="polite">SET UP YOUR DISPLAY</p>
+<ol class="setup-progress" aria-label="Setup progress" hidden><li><span class="sr-only">Wi-Fi</span></li><li><span class="sr-only">Nightscout</span></li><li><span class="sr-only">Access</span></li></ol>
+<p id="setup-error" class="network-notice" role="alert" hidden></p>
+<fieldset data-step="0">
+<h1 tabindex="-1">Your Wi-Fi</h1>
+<p class="intro">Connect the Wemos to your home network.</p>
+<label>Your Wi-Fi name<input name="ssid" maxlength="32" autocomplete="off" required value="{{ssid}}"></label>
+<label>Your Wi-Fi password<input name="wifi_password" type="password" maxlength="64" autocomplete="off"></label>
+<p class="notice">Use a <strong>2.4 GHz</strong> network. Enter your home Wi-Fi password here, not the Wemos temporary password. Leave blank only for an open network.</p>
+</fieldset>
+<fieldset data-step="1">
+<h1 tabindex="-1">Your Nightscout</h1>
+<p class="intro">Choose where your data comes from.</p>
+{{server_fields}}
+</fieldset>
+<fieldset data-step="2">
+<h1 tabindex="-1">Your access</h1>
+<p class="intro">Protect your display and review your settings.</p>
+<label>Admin username<input name="web_username" maxlength="32" autocomplete="username" required value="{{username}}"></label>
+<label>Admin password<input name="web_password" type="password" minlength="12" maxlength="64" autocomplete="new-password" required></label>
+<p>This password protects the viewer, settings and updates.</p>
+<section id="setup-review" class="notice" aria-label="Settings review" hidden>
+<p class="eyebrow">REVIEW BEFORE SAVING</p>
+<dl><div><dt>Network</dt><dd id="review-ssid"></dd></div><div><dt>Person</dt><dd id="review-patient"></dd></div><div><dt>Nightscout</dt><dd id="review-url"></dd></div></dl>
+<p>Passwords and token are hidden.</p>
+</section>
+<p class="notice">Saving restarts the Wemos. Reconnect your phone to your Wi-Fi and open the IP address shown on the display.</p>
+<input type="hidden" name="csrf" value="{{csrf}}">
+<button id="setup-save" type="submit">Save and restart</button>
+</fieldset>
+<div class="setup-navigation" hidden><button id="setup-next" type="button">Continue</button><button id="setup-back" type="button" class="secondary">Back to previous step</button></div>
+<noscript><p>Complete all three sections and select Save and restart when finished.</p></noscript>
+</form>
+<section id="setup-success" class="card" hidden aria-live="polite"><p class="eyebrow">SETTINGS SAVED</p><h1>All set</h1><p>The Wemos is restarting to join your Wi-Fi.</p><p>Reconnect your phone to that network and open the IP address shown on the device display.</p></section>
+<p class="setup-note">Adjust colors later in Settings.</p>
+</main>
+</body>
+</html>

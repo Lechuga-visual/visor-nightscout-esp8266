@@ -1,11 +1,26 @@
 # Historial de implementación
 
+**Español** · [English](HISTORY.en.md)
+
 Notas conservadas al reorganizar la documentación. Describen lo que cambió y las
 comprobaciones realizadas **al publicar cada versión**; no son una guía de instalación
 ni una declaración de validación física de todas las versiones.
 
-La descarga vigente es **0.7.1**. Consulta la [guía de instalación](INSTALACION.md),
+La descarga vigente es **0.8.0**. Consulta la [guía de instalación](INSTALACION.md),
 la [referencia técnica](REFERENCIA-TECNICA.md) y la [hoja de ruta](../ROADMAP.md).
+
+## Español e inglés en 0.8.0
+
+Un solo firmware permite elegir Español / English en el inicio y en Ajustes,
+para pantalla, bienvenida, configuración, visor, avisos y actualización web.
+El idioma se guarda en una extensión de ocho bytes en el offset 3872, sin mover
+los datos anteriores. Equipos existentes comienzan en español; no cambia unidades,
+zona horaria ni credenciales. El selector conserva autenticación y CSRF, y funciona
+sin JavaScript. Al guardar recarga la página: elige antes de llenar otros campos.
+
+Textos y recursos traducidos en flash; historial de siete puntos y 30 minutos.
+Documentación, capturas y herramientas de clave pública disponibles en inglés.
+La validación física completa continúa pendiente.
 
 ## Brillo y horario nocturno en 0.7.1
 

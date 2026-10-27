@@ -14,16 +14,19 @@ sys.path.insert(0,str(ROOT/'tests'))
 from test_key_launchers import KeyLauncherTests
 
 images=ROOT/'docs/images';images.mkdir(exist_ok=True)
-source=(ROOT/'tools/key-export/obtener-clave-nightscout.sh').read_text()
+english='--english' in sys.argv
+input_image='key-linux-en.png' if english else 'clave-linux.png'
+result_image='key-linux-result-en.png' if english else 'clave-linux-resultado.png'
+source=(ROOT/('tools/key-export/get-nightscout-key.sh' if english else 'tools/key-export/obtener-clave-nightscout.sh')).read_text()
 input_code=re.search(r"tk\) URL=\$\(python3 - <<'PY'\n(.*?)\nPY",source,re.S)[1]
 result_code=re.search(r"elif \[ \"\$DIALOG\" = tk \]; then python3 - \"\$DEST\" <<'PY'\n(.*?)\nPY",source,re.S)[1]
 old_wait=tk.Misc.wait_window
 
 def capture_dialog(self, window=None):
-    self.entry.delete(0,'end');self.entry.insert(0,'https://tu-nightscout.example/')
+    self.entry.delete(0,'end');self.entry.insert(0,'https://your-nightscout.example/' if english else 'https://tu-nightscout.example/')
     def capture():
         self.update_idletasks()
-        subprocess.run(['import','-display',self.winfo_screen(),'-window',hex(self.winfo_id()),str(images/'clave-linux.png')],check=True)
+        subprocess.run(['import','-display',self.winfo_screen(),'-window',hex(self.winfo_id()),str(images/input_image)],check=True)
         self.cancel()
     self.after(250,capture)
     return old_wait(self,window)
@@ -39,18 +42,18 @@ KeyLauncherTests.setUpClass()
 try:
     case=KeyLauncherTests('test_shell_export_and_rejection')
     with tempfile.TemporaryDirectory(prefix='nightscout-ejemplo-') as directory:
-        desktop=Path(directory)/'Escritorio';desktop.mkdir()
+        desktop=Path(directory)/('Desktop' if english else 'Escritorio');desktop.mkdir()
         with case.server('rsa') as port:
             result=case.run_tool('shell',f'https://localhost:{port}/',desktop,case.fixtures['rsa'][0])
         if result.returncode:raise RuntimeError(result.stderr)
         file=next(desktop.glob('*.txt'))
         example=ROOT/'docs/examples/clave-publica-ejemplo.txt';example.parent.mkdir(exist_ok=True)
-        shutil.copyfile(file,example)
+        if not english: shutil.copyfile(file,example)
         old_loop=tk.Misc.mainloop
         def capture_result(self,*args,**kwargs):
             def capture():
                 self.update_idletasks()
-                subprocess.run(['import','-display',self.winfo_screen(),'-window',hex(self.winfo_id()),str(images/'clave-linux-resultado.png')],check=True)
+                subprocess.run(['import','-display',self.winfo_screen(),'-window',hex(self.winfo_id()),str(images/result_image)],check=True)
                 self.destroy()
             self.after(250,capture)
             return old_loop(self,*args,**kwargs)

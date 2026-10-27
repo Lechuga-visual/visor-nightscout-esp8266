@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Glucose · Nightscout</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/assets/ui.css">
+  <script src="/assets/appearance.js" defer></script>
+  <script src="/assets/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar"><a class="brand" href="/" aria-label="Home"><span class="brand-mark"><svg viewBox="0 0 24 24" width="23" height="23" aria-hidden="true"><path d="M3 12h4l3-7 4 14 3-7h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span> glucosa<span class="brand-dot">.</span></a><nav aria-label="Navigation"><a class="active" href="/" aria-current="page">Dashboard</a><a href="/settings">Settings</a><a href="/firmware">Update</a></nav></header>
+  <main class="dashboard">
+    <div class="page-heading"><div><p class="eyebrow">NIGHTSCOUT ON YOUR WEMOS</p><h1>Your glucose at a glance.</h1><p class="subtitle">The same reading as your display, also on the web.</p></div><span class="connection-pill" id="connection"><i></i> Connecting to Wemos</span></div>
+    <div class="dashboard-grid">
+      <section class="card display-card" aria-label="Copy of the Wemos display">
+        <div class="card-heading"><span class="eyebrow">LIVE DISPLAY</span></div>
+        <div class="view-controls"><label for="view-mode">Display mode</label><select id="view-mode" disabled><option value="0">Graph · 30 minutes</option><option value="1">Number · side arrow</option><option value="2">Number · arrow below</option></select><p id="view-feedback" role="status" aria-live="polite"></p></div>
+        <svg class="dial" id="dial" viewBox="0 0 240 240" role="img" aria-label="Waiting for reading" data-tone="empty">
+          <circle class="dial-face" cx="120" cy="120" r="118"/>
+          <circle class="dial-ring" cx="120" cy="120" r="114"/>
+          <text class="dial-brand" id="dial-brand" x="120" y="47">NIGHTSCOUT</text>
+          <text class="dial-value" id="glucose" x="104" y="108">---</text>
+          <g id="trend-vector" transform="translate(188 96)"><path class="dial-trend" id="trend" d="M-6 0H6"/></g>
+          <text class="dial-unit" id="dial-unit" x="104" y="132">mg/dL</text>
+          <g id="history-group"><g class="graph-labels"><text x="38" y="141" text-anchor="start">−30 min</text><text x="202" y="141" text-anchor="end">now</text></g>
+          <g id="graph-grid"></g><path class="history-line" id="history-path"/><g id="history-dots"></g>
+          <text class="graph-empty" id="graph-empty" x="120" y="166">Waiting for history</text></g>
+          <rect class="age-background" x="48" y="184" width="144" height="21" rx="10"/>
+          <text class="dial-age" id="age" x="120" y="198">No readings</text>
+          <text class="dial-status" id="dial-status" x="120" y="217">Waiting for device</text>
+          <text class="dial-ip" id="dial-ip" x="120" y="230">—</text>
+        </svg>
+        <div class="display-foot"><span><i class="live-dot"></i> <span id="view-scope">Last 30 minutes</span></span><button class="button quiet" type="button" id="refresh">Refresh viewer <span aria-hidden="true">↻</span></button></div>
+      </section>
+      <div class="side-column">
+        <section class="card summary-card"><p class="eyebrow">CURRENT READING</p><h2 id="reading-state">Waiting for data</h2><p class="muted" id="server-status" role="status">Connecting to your display…</p><div class="metrics"><div><span>Trend</span><strong id="trend-label">—</strong></div><div><span>Reading age</span><strong id="age-detail">—</strong></div><div><span>Reading time</span><strong id="reading-time">—</strong></div><div><span>Last request attempt</span><strong id="checked-age">—</strong></div></div></section>
+        <section class="card device-card"><div class="card-heading"><p class="eyebrow">YOUR DEVICE</p><span class="device-icon" aria-hidden="true">◉</span></div><dl class="device-info"><div><dt>Wi-Fi connection</dt><dd id="wifi">—</dd></div><div><dt>Wemos address</dt><dd id="device-ip">—</dd></div><div><dt>Firmware</dt><dd id="version">—</dd></div></dl><a class="settings-link" href="/settings">Configure device <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M5 15 15 5M5 5h10v10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></a></section>
+      </div>
+    </div>
+    <p class="network-notice" id="network-notice" role="status" hidden></p>
+    <footer class="page-footer"><span>Readings in mg/dL · Nightscout is checked every 30 seconds.</span><span id="viewer-status">Web viewer · automatic refresh</span></footer>
+  </main>
+</body>
+</html>

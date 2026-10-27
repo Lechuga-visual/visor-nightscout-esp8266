@@ -8,6 +8,8 @@ on:
       - 'tests/test_key_launchers.py'
       - 'tests/test_key_packages.py'
       - 'tools/package_key_tools.py'
+      - 'tools/localization.py'
+      - 'translations/**'
       - 'tests/key_export_windows.ps1'
       - '.github/workflows/key-tools.yml'
 permissions:
@@ -35,11 +37,17 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path key-screenshots | Out-Null
           ./tests/key_export_windows.ps1 -Tool "$PWD/tools/key-export/Obtener-clave-Nightscout.cmd" -Directory "$PWD/key-screenshots" -Screenshot
+      - name: Capture native English Windows forms
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path key-screenshots/en | Out-Null
+          ./tests/key_export_windows.ps1 -Tool "$PWD/tools/key-export/Get-Nightscout-Key.cmd" -Directory "$PWD/key-screenshots/en" -Screenshot
       - uses: actions/upload-artifact@v4
         if: runner.os == 'Windows'
         with:
           name: key-windows-screenshots
-          path: key-screenshots/*.png
+          path: key-screenshots/**/*.png
       - name: TLS verification and public-key output
         if: runner.os != 'macOS'
         run: python -m unittest discover -s tests -p test_key_launchers.py -v

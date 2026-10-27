@@ -1,5 +1,7 @@
 # Instalación paso a paso
 
+**Español** · [English](INSTALLATION.en.md)
+
 Esta guía sirve para **Wemos D1 mini con ESP8266 y 4 MB de memoria flash**, junto
 con una pantalla circular **GC9A01 SPI de 240 × 240 y siete pines**. No necesitas
 programar ni compilar el proyecto: usarás un archivo ya preparado.
@@ -88,9 +90,9 @@ de tus placas.
 ## 3. Cargar el programa por USB, solo la primera vez
 
 El **firmware** es el programa que ejecuta la placa. Se distribuye como un archivo
-con terminación `.bin`. La versión disponible es **0.7.1** para D1 mini ESP8266.
+con terminación `.bin`. La versión disponible es **0.8.0** para D1 mini ESP8266.
 
-1. Abre [nightscout-d1-mini-v0.7.1.bin](../firmware/nightscout-d1-mini-v0.7.1.bin)
+1. Abre [nightscout-d1-mini-v0.8.0.bin](../firmware/nightscout-d1-mini-v0.8.0.bin)
    en GitHub y pulsa **Download raw file** o el botón de descarga del archivo.
 2. Guarda el `.bin` en una carpeta fácil de encontrar. El ZIP del repositorio y
    los ZIP de las herramientas de claves **no son firmware**.
@@ -138,7 +140,7 @@ reemplazarlo por el puerto de tu placa.
 ```powershell
 py -m venv .venv-flasheo
 .\.venv-flasheo\Scripts\python.exe -m pip install esptool==4.8.1
-.\.venv-flasheo\Scripts\python.exe -m esptool --chip esp8266 --port COM3 --baud 115200 write_flash --flash_mode dio --flash_size 4MB 0x00000 nightscout-d1-mini-v0.7.1.bin
+.\.venv-flasheo\Scripts\python.exe -m esptool --chip esp8266 --port COM3 --baud 115200 write_flash --flash_mode dio --flash_size 4MB 0x00000 nightscout-d1-mini-v0.8.0.bin
 ```
 
 **Linux:**
@@ -146,7 +148,7 @@ py -m venv .venv-flasheo
 ```bash
 python3 -m venv .venv-flasheo
 .venv-flasheo/bin/python -m pip install esptool==4.8.1
-.venv-flasheo/bin/python -m esptool --chip esp8266 --port /dev/ttyUSB0 --baud 115200 write_flash --flash_mode dio --flash_size 4MB 0x00000 nightscout-d1-mini-v0.7.1.bin
+.venv-flasheo/bin/python -m esptool --chip esp8266 --port /dev/ttyUSB0 --baud 115200 write_flash --flash_mode dio --flash_size 4MB 0x00000 nightscout-d1-mini-v0.8.0.bin
 ```
 
 **macOS:** usa los mismos dos primeros comandos de Linux. Para localizar el
@@ -154,7 +156,7 @@ puerto, ejecuta `ls /dev/cu.*` antes y después de conectar la placa. Sustituye
 el puerto del siguiente ejemplo por el nuevo que aparezca:
 
 ```bash
-.venv-flasheo/bin/python -m esptool --chip esp8266 --port /dev/cu.usbserial-0001 --baud 115200 write_flash --flash_mode dio --flash_size 4MB 0x00000 nightscout-d1-mini-v0.7.1.bin
+.venv-flasheo/bin/python -m esptool --chip esp8266 --port /dev/cu.usbserial-0001 --baud 115200 write_flash --flash_mode dio --flash_size 4MB 0x00000 nightscout-d1-mini-v0.8.0.bin
 ```
 
 Los D1 mini habituales entran automáticamente en modo de carga. Si no aparece
@@ -187,6 +189,17 @@ Hay tres contraseñas distintas durante la instalación:
 | Para entrar a `glucosa-…` | La que aparece en la pantalla del dispositivo. |
 | Para conectar el Wemos a tu casa | La de tu Wi-Fi habitual. |
 | Para administrar el visor | Una nueva que eliges tú en el último paso del asistente. |
+
+### Elegir idioma
+
+En **Idioma / Language** puedes elegir **Español** o **English** y pulsar
+**Guardar idioma / Save language**. El cambio se guarda y se aplica a la pantalla
+física y a la web, sin reiniciar ni cambiar los otros ajustes guardados. Elige
+antes de completar el formulario: guardar idioma recarga la página y se pierden
+los campos que todavía no guardaste. Funciona también sin JavaScript.
+
+En equipos actualizados desde una versión anterior comienza en español. Elegir
+inglés no cambia mg/dL ni la zona horaria. Puedes volver a cambiarlo en Ajustes.
 
 ### Paso 1 del asistente: Tu Wi-Fi
 
@@ -253,6 +266,7 @@ y el estado; un número visible por sí solo no confirma una conexión actual.
 | Dónde | Qué puedes cambiar |
 | --- | --- |
 | Panel → Modo del visor | Gráfica de 30 minutos, flecha lateral o flecha debajo. Se aplica también a la pantalla física. |
+| Ajustes → Idioma / Language | Español o English para ambas interfaces, guardado al reiniciar. |
 | Ajustes → Nombre de la persona | Hasta 24 caracteres; vacío vuelve a mostrar NIGHTSCOUT. Los nombres largos se acortan en el visor. |
 | Ajustes → Apariencia | Menta, rojo, azul, rosado, celeste o colores personalizados con vista previa y validación de contraste. |
 | Ajustes → Brillo y horario nocturno | Intensidad de día/noche, horario y zona horaria; incluye prueba temporal. |

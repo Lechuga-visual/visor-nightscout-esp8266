@@ -1,8 +1,12 @@
 # Obtener la clave pública de tu Nightscout
 
+**Español** · [English](README.en.md)
+
 Estas herramientas piden **una URL**, verifican la identidad del sitio y guardan
 un archivo `.txt` con su clave pública. No necesitan el token, no consultan
 lecturas y no cambian el firmware ni los ajustes del Wemos.
+
+Existe también una [edición con ventanas y mensajes en inglés](README.en.md).
 
 ## Descargas
 

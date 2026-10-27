@@ -2,9 +2,21 @@
 """Deterministically embed offline web assets as gzip in ESP8266 flash."""
 import gzip
 import re
+try:
+    from tools.localization import translate, javascript, header
+except ModuleNotFoundError:
+    from localization import translate, javascript, header
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def english_assets():
+    result = {}
+    for name in ('index.html', 'app.js', 'appearance.js', 'setup.js', 'night.js', 'setup.html'):
+        source = (ROOT / 'web' / name).read_text()
+        result[name] = javascript(source) if name.endswith('.js') else translate(source)
+    return result
 
 
 def generate():
@@ -16,12 +28,23 @@ def generate():
         lines.append(f'const unsigned char {symbol}[] PROGMEM = {{')
         lines.extend('  ' + ', '.join(f'0x{b:02x}' for b in data[i:i+16]) + ',' for i in range(0,len(data),16))
         lines.append('};')
+    for name in ('index.html', 'app.js', 'appearance.js', 'setup.js', 'night.js'):
+        english = english_assets()[name]
+        data = gzip.compress(english.encode(), compresslevel=9, mtime=0)
+        symbol = 'en_' + name.replace('.', '_')
+        lines.append(f'const unsigned char {symbol}[] PROGMEM = {{')
+        lines.extend('  ' + ', '.join(f'0x{b:02x}' for b in data[i:i+16]) + ',' for i in range(0,len(data),16))
+        lines.append('};')
     template = (ROOT / 'web/setup.html').read_text()
     placeholders = re.findall(r'{{([a-z_]+)}}', template)
-    assert placeholders == ['back_link', 'context', 'ssid', 'server_fields', 'username', 'csrf']
+    assert placeholders == ['back_link', 'context', 'language_form', 'ssid', 'server_fields', 'username', 'csrf']
     for i, fragment in enumerate(re.split(r'{{[a-z_]+}}', template)):
         assert ')NSSETUP"' not in fragment
         lines.append(f'const char setup_html_{i}[] PROGMEM = R"NSSETUP({fragment})NSSETUP";')
+    english_template = translate(template)
+    for i, fragment in enumerate(re.split(r'{{[a-z_]+}}', english_template)):
+        assert ')NSSETUP"' not in fragment
+        lines.append(f'const char en_setup_html_{i}[] PROGMEM = R"NSSETUP({fragment})NSSETUP";')
     lines.append('}  // namespace web_assets')
     return '\n'.join(lines) + '\n'
 
@@ -30,4 +53,8 @@ if __name__ == '__main__':
     target = ROOT / 'include/generated/web_assets.h'
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(generate())
+    (ROOT / 'include/generated/ui_translations.h').write_text(header())
+    (ROOT / 'web/en').mkdir(exist_ok=True)
+    for name, content in english_assets().items():
+        (ROOT / 'web/en' / name).write_text(content)
     print('Embedded web assets:', target.relative_to(ROOT))

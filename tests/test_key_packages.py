@@ -2,6 +2,7 @@ import hashlib
 from pathlib import Path
 import unittest
 import zipfile
+from tools.localization import translate
 
 ROOT=Path(__file__).resolve().parents[1]
 TOOLS=ROOT/'tools/key-export'
@@ -25,3 +26,18 @@ class KeyPackageTests(unittest.TestCase):
             digest,name=line.split('  ')
             data=(TOOLS/name).read_bytes()
             self.assertEqual(hashlib.sha256(data).hexdigest(),digest)
+
+    def test_english_packages_share_sources_and_preserve_launch_permissions(self):
+        windows=translate((TOOLS/'Obtener-clave-Nightscout.cmd').read_text()).replace('\n','\r\n').encode()
+        unix=translate((TOOLS/'obtener-clave-nightscout.sh').read_text()).encode()
+        self.assertEqual((TOOLS/'Get-Nightscout-Key.cmd').read_text(),windows.decode().replace('\r\n','\n'))
+        self.assertEqual((TOOLS/'get-nightscout-key.sh').read_bytes(),unix)
+        self.assertEqual((TOOLS/'Get-Nightscout-Key.command').read_bytes(),unix)
+        with zipfile.ZipFile(TOOLS/'nightscout-key-windows-en.zip') as package:
+            self.assertIsNone(package.testzip())
+            self.assertEqual(package.read('Get-Nightscout-Key.cmd'),windows)
+        with zipfile.ZipFile(TOOLS/'nightscout-key-linux-macos-en.zip') as package:
+            self.assertIsNone(package.testzip())
+            for name in ['get-nightscout-key.sh','Get-Nightscout-Key.command']:
+                self.assertEqual(package.read(name),unix)
+                self.assertEqual((package.getinfo(name).external_attr>>16)&0o777,0o755)

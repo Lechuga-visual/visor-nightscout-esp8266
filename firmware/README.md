@@ -1,11 +1,13 @@
 # Firmware para Wemos D1 mini ESP8266
 
-**Versión 0.7.1** · **4 MB de flash** · pantalla **GC9A01 SPI 240 × 240**.
+**Español** · [English](README.en.md)
+
+**Versión 0.8.0** · **4 MB de flash** · pantalla **GC9A01 SPI 240 × 240**.
 Este archivo sirve para ese hardware y el cableado del proyecto; no es un binario ESP32.
 
 | Archivo | Uso |
 | --- | --- |
-| [nightscout-d1-mini-v0.7.1.bin](nightscout-d1-mini-v0.7.1.bin) | Programa listo para cargar. En GitHub pulsa **Download raw file**. |
+| [nightscout-d1-mini-v0.8.0.bin](nightscout-d1-mini-v0.8.0.bin) | Programa listo para cargar. En GitHub pulsa **Download raw file**. |
 | [SHA256SUMS](SHA256SUMS) | Sumas para comprobar la descarga. |
 | [build-info.json](build-info.json) | Placa, herramientas de compilación, memoria y validaciones del binario. |
 
@@ -27,12 +29,17 @@ configuración desde el teléfono y solución de problemas. El
 - Una actualización normal conserva los ajustes. Un borrado completo de flash
   los elimina. El proyecto no ofrece reversión automática de firmware.
 
-## Qué incluye 0.7.1
+## Qué incluye 0.8.0
 
-Visor físico y web, tres modos de lectura, gráfica de 30 minutos, nombre grande,
-cinco temas y colores personalizados, bienvenida con progreso real y asistente
-de configuración de tres pasos. Añade **Brillo y horario nocturno**, con intensidad
-de día/noche y una prueba de cinco segundos. El horario viene desactivado.
+Añade **Español / English** para pantalla y web en un solo binario. En el inicio
+o en Ajustes, elige el idioma y pulsa **Guardar idioma / Save language**. Se guarda
+sin cambiar Wi-Fi, token, apariencia, horario ni zona horaria. La página se recarga:
+elige antes de introducir otros datos que todavía no guardaste.
+
+Conserva las funciones anteriores: tres modos, gráfica de 30 minutos, nombre grande,
+cinco temas, colores personalizados, bienvenida y configuración guiada. El horario
+nocturno sigue disponible con intensidad de día/noche y prueba de cinco segundos;
+viene desactivado. Los equipos anteriores comienzan en español hasta cambiarlo.
 
 **Se atenúa el contenido; la luz de fondo mantiene su intensidad.** El módulo de
 siete pines no tiene entrada BL/BLK. El visor web mantiene su intensidad normal.
@@ -43,9 +50,7 @@ y las [herramientas con ventana](../tools/key-export/README.md).
 
 ## Identificación y comprobaciones
 
-- Tamaño del archivo: **710.464 bytes**.
-- SHA-256: `ad24cd0ffe530928a73e95510bee81aaec989356d8547a767d2fc9bffd2b389e`.
-- RAM estática de la compilación: **38.084 bytes**.
+- Tamaño, SHA-256 y memoria medidos: consulta `build-info.json` y `SHA256SUMS`.
 - Compilación y pruebas nativas/de navegador registradas en `build-info.json`;
   la validación completa de esta versión en hardware físico sigue pendiente.
 

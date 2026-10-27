@@ -3,6 +3,10 @@
 import hashlib
 from pathlib import Path
 import zipfile
+try:
+    from tools.localization import translate
+except ModuleNotFoundError:
+    from localization import translate
 
 ROOT=Path(__file__).resolve().parents[1]
 DIRECTORY=ROOT/'tools/key-export'
@@ -60,7 +64,31 @@ def build():
     command.write_bytes(unix);command.chmod(0o755)
     archive('clave-nightscout-windows.zip',[('Obtener-clave-Nightscout.cmd',windows,0o644),('LEEME.txt',WINDOWS_HELP.replace('\n','\r\n').encode(),0o644)])
     archive('clave-nightscout-linux-macos.zip',[('obtener-clave-nightscout.sh',unix,0o755),('Obtener-clave-Nightscout.command',unix,0o755),('LEEME.txt',UNIX_HELP.encode(),0o644)])
-    names=['obtener-clave-nightscout.sh','Obtener-clave-Nightscout.command','clave-nightscout-windows.zip','clave-nightscout-linux-macos.zip']
+    # English launchers share the exact verified TLS/export logic. Only fixed UI
+    # strings differ; passwords/tokens and trust policy are never translated.
+    english_windows = translate(windows.decode()).encode()
+    english_unix = translate(unix.decode()).encode()
+    (DIRECTORY/'Get-Nightscout-Key.cmd').write_bytes(english_windows)
+    for name in ['get-nightscout-key.sh','Get-Nightscout-Key.command']:
+        (DIRECTORY/name).write_bytes(english_unix); (DIRECTORY/name).chmod(0o755)
+    help_en = """NIGHTSCOUT PUBLIC KEY - ENGLISH
+
+Windows: extract the ZIP and double-click Get-Nightscout-Key.cmd.
+macOS: extract the ZIP and double-click Get-Nightscout-Key.command.
+Linux: run bash get-nightscout-key.sh from its folder.
+
+Enter only the HTTPS site URL, without a token or password.
+A verified public key is saved as a new TXT on your Desktop (home folder fallback).
+Copy all of it into Settings > HTTPS security > PEM on the Wemos.
+No Python cryptography install is needed. Windows uses built-in PowerShell;
+macOS uses system tools. Linux needs OpenSSL and optionally Zenity/KDialog/Tk.
+Untrusted, expired or wrong-host certificates are rejected. No files are overwritten.
+
+https://github.com/Lechuga-visual/visor-nightscout-esp8266/blob/main/tools/key-export/README.en.md
+"""
+    archive('nightscout-key-windows-en.zip',[('Get-Nightscout-Key.cmd',english_windows,0o644),('README.txt',help_en.replace('\n','\r\n').encode(),0o644)])
+    archive('nightscout-key-linux-macos-en.zip',[('get-nightscout-key.sh',english_unix,0o755),('Get-Nightscout-Key.command',english_unix,0o755),('README.txt',help_en.encode(),0o644)])
+    names=['get-nightscout-key.sh','Get-Nightscout-Key.command','nightscout-key-windows-en.zip','nightscout-key-linux-macos-en.zip','obtener-clave-nightscout.sh' ,'Obtener-clave-Nightscout.command','clave-nightscout-windows.zip','clave-nightscout-linux-macos.zip']
     (DIRECTORY/'SHA256SUMS').write_text(''.join(hashlib.sha256((DIRECTORY/name).read_bytes()).hexdigest()+'  '+name+'\n' for name in names))
 
 

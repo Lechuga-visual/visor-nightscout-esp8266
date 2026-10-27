@@ -1,5 +1,7 @@
 # Hoja de ruta
 
+**Español** · [English](ROADMAP.en.md)
+
 La meta es que una persona pueda armar o recibir el dispositivo, configurarlo
 sin conocimientos de programación y consultar su Nightscout de forma clara y
 confiable. Queremos evolucionar desde un visor local sencillo hacia un dispositivo
@@ -11,10 +13,10 @@ necesidades reales y las posibilidades de cada placa.
 
 ## Punto de partida: lo que ya existe
 
-El firmware **0.7.1** utiliza Wemos D1 mini **ESP8266** y pantalla GC9A01.
+El firmware **0.8.0** utiliza Wemos D1 mini **ESP8266** y pantalla GC9A01.
 Incluye visor físico y web, tres modos, gráfica de 30 minutos, nombre, temas y
 colores personalizados, configuración guiada, HTTPS, actualización por Wi-Fi y
-atenuación del contenido por horario. Las funciones y sus límites se describen
+atenuación del contenido por horario y selector Español / English. Las funciones y sus límites se describen
 en el [README](README.md#funcionalidades-actuales).
 
 La capacidad del ESP8266 condiciona el historial y las tareas simultáneas. El
@@ -25,7 +27,7 @@ sin presentar un cambio de placa como solución automática a todos los problema
 
 **Objetivo:** que instalar, recuperar y mantener el equipo sea predecible.
 
-- Completar la comprobación física de 0.7.1: primer arranque, guardado, pantalla,
+- Completar la comprobación física de 0.8.0: primer arranque, guardado, pantalla,
   horario nocturno y actualizaciones que conservan la configuración.
 - Hacer pruebas prolongadas con Wi-Fi débil, cortes de Internet, servidor sin
   lecturas, errores de autenticación y respuestas grandes o incompletas.
@@ -67,7 +69,7 @@ Estas mejoras se estudiarán después de medir la versión ESP32:
   de huecos o datos incompletos. Si se guarda de forma permanente, definir cuánto
   se conserva, cómo se borra y el efecto de las escrituras sobre la memoria.
 - Más opciones de lectura: unidades mmol/L, intervalos visuales configurables,
-  accesibilidad, idiomas y tamaños de letra.
+  accesibilidad, más idiomas y tamaños de letra. Español e inglés ya están disponibles.
 - **Brillo real de la luz de fondo**, mediante una pantalla con entrada BL/BLK
   y un circuito apropiado. Requiere otro cableado y comprobar sus requisitos
   eléctricos; el módulo actual de siete pines solo atenúa el contenido.

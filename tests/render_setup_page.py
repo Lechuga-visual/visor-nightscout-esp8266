@@ -23,10 +23,17 @@ harness = r'''
 #include "device_settings.h"
 #include "patient_label.h"
 #include "night_display.h"
+#include "device_language.h"
+#include "generated/ui_translations.h"
 #include <cstdio>
 #include "generated/web_assets.h"
 #define F(x) x
 #define FPSTR(x) x
+#define PSTR(x) x
+using __FlashStringHelper = char;
+device_language::Settings languageSettings;
+bool english() { return languageSettings.locale == device_language::Locale::English; }
+#define L(literal) ui_translation::text(literal, english())
 class String : public std::string {
 public:
   using std::string::string;
@@ -50,15 +57,18 @@ device_config::Settings settings{};
 patient_label::Label patient;
 String baseUrl("https://tu-nightscout.example"), csrf("fixture-csrf-only");
 '''
+harness += function('void appendLanguageControls(', 'String htmlEscape(')
 harness += function('String htmlEscape(', 'String urlEncode(')
 harness += function('void appendServerFields(', 'bool validPinnedKey(')
-harness += function('void configurationPage(', 'void saveConfiguration(')
-if len(sys.argv) > 1 and sys.argv[1] == 'night':
+harness += function('void configurationPage(', 'void saveLanguage(')
+if 'en' in sys.argv:
+    harness += 'struct EnglishFixture { EnglishFixture() { languageSettings.locale = device_language::Locale::English; } } englishFixture;\n'
+if 'night' in sys.argv:
     harness += 'night_display::Settings nightSettings; uint8_t screenIntensity = 100; int localMinute() { return 1350; }\n'
     harness += function('String minuteText(', 'void saveNightDisplay(')
     harness += r'''
 int main() {
-  std::cout << "<!doctype html><html lang='es'><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><link rel='stylesheet' href='/assets/ui.css'><script src='/assets/night.js' defer></script><main class='settings'>";
+  std::cout << (english() ? "<!doctype html><html lang='en'>" : "<!doctype html><html lang='es'>") << "<meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><link rel='stylesheet' href='/assets/ui.css'><script src='/assets/night.js' defer></script><main class='settings'>";
   String page;appendNightControls(page);std::cout << page << "</main></html>";
 }
 '''

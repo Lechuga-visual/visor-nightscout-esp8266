@@ -119,7 +119,7 @@ const html = execFileSync('python3', [path.join(root, 'tests/render_setup_page.p
       :route.fulfill({contentType:'text/html',body:html}));
     const plain=await fallback.newPage();await plain.goto('http://device.test/');
     assert.equal(await plain.locator('[data-step]:visible').count(),3);
-    assert.equal(await plain.locator('input[name=csrf]').inputValue(),'fixture-csrf-only');
+    assert.equal(await plain.locator('#setup-form input[name=csrf]').inputValue(),'fixture-csrf-only');
     await fallback.close();
     console.log('PASS: setup steps, validation, back/Enter, secret-safe review, CSRF payload, errors, duplicate-save guard, success, mobile/desktop, no-JS fallback');
   } finally { await browser.close(); }

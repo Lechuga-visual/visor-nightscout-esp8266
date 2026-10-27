@@ -71,14 +71,16 @@ class KeyLauncherTests(unittest.TestCase):
 
     def run_tool(self, platform, url, output, trust=None):
         env=os.environ.copy()
+        shell=ROOT/'tools/key-export/get-nightscout-key.sh' if getattr(self,'english_tool',False) else SHELL
+        windows=ROOT/'tools/key-export/Get-Nightscout-Key.cmd' if getattr(self,'english_tool',False) else WINDOWS
         if platform == 'shell':
             if trust: env['SSL_CERT_FILE']=str(trust)
             else: env.pop('SSL_CERT_FILE',None)
-            command=['bash',str(SHELL),'--url',url,'--output-dir',str(output),'--headless','--no-open']
+            command=['bash',str(shell),'--url',url,'--output-dir',str(output),'--headless','--no-open']
             if trust:command+=['--ca-file',str(trust)]
         else:
             command=[PWSH,'-NoLogo','-NoProfile','-File',str(ROOT/'tests/key_export_windows.ps1'),
-                     '-Tool',str(WINDOWS),'-Url',url,'-Directory',str(output)]
+                     '-Tool',str(windows),'-Url',url,'-Directory',str(output)]
             if trust:
                 if os.name == 'nt':command+=['-TrustCertificate',str(trust)]
                 else:env['SSL_CERT_FILE']=str(trust)
@@ -137,4 +139,16 @@ class KeyLauncherTests(unittest.TestCase):
     def test_windows_export_and_rejection(self):
         if os.name == 'nt' and os.environ.get('GITHUB_ACTIONS') != 'true':
             self.skipTest('Windows OS-trust fixtures run only in disposable CI runners')
+        self.exercise('windows')
+
+    @unittest.skipIf(os.name=='nt' or not shutil.which('openssl'),'Unix shell and OpenSSL required')
+    def test_english_shell_export_and_rejection(self):
+        self.english_tool=True
+        self.exercise('shell')
+
+    @unittest.skipUnless(PWSH and __import__('sys').platform != 'darwin','PowerShell on Windows/Linux required')
+    def test_english_windows_export_and_rejection(self):
+        if os.name == 'nt' and os.environ.get('GITHUB_ACTIONS') != 'true':
+            self.skipTest('Windows OS-trust fixtures run only in disposable CI runners')
+        self.english_tool=True
         self.exercise('windows')

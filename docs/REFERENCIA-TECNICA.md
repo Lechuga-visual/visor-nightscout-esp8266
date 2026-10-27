@@ -1,5 +1,7 @@
 # Referencia técnica
 
+**Español** · [English](TECHNICAL.en.md)
+
 Para montar y usar el dispositivo, comienza por la [guía de instalación](INSTALACION.md).
 Este documento reúne los detalles de compilación, memoria, HTTPS, diagnóstico y
 pruebas. El [historial](HISTORIAL.md) conserva las notas de las versiones anteriores.
@@ -386,3 +388,32 @@ transiciones de verano/invierno de Santiago y Madrid, intensidad del 100 % sin
 cambiar ningún color RGB565 y restauración de la prueba al desbordarse millis().
 El navegador verifica el formulario C++ real, controles, validaciones, payload
 CSRF, errores y desconexión, bloqueo de doble prueba y guardado nativo.
+
+## Idiomas desde 0.8.0
+
+Un único firmware incluye Español / English. El selector del inicio y Ajustes
+guarda una extensión etiquetada de ocho bytes desde el offset 3872, después del
+horario nocturno. Datos borrados o inválidos recuperan español; ningún offset
+anterior cambia. POST `/language` exige autenticación fuera del modo temporal y
+el nonce CSRF vigente en ambos modos; guarda solo esa extensión. Las unidades,
+zona horaria y datos del servidor se conservan.
+
+`translations/en.json` mantiene los textos; `tools/localization.py` los aplica
+solo a literales y plantillas durante la generación. No se traduce contenido de
+usuarios en tiempo de ejecución. Los estados internos siguen siendo canónicos,
+y solo sus copias visibles y etiquetas humanas se traducen. Claves JSON y códigos
+de diagnóstico no cambian; `/api/state` añade `language` y el visor detecta cambios
+de idioma en otras pestañas. Las páginas de ajustes deben recargarse manualmente.
+
+`web/en/` y `include/generated/ui_translations.h` son generados. Ejecuta
+`python3 tools/embed_web_assets.py` para regenerar recursos y textos en flash;
+`python3 tools/package_key_tools.py` genera además los lanzadores y ZIP en inglés.
+No edites esas copias directamente. El selector funciona sin JavaScript y recarga
+la página; no conserva entradas de otros formularios que aún no se guardaron.
+
+Las pruebas nuevas cubren almacenamiento, permisos, CSRF, recuperación al fallar
+el guardado y las dos interfaces en móvil/escritorio:
+
+```bash
+CHROMIUM_PATH=/usr/bin/chromium node tests/test_language_views.js
+```

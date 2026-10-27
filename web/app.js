@@ -146,6 +146,7 @@
       const response = await fetch('/api/state',{cache:'no-store',credentials:'same-origin',signal:controller.signal});
       if (!response.ok) throw new Error(response.status === 401 ? 'Vuelve a iniciar sesión en el Wemos.' : 'El Wemos no pudo entregar su estado.');
       const data = await response.json();
+      if (data.language && data.language !== document.documentElement.lang) { location.reload(); return; }
       if (typeof data.available !== 'boolean') throw new Error('Recarga la página después de actualizar el firmware.');
       snapshot = data; receivedAt = performance.now(); browserOnline = true;
       $('network-notice').hidden = true;

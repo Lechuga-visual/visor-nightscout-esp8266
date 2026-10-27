@@ -23,6 +23,8 @@
 #include "view_appearance.h"
 #include "startup_view.h"
 #include "night_display.h"
+#include "device_language.h"
+#include "generated/ui_translations.h"
 #include "generated/web_assets.h"
 
 #if __has_include("nightscout_config.h")
@@ -32,7 +34,7 @@
 #endif
 
 namespace {
-constexpr char VERSION[] = "0.7.1";
+constexpr char VERSION[] = "0.8.0";
 constexpr uint32_t POLL_MS = 30000;
 TFT_eSPI display;
 ESP8266WebServer web(80);
@@ -100,6 +102,41 @@ night_display::Settings nightSettings;
 night_display::Preview nightPreview;
 uint8_t screenIntensity = 100;
 void renderWelcome();
+device_language::Settings languageSettings;
+bool english() { return languageSettings.locale == device_language::Locale::English; }
+#define L(literal) FPSTR(ui_translation::text(PSTR(literal), english()))
+
+String visibleStatus(const String& value) {
+  if (!english()) return value;
+  if (value.startsWith("Revisa token (")) return String(F("Check token (")) + value.substring(14);
+  return String(FPSTR(ui_translation::text(value.c_str(), true)));
+}
+
+void appendLanguageControls(String& page) {
+  page += L("<form id='language-form' class='card' method='post' action='/language'>"
+            "<label>Idioma / Language<select name='language'>");
+  page += english() ? F("<option value='es'>Español</option><option value='en' selected>English</option>")
+                    : F("<option value='es' selected>Español</option><option value='en'>English</option>");
+  page += F("</select></label><input type='hidden' name='csrf' value='");
+  page += csrf;
+  page += L("'><button>Guardar idioma / Save language</button>"
+            "<p>Elige el idioma antes de completar los demás campos. Se aplica a la pantalla y a la web, sin cambiar tus otros ajustes.</p></form>");
+}
+
+const __FlashStringHelper* setupPart(unsigned part) {
+  switch (part) {
+    case 0: return FPSTR(english() ? web_assets::en_setup_html_0 : web_assets::setup_html_0);
+    case 1: return FPSTR(english() ? web_assets::en_setup_html_1 : web_assets::setup_html_1);
+    case 2: return FPSTR(english() ? web_assets::en_setup_html_2 : web_assets::setup_html_2);
+    case 3: return FPSTR(english() ? web_assets::en_setup_html_3 : web_assets::setup_html_3);
+    case 4: return FPSTR(english() ? web_assets::en_setup_html_4 : web_assets::setup_html_4);
+    case 5: return FPSTR(english() ? web_assets::en_setup_html_5 : web_assets::setup_html_5);
+    case 6: return FPSTR(english() ? web_assets::en_setup_html_6 : web_assets::setup_html_6);
+    case 7: return FPSTR(english() ? web_assets::en_setup_html_7 : web_assets::setup_html_7);
+  }
+  return F("");
+}
+
 
 String htmlEscape(String value) {
   value.replace("&", "&amp;");
@@ -150,7 +187,7 @@ bool authenticated(bool interactive = true) {
   if (interactive) { webRecentlyUsed = true; lastWebActivity = millis(); }
   web.sendHeader("Cache-Control", "no-store");
   if (!webEnabled) {
-    web.send(503, "text/plain; charset=utf-8", F("Completa primero la configuracion inicial."));
+    web.send(503, "text/plain; charset=utf-8", L("Completa primero la configuracion inicial."));
     return false;
   }
   if (!web.authenticate(settings.webUsername, settings.webPassword)) {
@@ -169,12 +206,12 @@ bool currentForm() {
   // silently resubmitting old settings or removing CSRF protection.
   web.sendHeader("Cache-Control", "no-store, max-age=0");
   web.send_P(403, PSTR("text/html; charset=utf-8"),
-           PSTR("<meta name='viewport' content='width=device-width,initial-scale=1'>"
+           reinterpret_cast<const char*>(L("<meta name='viewport' content='width=device-width,initial-scale=1'>"
            "<h1>Recarga el formulario</h1><p>Esta página ya no corresponde a la sesión del Wemos. "
            "Puede haber ocurrido un reinicio o una actualización mientras estaba abierta. "
            "La solicitud fue rechazada antes de validar el certificado o la clave y no cambió la configuración.</p>"
            "<p><a href='/'>Abrir página actualizada</a></p>"
-           "<p>En Ajustes, vuelve a pegar la clave pública y pulsa Guardar servidor. No uses Atrás para recuperar el formulario.</p>"));
+           "<p>En Ajustes, vuelve a pegar la clave pública y pulsa Guardar servidor. No uses Atrás para recuperar el formulario.</p>")));
   return false;
 }
 
@@ -188,7 +225,7 @@ bool startNtp() {
 }
 
 void appendClockControls(String& page) {
-  page += F("<section><h2>Hora del dispositivo</h2><p>");
+  page += L("<section><h2>Hora del dispositivo</h2><p>");
   const time_t now = time(nullptr);
   if (device_clock::plausible(now)) {
     struct tm utc;
@@ -197,35 +234,35 @@ void appendClockControls(String& page) {
     strftime(formatted, sizeof(formatted), "%Y-%m-%d %H:%M:%S UTC", &utc);
     page += formatted;
     page += clockSource == ClockSource::Ntp ? F(" · NTP") :
-            clockSource == ClockSource::Browser ? F(" · hora del navegador") :
-            clockSource == ClockSource::Server ? F(" · hora del servidor HTTPS") : F(" · reloj disponible");
+            clockSource == ClockSource::Browser ? L(" · hora del navegador") :
+            clockSource == ClockSource::Server ? L(" · hora del servidor HTTPS") : L(" · reloj disponible");
   } else page += device_config::pinnedPublicKey(settings.customCa)
-                    ? F("Sin hora. La clave pública fija permite consultar HTTPS igualmente.")
-                    : F("Hora sin sincronizar. HTTPS con certificados CA espera una hora válida.");
-  page += F("</p><p>Intentos NTP: ");
+                    ? L("Sin hora. La clave pública fija permite consultar HTTPS igualmente.")
+                    : L("Hora sin sincronizar. HTTPS con certificados CA espera una hora válida.");
+  page += L("</p><p>Intentos NTP: ");
   page += String(ntpAttempts);
-  page += F(". Servidores: pool.ntp.org, time.google.com y time.cloudflare.com (UDP 123).</p>"
+  page += L(". Servidores: pool.ntp.org, time.google.com y time.cloudflare.com (UDP 123).</p>"
             "<form method='post' action='/clock/retry'><input type='hidden' name='csrf' value='");
   page += csrf;
-  page += F("'><button>Reintentar NTP</button></form>"
+  page += L("'><button>Reintentar NTP</button></form>"
             "<p>Si NTP no responde, comprueba que la fecha y hora de este teléfono o computador "
             "sean correctas y usa su reloj. Se mantienen las verificaciones HTTPS.</p>"
             "<form method='post' action='/clock/browser' onsubmit=\"document.getElementById('browser-epoch').value="
             "Math.floor(Date.now()/1000)\"><input type='hidden' id='browser-epoch' name='epoch'>"
             "<input type='hidden' name='csrf' value='");
   page += csrf;
-  page += F("'><button>Usar hora de este teléfono/PC</button></form>"
+  page += L("'><button>Usar hora de este teléfono/PC</button></form>"
             "<p>Esta hora dura hasta el próximo reinicio.</p>");
   page += device_config::pinnedPublicKey(settings.customCa)
-              ? F("<p>En modo clave fija no se inicia NTP automáticamente. Se toma la hora de la respuesta HTTPS autenticada del servidor.</p></section>")
-              : F("<p>NTP sigue intentando sincronizar en segundo plano.</p></section>");
+              ? L("<p>En modo clave fija no se inicia NTP automáticamente. Se toma la hora de la respuesta HTTPS autenticada del servidor.</p></section>")
+              : L("<p>NTP sigue intentando sincronizar en segundo plano.</p></section>");
 }
 
 bool clockRequestAllowed() {
   if (!authenticated()) return false;
   if (!currentForm()) return false;
   if (setupMode || WiFi.status() != WL_CONNECTED) {
-    web.send(409, "text/plain", F("Conecta primero el Wemos a tu Wi-Fi."));
+    web.send(409, "text/plain", L("Conecta primero el Wemos a tu Wi-Fi."));
     return false;
   }
   return true;
@@ -244,13 +281,13 @@ void useBrowserClock() {
   int64_t epoch = 0;
   if (!device_clock::parseBrowserTime(web.arg("epoch").c_str(), epoch) ||
       epoch > static_cast<int64_t>(std::numeric_limits<time_t>::max())) {
-    web.send(400, "text/plain; charset=utf-8", F("Hora no válida. Comprueba la fecha y hora del teléfono/PC."));
+    web.send(400, "text/plain; charset=utf-8", L("Hora no válida. Comprueba la fecha y hora del teléfono/PC."));
     return;
   }
   struct timeval value{};
   value.tv_sec = static_cast<time_t>(epoch);
   if (settimeofday(&value, nullptr) != 0) {
-    web.send(500, "text/plain", F("No se pudo ajustar el reloj."));
+    web.send(500, "text/plain", L("No se pudo ajustar el reloj."));
     return;
   }
   clockSource = ClockSource::Browser;
@@ -258,39 +295,39 @@ void useBrowserClock() {
   lastFrame = "";
   message = F("Hora del navegador");
   web.send(200, "text/html; charset=utf-8",
-           F("<meta name='viewport' content='width=device-width,initial-scale=1'>"
+           L("<meta name='viewport' content='width=device-width,initial-scale=1'>"
            "<h1>Hora ajustada</h1><p>El reloj del Wemos recibió la hora del navegador. "
            "La consulta al servidor se reanudará en unos segundos.</p><p><a href='/'>Volver</a></p>"));
 }
 
 void appendServerFields(String& page) {
-  page += F("<label>Nombre de la persona (opcional)"
+  page += L("<label>Nombre de la persona (opcional)"
             "<input name='patient_name' maxlength='24' autocomplete='off' value='");
   page += htmlEscape(patient.name);
-  page += F("'></label><p>Hasta 24 caracteres. Aparece arriba en la pantalla y en el visor web. "
+  page += L("'></label><p>Hasta 24 caracteres. Aparece arriba en la pantalla y en el visor web. "
             "Vacío muestra NIGHTSCOUT. La pantalla adapta las tildes a su fuente.</p>"
             "<label>URL base de Nightscout"
             "<input name='url' type='url' maxlength='200' required value='");
   page += htmlEscape(baseUrl);
-  page += F("'></label><p>Solo la URL, sin /api/v1 ni API secret.</p>"
+  page += L("'></label><p>Solo la URL, sin /api/v1 ni API secret.</p>"
             "<label>Token Nightscout de solo lectura (opcional)"
             "<input name='token' type='password' maxlength='256' autocomplete='off'></label>");
-  page += settings.token[0] ? F("<p>Hay un token guardado; dejar vacío lo conserva para el mismo servidor.</p>")
-                            : F("<p>Sin token guardado. Solo hace falta si tu Nightscout exige autenticación.</p>");
-  page += F("<label><input name='clear_token' type='checkbox' value='1' style='width:auto'>"
+  page += settings.token[0] ? L("<p>Hay un token guardado; dejar vacío lo conserva para el mismo servidor.</p>")
+                            : L("<p>Sin token guardado. Solo hace falta si tu Nightscout exige autenticación.</p>");
+  page += L("<label><input name='clear_token' type='checkbox' value='1' style='width:auto'>"
             " Borrar token guardado</label><p>El token solo se envía por HTTPS. "
             "Al cambiar de servidor se borra el anterior; introduce el token del nuevo servidor.</p>"
             "<details><summary>Seguridad HTTPS y opción sin NTP</summary><p>El firmware incluye ");
   page += String(PublicCaStore::rootCount());
-  page += F(" autoridades de confianza. Para servidores públicos normalmente no necesitas pegar un certificado.</p>"
+  page += L(" autoridades de confianza. Para servidores públicos normalmente no necesitas pegar un certificado.</p>"
             "<label>CA privada o clave pública fija del servidor (PEM, opcional)"
             "<textarea name='custom_ca' maxlength='3072' rows='6' style='width:100%;box-sizing:border-box' "
             "placeholder='-----BEGIN CERTIFICATE-----'></textarea></label>");
   if (device_config::pinnedPublicKey(settings.customCa))
-    page += F("<p>Modo actual: clave pública fija, sin requerir NTP. Dejar vacío la conserva para el mismo servidor.</p>");
-  else page += settings.customCa[0] ? F("<p>Hay una CA privada guardada. Dejar vacío la conserva para el mismo servidor.</p>")
-                                  : F("<p>Se utilizarán los certificados públicos incluidos.</p>");
-  page += F("<label><input name='clear_ca' type='checkbox' value='1' style='width:auto'>"
+    page += L("<p>Modo actual: clave pública fija, sin requerir NTP. Dejar vacío la conserva para el mismo servidor.</p>");
+  else page += settings.customCa[0] ? L("<p>Hay una CA privada guardada. Dejar vacío la conserva para el mismo servidor.</p>")
+                                  : L("<p>Se utilizarán los certificados públicos incluidos.</p>");
+  page += L("<label><input name='clear_ca' type='checkbox' value='1' style='width:auto'>"
             " Borrar CA o clave fija y usar certificados públicos</label>"
             "<p>Para consultar sin NTP, pega la clave pública verificada del servidor, con "
             "BEGIN PUBLIC KEY, obtenida desde un PC con tools/export_server_key.py. "
@@ -337,7 +374,7 @@ bool patientFields(patient_label::Label& label) {
   String name = web.arg("patient_name");
   name.trim();
   if (!patient_label::validName(name.c_str())) {
-    web.send(400, "text/plain; charset=utf-8", F("Nombre inválido: usa hasta 24 caracteres, sin saltos de línea ni controles."));
+    web.send(400, "text/plain; charset=utf-8", L("Nombre inválido: usa hasta 24 caracteres, sin saltos de línea ni controles."));
     return false;
   }
   memset(label.name, 0, sizeof(label.name));
@@ -389,41 +426,41 @@ String minuteText(uint16_t minute) {
 }
 
 void appendNightControls(String& page) {
-  page += F("<form id='night-display-form' class='card' method='post' action='/night-display'>"
+  page += L("<form id='night-display-form' class='card' method='post' action='/night-display'>"
             "<h2>Brillo y horario nocturno</h2><p>Reduce la intensidad de los colores de la pantalla física. "
             "La luz de fondo sigue encendida con la misma intensidad; este módulo no tiene pin BL/BLK.</p>"
             "<input type='hidden' name='csrf' value='");
   page += csrf;
   page += F("'><label><input type='checkbox' name='enabled' value='1'");
   if (nightSettings.enabled) page += F(" checked");
-  page += F("> Activar horario nocturno</label><div class='night-times'><label>Desde"
+  page += L("> Activar horario nocturno</label><div class='night-times'><label>Desde"
             "<input type='time' name='start' required value='");
   page += minuteText(nightSettings.start);
-  page += F("'></label><label>Hasta<input type='time' name='end' required value='");
+  page += L("'></label><label>Hasta<input type='time' name='end' required value='");
   page += minuteText(nightSettings.end);
-  page += F("'></label></div><label>Zona horaria<select name='zone'>");
+  page += L("'></label></div><label>Zona horaria<select name='zone'>");
   for (unsigned i = 0; i < 8; ++i) {
     page += F("<option value='"); page += String(i);
     page += i == nightSettings.zone ? F("' selected>") : F("'>");
     page += FPSTR(night_display::timezoneName(i)); page += F("</option>");
   }
-  page += F("</select></label><label>Intensidad de día <output id='night-day-value'>");
+  page += L("</select></label><label>Intensidad de día <output id='night-day-value'>");
   page += String(nightSettings.day);
   page += F(" %</output><input type='range' name='day' min='10' max='100' step='1' value='");
   page += String(nightSettings.day);
-  page += F("'></label><label>Intensidad de noche <output id='night-level-value'>");
+  page += L("'></label><label>Intensidad de noche <output id='night-level-value'>");
   page += String(nightSettings.night);
   page += F(" %</output><input type='range' name='night' min='10' max='100' step='1' value='");
   page += String(nightSettings.night);
-  page += F("'></label><p>El horario puede cruzar medianoche. Sin una hora válida se usa la intensidad de día. "
+  page += L("'></label><p>El horario puede cruzar medianoche. Sin una hora válida se usa la intensidad de día. "
             "Santiago y Madrid ajustan automáticamente el horario de verano. Con el horario desactivado se usa la intensidad de día.</p><p class='notice'>Horario guardado: ");
   const int minute = localMinute();
   if (minute >= 0) {
     page += minuteText(minute); page += F(" · ");
-    page += night_display::nightAt(nightSettings, minute, true) ? F("horario de noche") : F("horario de día");
-  } else page += F("sin hora sincronizada · intensidad de día");
+    page += night_display::nightAt(nightSettings, minute, true) ? L("horario de noche") : L("horario de día");
+  } else page += L("sin hora sincronizada · intensidad de día");
   page += F(" · "); page += String(screenIntensity);
-  page += F(" %</p><p id='night-feedback' role='status' aria-live='polite'></p>"
+  page += L(" %</p><p id='night-feedback' role='status' aria-live='polite'></p>"
             "<div class='actions'><button type='submit' name='preview' value='1' class='secondary' id='night-preview'>"
             "Probar noche durante 5 segundos</button><button id='night-save' type='submit'>Guardar horario</button></div>"
             "<p>La prueba no guarda ajustes y se restaura sola. El visor web mantiene su intensidad habitual. "
@@ -438,22 +475,22 @@ void saveNightDisplay() {
   if ((web.hasArg("enabled") && web.arg("enabled") != "1") ||
       !night_display::update(start.c_str(), end.c_str(), day.c_str(), night.c_str(), zone.c_str(),
                              web.arg("enabled") == "1", candidate)) {
-    web.send(400, "text/plain; charset=utf-8", F("Revisa los horarios (deben ser distintos), la zona y las intensidades entre 10 y 100 %.")); return;
+    web.send(400, "text/plain; charset=utf-8", L("Revisa los horarios (deben ser distintos), la zona y las intensidades entre 10 y 100 %.")); return;
   }
   if (web.hasArg("preview")) {
-    if (web.arg("preview") != "1") { web.send(400, "text/plain", F("Prueba inválida.")); return; }
+    if (web.arg("preview") != "1") { web.send(400, "text/plain", L("Prueba inválida.")); return; }
     nightPreview.start(candidate.night, millis());
     updateScreenIntensity(); lastFrame = "";
     if (web.arg("quick") == "1") web.send(200, "application/json", F("{\"ok\":true,\"seconds\":5}"));
     else { web.sendHeader("Location", "/settings?night=preview#night-display-form"); web.send(303); }
     return;
   }
-  if (!storageReady) { web.send(503, "text/plain", F("No se puede guardar el horario.")); return; }
+  if (!storageReady) { web.send(503, "text/plain", L("No se puede guardar el horario.")); return; }
   if (memcmp(&candidate, &nightSettings, sizeof(candidate))) {
     EEPROM.put(night_display::OFFSET, candidate);
     if (!EEPROM.commit()) {
       EEPROM.put(night_display::OFFSET, nightSettings);
-      web.send(500, "text/plain", F("No se pudo guardar el horario.")); return;
+      web.send(500, "text/plain", L("No se pudo guardar el horario.")); return;
     }
     nightSettings = candidate;
   }
@@ -464,25 +501,25 @@ void saveNightDisplay() {
 }
 
 void appendAppearanceControls(String& page) {
-  page += F("<form id='appearance-form' class='card' method='post' action='/appearance'>"
+  page += L("<form id='appearance-form' class='card' method='post' action='/appearance'>"
             "<h2>Apariencia</h2><input type='hidden' name='csrf' value='");
   page += csrf;
-  page += F("'><label>Modo del visor<select name='mode'>");
-  appearanceOption(page, 0, static_cast<unsigned>(appearance.mode), F("Con gráfica · 30 minutos"));
-  appearanceOption(page, 1, static_cast<unsigned>(appearance.mode), F("Número grande · flecha lateral"));
-  appearanceOption(page, 2, static_cast<unsigned>(appearance.mode), F("Número centrado · flecha debajo"));
-  page += F("</select></label><label>Tema de colores<select name='theme'>");
-  appearanceOption(page, 0, static_cast<unsigned>(appearance.theme), F("Menta"));
-  appearanceOption(page, 1, static_cast<unsigned>(appearance.theme), F("Rojo"));
-  appearanceOption(page, 2, static_cast<unsigned>(appearance.theme), F("Azul"));
-  appearanceOption(page, 3, static_cast<unsigned>(appearance.theme), F("Rosado"));
-  appearanceOption(page, 4, static_cast<unsigned>(appearance.theme), F("Celeste"));
-  appearanceOption(page, 5, static_cast<unsigned>(appearance.theme), F("Personalizado"));
+  page += L("'><label>Modo del visor<select name='mode'>");
+  appearanceOption(page, 0, static_cast<unsigned>(appearance.mode), L("Con gráfica · 30 minutos"));
+  appearanceOption(page, 1, static_cast<unsigned>(appearance.mode), L("Número grande · flecha lateral"));
+  appearanceOption(page, 2, static_cast<unsigned>(appearance.mode), L("Número centrado · flecha debajo"));
+  page += L("</select></label><label>Tema de colores<select name='theme'>");
+  appearanceOption(page, 0, static_cast<unsigned>(appearance.theme), L("Menta"));
+  appearanceOption(page, 1, static_cast<unsigned>(appearance.theme), L("Rojo"));
+  appearanceOption(page, 2, static_cast<unsigned>(appearance.theme), L("Azul"));
+  appearanceOption(page, 3, static_cast<unsigned>(appearance.theme), L("Rosado"));
+  appearanceOption(page, 4, static_cast<unsigned>(appearance.theme), L("Celeste"));
+  appearanceOption(page, 5, static_cast<unsigned>(appearance.theme), L("Personalizado"));
   page += F("</select></label><div class='color-fields'>");
-  appearanceColor(page, F("accent"), F("Acento y flecha"), appearance.accent);
-  appearanceColor(page, F("background"), F("Fondo del visor"), appearance.background);
-  appearanceColor(page, F("number"), F("Número"), appearance.number);
-  page += F("</div><p>Los colores elegidos se usan en Personalizado. Los avisos de lectura baja, alta o antigua mantienen texto y colores propios.</p>"
+  appearanceColor(page, F("accent"), L("Acento y flecha"), appearance.accent);
+  appearanceColor(page, F("background"), L("Fondo del visor"), appearance.background);
+  appearanceColor(page, F("number"), L("Número"), appearance.number);
+  page += L("</div><p>Los colores elegidos se usan en Personalizado. Los avisos de lectura baja, alta o antigua mantienen texto y colores propios.</p>"
             "<div id='appearance-preview' class='appearance-preview' aria-label='Vista previa de colores'>"
             "<span>Vista previa · datos de ejemplo</span><strong>142 <svg viewBox='0 0 40 40' aria-hidden='true'><path d='M7 33 33 7M10 7H33V30'/></svg></strong><small>mg/dL</small></div>"
             "<p id='contrast-feedback' role='status'></p><button id='save-appearance'>Guardar apariencia</button> "
@@ -499,17 +536,17 @@ void saveAppearance() {
   if (!view_appearance::update(appearance, web.hasArg("mode") ? mode.c_str() : nullptr,
       web.hasArg("theme") ? theme.c_str() : nullptr, web.hasArg("accent") ? accent.c_str() : nullptr,
       web.hasArg("background") ? background.c_str() : nullptr, web.hasArg("number") ? number.c_str() : nullptr, candidate)) {
-    web.send(400, "text/plain; charset=utf-8", F("Revisa el modo y los colores. Elige un fondo oscuro y colores con más contraste para mantener legibles la lectura y los avisos."));
+    web.send(400, "text/plain; charset=utf-8", L("Revisa el modo y los colores. Elige un fondo oscuro y colores con más contraste para mantener legibles la lectura y los avisos."));
     return;
   }
-  if (!storageReady) { web.send(503, "text/plain", F("No se puede guardar la apariencia.")); return; }
+  if (!storageReady) { web.send(503, "text/plain", L("No se puede guardar la apariencia.")); return; }
   const bool changed = candidate.mode != appearance.mode || candidate.theme != appearance.theme ||
                        candidate.accent != appearance.accent || candidate.background != appearance.background || candidate.number != appearance.number;
   if (changed) {
     EEPROM.put(view_appearance::OFFSET, candidate);
     if (!EEPROM.commit()) {
       EEPROM.put(view_appearance::OFFSET, appearance);
-      web.send(500, "text/plain", F("No se pudo guardar la apariencia.")); return;
+      web.send(500, "text/plain", L("No se pudo guardar la apariencia.")); return;
     }
     appearance = candidate;
     lastFrame = "";
@@ -521,20 +558,44 @@ void saveAppearance() {
 void configurationPage() {
   if (!setupMode && !authenticated()) return;
   web.sendHeader("Cache-Control", "no-store");
-  String page = FPSTR(web_assets::setup_html_0);
-  if (!setupMode) page += F("<a class='back' href='/'>← Volver al panel</a>");
-  page += FPSTR(web_assets::setup_html_1);
-  page += setupMode ? F("PRIMER INICIO") : F("CAMBIAR CONEXIÓN");
-  page += FPSTR(web_assets::setup_html_2);
+  String page = setupPart(0);
+  if (!setupMode) page += L("<a class='back' href='/'>← Volver al panel</a>");
+  page += setupPart(1);
+  page += setupMode ? L("PRIMER INICIO") : L("CAMBIAR CONEXIÓN");
+  page += setupPart(2);
+  appendLanguageControls(page);
+  page += setupPart(3);
   page += htmlEscape(settings.ssid);
-  page += FPSTR(web_assets::setup_html_3);
+  page += setupPart(4);
   appendServerFields(page);
-  page += FPSTR(web_assets::setup_html_4);
+  page += setupPart(5);
   page += htmlEscape(settings.webUsername);
-  page += FPSTR(web_assets::setup_html_5);
+  page += setupPart(6);
   page += csrf;
-  page += FPSTR(web_assets::setup_html_6);
+  page += setupPart(7);
   web.send(200, "text/html; charset=utf-8", page);
+}
+
+void saveLanguage() {
+  if (!setupMode && !authenticated()) return;
+  if (!currentForm()) return;
+  device_language::Settings candidate;
+  if (!device_language::parse(web.arg("language").c_str(), candidate)) {
+    web.send(400, "text/plain; charset=utf-8", L("Idioma inválido. Elige Español o English.")); return;
+  }
+  if (!storageReady) { web.send(503, "text/plain", L("No se puede guardar el idioma.")); return; }
+  if (memcmp(&candidate, &languageSettings, sizeof(candidate))) {
+    EEPROM.put(device_language::OFFSET, candidate);
+    if (!EEPROM.commit()) {
+      EEPROM.put(device_language::OFFSET, languageSettings);
+      web.send(500, "text/plain", L("No se pudo guardar el idioma.")); return;
+    }
+    languageSettings = candidate;
+    lastFrame = "";
+  }
+  web.sendHeader("Cache-Control", "no-store");
+  web.sendHeader("Location", setupMode ? "/" : "/settings");
+  web.send(303);
 }
 
 void saveConfiguration() {
@@ -551,14 +612,14 @@ void saveConfiguration() {
   const String password = web.arg("web_password");
   if (!validUrl(url) || ssid.length() > 32 || wifiPassword.length() > 64 ||
       username.length() > 32 || password.length() > 64) {
-    web.send(400, "text/plain; charset=utf-8", F("Revisa la URL y la longitud de los campos."));
+    web.send(400, "text/plain; charset=utf-8", L("Revisa la URL y la longitud de los campos."));
     return;
   }
   // CA settings are several KB; allocate candidates on the heap, not the ESP's 4 KB stack.
   std::unique_ptr<device_config::Settings> candidate(new (std::nothrow) device_config::Settings);
-  if (!candidate) { web.send(503, "text/plain", F("Memoria insuficiente. Intenta nuevamente.")); return; }
+  if (!candidate) { web.send(503, "text/plain", L("Memoria insuficiente. Intenta nuevamente.")); return; }
   if (!serverFields(*candidate, url)) {
-    web.send(400, "text/plain; charset=utf-8", F("Revisa el token y el PEM: una CA válida o una clave pública RSA/EC. Nunca una clave privada. El token requiere HTTPS. No combines borrar con introducir un valor nuevo."));
+    web.send(400, "text/plain; charset=utf-8", L("Revisa el token y el PEM: una CA válida o una clave pública RSA/EC. Nunca una clave privada. El token requiere HTTPS. No combines borrar con introducir un valor nuevo."));
     return;
   }
   ssid.toCharArray(candidate->ssid, sizeof(candidate->ssid));
@@ -566,18 +627,18 @@ void saveConfiguration() {
   username.toCharArray(candidate->webUsername, sizeof(candidate->webUsername));
   password.toCharArray(candidate->webPassword, sizeof(candidate->webPassword));
   if (!device_config::configured(*candidate)) {
-    web.send(400, "text/plain; charset=utf-8", F("SSID y usuario obligatorios; clave Wi-Fi de 8 a 63 caracteres (o vacia para red abierta); clave de administracion de 12 a 64."));
+    web.send(400, "text/plain; charset=utf-8", L("SSID y usuario obligatorios; clave Wi-Fi de 8 a 63 caracteres (o vacia para red abierta); clave de administracion de 12 a 64."));
     return;
   }
   lastOperation = "saving_configuration";
   patient_label::Label label;
   if (!patientFields(label)) return;
   if (!persistSettings(*candidate, label)) {
-    web.send(500, "text/plain", F("No se pudo guardar. Intenta nuevamente."));
+    web.send(500, "text/plain", L("No se pudo guardar. Intenta nuevamente."));
     return;
   }
   web.send(200, "text/html; charset=utf-8",
-           F("<!doctype html><html lang='es'><meta charset='utf-8'>"
+           L("<!doctype html><html lang='es'><meta charset='utf-8'>"
            "<meta name='viewport' content='width=device-width,initial-scale=1'>"
            "<meta name='color-scheme' content='dark'><link rel='stylesheet' href='/assets/ui.css'>"
            "<title>Configuración guardada</title><main class='settings setup-page'><section class='card'>"
@@ -612,7 +673,7 @@ void startProvisioning() {
 
 void settingsPage() {
   if (!authenticated()) return;
-  String page = F("<!doctype html><html lang='es'><meta charset='utf-8'>"
+  String page = L("<!doctype html><html lang='es'><meta charset='utf-8'>"
                   "<meta name='viewport' content='width=device-width,initial-scale=1'>"
                   "<meta name='color-scheme' content='dark'><link rel='stylesheet' href='/assets/ui.css'>"
                   "<script src='/assets/appearance.js' defer></script><script src='/assets/night.js' defer></script>"
@@ -620,24 +681,25 @@ void settingsPage() {
                   "<p class='eyebrow'>TU DISPOSITIVO</p><h1>Ajustes</h1>"
                   "<p class='intro'>Conexión, servidor y mantenimiento de tu pantalla.</p><section class='card'>");
   page += "<p>Firmware " + String(VERSION) + " · IP " + WiFi.localIP().toString() + "</p>";
-  page += "<p>Sesión " + String(bootId, HEX) + " · encendido hace " + String(millis() / 1000) + " s</p>";
-  page += "<p>Estado: " + htmlEscape(message) + "</p>";
-  page += "<p>Wi-Fi: " + String(WiFi.RSSI()) + " dBm · desconexiones: " + String(wifiDisconnects) +
-          " · último motivo: " + String(lastWifiReason) + "</p>";
+  page += String(L("<p>Sesión ")) + String(bootId, HEX) + String(L(" · encendido hace ")) + String(millis() / 1000) + " s</p>";
+  page += String(L("<p>Estado: ")) + htmlEscape(visibleStatus(message)) + "</p>";
+  page += "<p>Wi-Fi: " + String(WiFi.RSSI()) + String(L(" dBm · desconexiones: ")) + String(wifiDisconnects) +
+          String(L(" · último motivo: ")) + String(lastWifiReason) + "</p>";
   page += F("</section>");
-  if (web.arg("appearance") == "saved") page += F("<p class='notice' role='status'>Apariencia guardada.</p>");
+  if (web.arg("appearance") == "saved") page += L("<p class='notice' role='status'>Apariencia guardada.</p>");
+  appendLanguageControls(page);
   appendAppearanceControls(page);
-  if (web.arg("night") == "saved") page += F("<p class='notice' role='status'>Horario e intensidad guardados.</p>");
-  if (web.arg("night") == "preview") page += F("<p class='notice' role='status'>Prueba temporal de cinco segundos; no guarda ajustes.</p>");
+  if (web.arg("night") == "saved") page += L("<p class='notice' role='status'>Horario e intensidad guardados.</p>");
+  if (web.arg("night") == "preview") page += L("<p class='notice' role='status'>Prueba temporal de cinco segundos; no guarda ajustes.</p>");
   appendNightControls(page);
-  page += F("<form class='card' method='post' action='/settings'><h2>Persona y servidor de lecturas</h2>");
+  page += L("<form class='card' method='post' action='/settings'><h2>Persona y servidor de lecturas</h2>");
   appendServerFields(page);
   page += "<input type='hidden' name='csrf' value='" + csrf + "'>";
-  page += F("<button>Guardar servidor</button>"
+  page += L("<button>Guardar servidor</button>"
             "<p>Introduce solo la dirección de tu servidor Nightscout, sin rutas API.</p></form><section class='card'>");
   appendClockControls(page);
-  if (!storageReady) page += F("<p>No se puede guardar la URL: EEPROM no esta disponible.</p>");
-  page += F("</section><section class='card'><h2>Mantenimiento</h2><div class='actions'>"
+  if (!storageReady) page += L("<p>No se puede guardar la URL: EEPROM no esta disponible.</p>");
+  page += L("</section><section class='card'><h2>Mantenimiento</h2><div class='actions'>"
             "<a class='button secondary' href='/configure'>Wi-Fi y contraseñas</a>"
             "<a class='button secondary' href='/firmware'>Actualizar firmware</a>"
             "<a class='button secondary' href='/diagnostics'>Diagnóstico</a></div>"
@@ -652,21 +714,21 @@ void saveSettings() {
   candidate.trim();
   while (candidate.endsWith("/")) candidate.remove(candidate.length() - 1);
   if (!validUrl(candidate)) {
-    web.send(400, "text/plain", F("URL HTTP(S) invalida. No incluyas credenciales, query ni /api/v1."));
+    web.send(400, "text/plain", L("URL HTTP(S) invalida. No incluyas credenciales, query ni /api/v1."));
     return;
   }
   // Changing only the URL must preserve the Wi-Fi and administrator credentials.
   std::unique_ptr<device_config::Settings> saved(new (std::nothrow) device_config::Settings);
-  if (!saved) { web.send(503, "text/plain", F("Memoria insuficiente.")); return; }
+  if (!saved) { web.send(503, "text/plain", L("Memoria insuficiente.")); return; }
   if (!serverFields(*saved, candidate)) {
-    web.send(400, "text/plain; charset=utf-8", F("Revisa el token, HTTPS y el PEM de CA o clave pública."));
+    web.send(400, "text/plain; charset=utf-8", L("Revisa el token, HTTPS y el PEM de CA o clave pública."));
     return;
   }
   lastOperation = "saving_settings";
   patient_label::Label label;
   if (!patientFields(label)) return;
   if (!persistSettings(*saved, label)) {
-    web.send(500, "text/plain", F("No se pudo guardar la configuracion."));
+    web.send(500, "text/plain", L("No se pudo guardar la configuracion."));
     return;
   }
   baseUrl = candidate;
@@ -679,11 +741,11 @@ void saveSettings() {
   attemptedFetch = false;
   message = F("Servidor cambiado");
   lastOperation = "settings_saved";
-  String page = F("<meta name='viewport' content='width=device-width,initial-scale=1'>"
+  String page = L("<meta name='viewport' content='width=device-width,initial-scale=1'>"
                   "<meta charset='utf-8'><h1>Servidor guardado</h1><p>La configuración se guardó correctamente. "
                   "El Wi-Fi y los datos de administración se conservan.</p><p>Modo HTTPS: ");
-  page += device_config::pinnedPublicKey(settings.customCa) ? F("clave pública fija, sin NTP") : F("certificados CA, requiere hora");
-  page += F(".</p><p>La consulta se iniciará cuando se cierre esta conexión web, después de unos segundos.</p>"
+  page += device_config::pinnedPublicKey(settings.customCa) ? L("clave pública fija, sin NTP") : L("certificados CA, requiere hora");
+  page += L(".</p><p>La consulta se iniciará cuando se cierre esta conexión web, después de unos segundos.</p>"
             "<p><a href='/'>Volver a la página principal</a> · <a href='/diagnostics'>Ver diagnóstico</a></p>");
   web.send(200, "text/html; charset=utf-8", page);
 }
@@ -904,22 +966,24 @@ void sendAsset(const char* type, const unsigned char* data, size_t length) {
 void homePage() {
   if (setupMode) { configurationPage(); return; }
   if (!authenticated()) return;
-  sendAsset("text/html; charset=utf-8", web_assets::index_html, sizeof(web_assets::index_html));
+  if (english()) sendAsset("text/html; charset=utf-8", web_assets::en_index_html, sizeof(web_assets::en_index_html));
+  else sendAsset("text/html; charset=utf-8", web_assets::index_html, sizeof(web_assets::index_html));
 }
 
 void statePage() {
   if (!authenticated(false)) return;
-  static_assert(JSON_OBJECT_SIZE(24) + JSON_OBJECT_SIZE(5) + JSON_OBJECT_SIZE(3) +
+  static_assert(JSON_OBJECT_SIZE(25) + JSON_OBJECT_SIZE(5) + JSON_OBJECT_SIZE(3) +
                 JSON_ARRAY_SIZE(reading_ui::HISTORY_SIZE) + reading_ui::HISTORY_SIZE * JSON_ARRAY_SIZE(3) + 768 <= 2048,
                 "State JSON needs room for appearance, patient name and all history points");
   DynamicJsonDocument document(2048);
-  if (!document.capacity()) { web.send(503, "text/plain", F("Sin memoria para el visor")); return; }
+  if (!document.capacity()) { web.send(503, "text/plain", L("Sin memoria para el visor")); return; }
   const auto now = static_cast<int64_t>(time(nullptr));
   const auto age = reading_ui::ageSeconds(reading.available, reading.dateMs, now);
   const auto style = reading_ui::tone(reading.available, reading.sgv, age,
                                     WiFi.status() == WL_CONNECTED && lastReadingRequestOk);
   const auto trend = reading_ui::trend(reading.direction.c_str());
   document[F("firmware")] = VERSION;
+  document[F("language")] = device_language::code(languageSettings);
   document[F("patient_name")] = patient.name;
   document[F("csrf")] = csrf;
   const auto colors = view_appearance::palette(appearance);
@@ -941,9 +1005,9 @@ void statePage() {
   else document[F("age_seconds")] = nullptr;
   document[F("tone")] = reading_ui::toneName(style);
   document[F("trend_symbol")] = trend.symbol;
-  document[F("trend_label")] = trend.label;
+  document[F("trend_label")] = visibleStatus(String(trend.label));
   document[F("clock_valid")] = device_clock::plausible(now);
-  document[F("message")] = message;
+  document[F("message")] = visibleStatus(message);
   document[F("wifi_connected")] = WiFi.status() == WL_CONNECTED;
   document[F("rssi_dbm")] = WiFi.RSSI();
   document[F("ip")] = WiFi.localIP().toString();
@@ -960,31 +1024,31 @@ void statePage() {
     point.add(plot.points[i].y);
     point.add(plot.points[i].start);
   }
-  if (document.overflowed()) { web.send(503, "text/plain", F("Sin memoria para el visor")); return; }
+  if (document.overflowed()) { web.send(503, "text/plain", L("Sin memoria para el visor")); return; }
   String body;
-  if (!body.reserve(measureJson(document) + 1)) { web.send(503, "text/plain", F("Sin memoria para el visor")); return; }
+  if (!body.reserve(measureJson(document) + 1)) { web.send(503, "text/plain", L("Sin memoria para el visor")); return; }
   serializeJson(document, body);
   web.send(200, "application/json", body);
 }
 
 void firmwarePage() {
   if (!authenticated()) return;
-  web.send_P(200, PSTR("text/html; charset=utf-8"), PSTR(
-      "<!doctype html><html lang='es'><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>"
+  web.send_P(200, PSTR("text/html; charset=utf-8"), reinterpret_cast<const char*>(L("<!doctype html><html lang='es'><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>"
       "<meta name='color-scheme' content='dark'><link rel='stylesheet' href='/assets/ui.css'>"
       "<title>Actualizar · Glucosa</title><main class='settings'><a class='back' href='/'>← Volver al panel</a>"
       "<p class='eyebrow'>MANTENIMIENTO</p><h1>Actualizar firmware</h1><p class='intro'>Instala una nueva versión desde tu red local.</p>"
       "<form class='card' method='post' action='/update' enctype='multipart/form-data'><h2>Selecciona el archivo .bin</h2>"
       "<label>Firmware para Wemos D1 mini<input type='file' name='firmware' accept='.bin' required></label>"
       "<p>Los ajustes guardados se conservan. Mantén el Wemos conectado a la alimentación hasta que termine y se reinicie.</p>"
-      "<button>Instalar actualización</button></form><p>Utiliza el archivo de Firmware. No se necesita una imagen de FileSystem.</p></main></html>"));
+      "<button>Instalar actualización</button></form><p>Utiliza el archivo de Firmware. No se necesita una imagen de FileSystem.</p></main></html>")));
 }
 
 void diagnostics() {
   if (!authenticated()) return;
   DynamicJsonDocument document(3072);
-  if (!document.capacity()) { web.send(503, "text/plain", F("Sin memoria para diagnostico")); return; }
+  if (!document.capacity()) { web.send(503, "text/plain", L("Sin memoria para diagnostico")); return; }
   document[F("firmware")] = VERSION;
+  document[F("language")] = device_language::code(languageSettings);
   document[F("boot_id")] = String(bootId, HEX);
   document[F("reset_reason")] = ESP.getResetReason();
   String resetInfo = ESP.getResetInfo();
@@ -1023,7 +1087,7 @@ void diagnostics() {
                              clockSource == ClockSource::Ntp ? "ntp" : "unknown";
   document[F("ntp_attempts")] = ntpAttempts;
   document[F("tls_authentication")] = device_config::pinnedPublicKey(settings.customCa) ? "pinned_public_key" : "certificate_authority";
-  if (document.overflowed()) { web.send(503, "text/plain", F("Sin memoria para diagnostico")); return; }
+  if (document.overflowed()) { web.send(503, "text/plain", L("Sin memoria para diagnostico")); return; }
   String body;
   serializeJson(document, body);
   web.send(200, "application/json", body);
@@ -1086,7 +1150,7 @@ void drawHistory(time_t now, uint16_t color, uint16_t background) {
   const auto plot = reading_ui::plot(history, now);
   display.setTextColor(screenColor(0x9AABB0), background);
   display.drawString(F("-30 min"), 50, 139, 1);
-  display.drawString(F("ahora"), 188, 139, 1);
+  display.drawString(L("ahora"), 188, 139, 1);
   for (int value : {70, 180}) {
     if (value < plot.low || value > plot.high) continue;
     const int y = 148 + (plot.high - value) * 30 / (plot.high - plot.low);
@@ -1098,7 +1162,7 @@ void drawHistory(time_t now, uint16_t color, uint16_t background) {
       display.drawLine(38 + plot.points[i-1].x * 164 / 1000, 148 + plot.points[i-1].y * 30 / 1000, x, y, color);
     display.fillCircle(x, y, 1, color);
   }
-  if (!plot.count) display.drawString(device_clock::plausible(now) ? F("Esperando historial") : F("Hora sin sincronizar"), 120, 163, 1);
+  if (!plot.count) display.drawString(device_clock::plausible(now) ? L("Esperando historial") : L("Hora sin sincronizar"), 120, 163, 1);
 }
 
 void drawStartupStage(startup_view::Stage stage, int y) {
@@ -1144,22 +1208,22 @@ void renderWelcome() {
   drawPatientName(background, 82, 170);
   display.setTextDatum(ML_DATUM);
   drawStartupStage(startup.wifi(connected), 121);
-  display.drawString(connected ? F("Wi-Fi conectado") : F("Conectando Wi-Fi"), 67, 121, 2);
+  display.drawString(connected ? L("Wi-Fi conectado") : L("Conectando Wi-Fi"), 67, 121, 2);
   drawStartupStage(startup.server(connected), 147);
   const bool waitingClock = baseUrl.startsWith("https://") && !device_config::pinnedPublicKey(settings.customCa) &&
                             !device_clock::plausible(time(nullptr));
-  display.drawString(!connected ? F("Esperando Wi-Fi") :
-                     startup.responseCode == 200 ? F("Servidor conectado") :
-                     startup.responseCode ? F("Error de servidor") :
-                     waitingClock ? F("Esperando hora") :
-                     !attemptedFetch ? F("Esperando consulta") : F("Consultando servidor"), 67, 147, 2);
+  display.drawString(!connected ? L("Esperando Wi-Fi") :
+                     startup.responseCode == 200 ? L("Servidor conectado") :
+                     startup.responseCode ? L("Error de servidor") :
+                     waitingClock ? L("Esperando hora") :
+                     !attemptedFetch ? L("Esperando consulta") : L("Consultando servidor"), 67, 147, 2);
   drawStartupStage(startup.reading(connected), 173);
-  display.drawString(startup.parseFailed ? F("Reintentando lectura") : F("Esperando lectura"), 67, 173, 2);
+  display.drawString(startup.parseFailed ? L("Reintentando lectura") : L("Esperando lectura"), 67, 173, 2);
   display.setTextDatum(MC_DATUM);
   display.setTextColor(screenColor(0x9AABB0), background);
   // Preserve specific clock, authentication and parse errors on the welcome screen.
-  if (!connected || message == "Sin Wi-Fi" || message == "Conectando Wi-Fi") display.drawString(F("Preparando tu pantalla"), 120, 207, 1);
-  else display.drawString(message.length() > 23 ? message.substring(0, 21) + F("..") : message, 120, 207, 1);
+  if (!connected || message == "Sin Wi-Fi" || message == "Conectando Wi-Fi") display.drawString(L("Preparando tu pantalla"), 120, 207, 1);
+  else { const String status = visibleStatus(message); display.drawString(status.length() > 23 ? status.substring(0, 21) + F("..") : status, 120, 207, 1); }
   if (connected) display.drawString(WiFi.localIP().toString(), 120, 220, 1);
 }
 
@@ -1174,7 +1238,7 @@ void renderProvisioning() {
   display.setTextDatum(MC_DATUM);
   display.setTextSize(1);
   display.setTextColor(accent, background);
-  display.drawString(F("CONFIGURAR"), 120, 30, 2);
+  display.drawString(english() ? F("SETUP") : F("CONFIG / SETUP"), 120, 30, 2);
   for (int i = 0; i < 3; ++i) {
     const int y = 72 + i * 50;
     display.fillCircle(42, y, 8, accent);
@@ -1183,16 +1247,16 @@ void renderProvisioning() {
   }
   display.setTextDatum(ML_DATUM);
   display.setTextColor(screenColor(0x9AABB0), background);
-  display.drawString(F("Conecta a esta Wi-Fi"), 60, 63, 1);
-  display.drawString(F("Usa esta clave"), 60, 113, 1);
-  display.drawString(F("Abre en el navegador"), 60, 163, 1);
+  display.drawString(L("Conecta a esta Wi-Fi"), 60, 63, 1);
+  display.drawString(L("Usa esta clave"), 60, 113, 1);
+  display.drawString(L("Abre en el navegador"), 60, 163, 1);
   display.setTextColor(screenColor(0xD3E0DD), background);
   display.drawString(setupSsid, 60, 80, 2);
   display.drawString(setupPassword, 60, 130, 2);
   display.drawString(WiFi.softAPIP().toString(), 60, 180, 2);
   display.setTextDatum(MC_DATUM);
   display.setTextColor(screenColor(0x9AABB0), background);
-  display.drawString(F("Continua en tu telefono"), 120, 208, 1);
+  display.drawString(L("Continua en tu telefono"), 120, 208, 1);
 }
 
 void render() {
@@ -1202,9 +1266,9 @@ void render() {
   const time_t now = time(nullptr);
   const int64_t age = reading_ui::ageSeconds(reading.available, reading.dateMs, now);
   const bool stale = reading.available && age >= 600;
-  const String ageText = !reading.available ? F("Sin lecturas") :
-                         age < 0 ? F("Hora sin sincronizar") :
-                         String(stale ? F("ANTIGUA ") : F("Hace ")) + String(static_cast<unsigned long>(age / 60)) + F(" min");
+  const String ageText = !reading.available ? L("Sin lecturas") :
+                         age < 0 ? L("Hora sin sincronizar") :
+                         String(stale ? L("ANTIGUA ") : L("Hace ")) + String(static_cast<unsigned long>(age / 60)) + F(" min");
   String frame = String(reading.available) + reading.sgv + reading.direction + ageText +
                  message + WiFi.localIP().toString() + String(historyVersion) + String(static_cast<uint32_t>(now / 60));
   if (frame == lastFrame) return;
@@ -1247,12 +1311,12 @@ void render() {
   display.setTextColor(warning ? statusColor : screenColor(0xBFE9D7), badge);
   display.drawString(ageText, 120, 195, display.textWidth(ageText, 2) > 136 ? 1 : 2);
   display.setTextColor(screenColor(0x9AABB0), background);
-  if (tone == reading_ui::Tone::Low) display.drawString(F("BAJA: menos de 70"), 120, 213, 1);
-  else if (tone == reading_ui::Tone::High) display.drawString(F("ALTA: mas de 180"), 120, 213, 1);
-  else if (tone == reading_ui::Tone::Normal && message == "Conectado") display.drawString(F("En intervalo"), 120, 213, 1);
-  else display.drawString(message.length() > 23 ? message.substring(0,21) + F("..") : message, 120, 213, 1);
+  if (tone == reading_ui::Tone::Low) display.drawString(L("BAJA: menos de 70"), 120, 213, 1);
+  else if (tone == reading_ui::Tone::High) display.drawString(L("ALTA: mas de 180"), 120, 213, 1);
+  else if (tone == reading_ui::Tone::Normal && message == "Conectado") display.drawString(L("En intervalo"), 120, 213, 1);
+  else { const String status = visibleStatus(message); display.drawString(status.length() > 23 ? status.substring(0,21) + F("..") : status, 120, 213, 1); }
   display.drawString(WiFi.status() == WL_CONNECTED ? WiFi.localIP().toString() :
-                     String(F("Sin Wi-Fi (")) + String(lastWifiReason) + ')', 120, 226, 1);
+                     String(L("Sin Wi-Fi (")) + String(lastWifiReason) + ')', 120, 226, 1);
 }
 }  // namespace
 
@@ -1273,6 +1337,8 @@ void setup() {
   strlcpy(settings.token, NIGHTSCOUT_TOKEN, sizeof(settings.token));
   strncpy_P(settings.customCa, NIGHTSCOUT_ROOT_CA, sizeof(settings.customCa) - 1);
   if (storageReady) {
+    EEPROM.get(device_language::OFFSET, languageSettings);
+    if (!device_language::valid(languageSettings)) languageSettings = device_language::Settings{};
     EEPROM.get(night_display::OFFSET, nightSettings);
     if (!night_display::valid(nightSettings)) nightSettings = night_display::Settings{};
     EEPROM.get(view_appearance::OFFSET, appearance);
@@ -1321,11 +1387,12 @@ void setup() {
   web.on("/", HTTP_GET, homePage);
   web.on("/api/state", HTTP_GET, statePage);
   web.on("/assets/ui.css", HTTP_GET, [] { sendAsset("text/css; charset=utf-8", web_assets::ui_css, sizeof(web_assets::ui_css)); });
-  web.on("/assets/app.js", HTTP_GET, [] { sendAsset("application/javascript; charset=utf-8", web_assets::app_js, sizeof(web_assets::app_js)); });
-  web.on("/assets/appearance.js", HTTP_GET, [] { sendAsset("application/javascript; charset=utf-8", web_assets::appearance_js, sizeof(web_assets::appearance_js)); });
-  web.on("/assets/setup.js", HTTP_GET, [] { sendAsset("application/javascript; charset=utf-8", web_assets::setup_js, sizeof(web_assets::setup_js)); });
-  web.on("/assets/night.js", HTTP_GET, [] { sendAsset("application/javascript; charset=utf-8", web_assets::night_js, sizeof(web_assets::night_js)); });
+  web.on("/assets/app.js", HTTP_GET, [] { sendAsset("application/javascript; charset=utf-8", english() ? web_assets::en_app_js : web_assets::app_js, english() ? sizeof(web_assets::en_app_js) : sizeof(web_assets::app_js)); });
+  web.on("/assets/appearance.js", HTTP_GET, [] { sendAsset("application/javascript; charset=utf-8", english() ? web_assets::en_appearance_js : web_assets::appearance_js, english() ? sizeof(web_assets::en_appearance_js) : sizeof(web_assets::appearance_js)); });
+  web.on("/assets/setup.js", HTTP_GET, [] { sendAsset("application/javascript; charset=utf-8", english() ? web_assets::en_setup_js : web_assets::setup_js, english() ? sizeof(web_assets::en_setup_js) : sizeof(web_assets::setup_js)); });
+  web.on("/assets/night.js", HTTP_GET, [] { sendAsset("application/javascript; charset=utf-8", english() ? web_assets::en_night_js : web_assets::night_js, english() ? sizeof(web_assets::en_night_js) : sizeof(web_assets::night_js)); });
   web.on("/night-display", HTTP_POST, saveNightDisplay);
+  web.on("/language", HTTP_POST, saveLanguage);
   web.on("/configure", HTTP_GET, configurationPage);
   web.on("/configure", HTTP_POST, saveConfiguration);
   web.on("/settings", HTTP_POST, saveSettings);
