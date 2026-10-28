@@ -1,0 +1,102 @@
+name: Publish verified firmware release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing draft release tag, for example v0.8.0
+        required: true
+        default: v0.8.0
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-release-${{ inputs.release_tag }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: ${{ inputs.release_tag }}
+    steps:
+      - name: Resolve the existing draft's exact commit
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          draft=$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)
+          [[ "$draft" == true ]]
+          target=$(gh release view "$RELEASE_TAG" --json targetCommitish --jq .targetCommitish)
+          commit=$(gh api "repos/$GH_REPO/commits/$target" --jq .sha)
+          [[ "$commit" =~ ^[0-9a-f]{40}$ ]]
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.release.outputs.commit }}
+          persist-credentials: false
+
+      - name: Verify and prepare existing firmware and tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          import shutil
+          from pathlib import Path
+
+          root = Path.cwd()
+          info = json.loads((root / 'firmware/build-info.json').read_text(encoding='utf-8'))
+          assert 'v' + info['version'] == os.environ['RELEASE_TAG'], 'Release/firmware version mismatch'
+          assert info['file'] == 'nightscout-d1-mini-v' + info['version'] + '.bin'
+          firmware = root / 'firmware' / info['file']
+          assert firmware.stat().st_size == info['size_bytes'], 'Firmware size mismatch'
+          assert hashlib.sha256(firmware.read_bytes()).hexdigest() == info['sha256'], 'Firmware hash mismatch'
+          assert info['private_compile_time_configuration'] is False, 'Private firmware is not distributable'
+
+          tools = root / 'tools/key-export'
+          hashes = dict((name, digest) for digest, name in
+                        (line.split('  ') for line in (tools / 'SHA256SUMS').read_text(encoding='utf-8').splitlines()))
+          files = [firmware, root / 'firmware/build-info.json']
+          for name in ['clave-nightscout-windows.zip', 'clave-nightscout-linux-macos.zip',
+                       'nightscout-key-windows-en.zip', 'nightscout-key-linux-macos-en.zip']:
+              source = tools / name
+              assert hashlib.sha256(source.read_bytes()).hexdigest() == hashes[name], 'Tool hash mismatch: ' + name
+              files.append(source)
+
+          output = Path(os.environ['RUNNER_TEMP']) / 'nightscout-release'
+          output.mkdir()
+          for source in files:
+              shutil.copyfile(source, output / source.name)
+          (output / 'SHA256SUMS').write_text(''.join(
+              hashlib.sha256((output / source.name).read_bytes()).hexdigest() + '  ' + source.name + '\n'
+              for source in files), encoding='utf-8')
+          print('Verified firmware, build metadata and four tool ZIPs; prepared release SHA256SUMS.')
+          PY
+
+      - name: Upload and verify the draft's downloadable assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)" == true ]]
+          gh release upload "$RELEASE_TAG" "$RUNNER_TEMP/nightscout-release/"* --clobber
+          gh release download "$RELEASE_TAG" --dir "$RUNNER_TEMP/nightscout-release-verify"
+          cd "$RUNNER_TEMP/nightscout-release-verify"
+          cmp SHA256SUMS "$RUNNER_TEMP/nightscout-release/SHA256SUMS"
+          sha256sum --check SHA256SUMS
+
+      - name: Publish the verified release
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)" == true ]]
+          gh release edit "$RELEASE_TAG" --draft=false --latest
+          gh release view "$RELEASE_TAG" --json url,isDraft,tagName --jq '{url: .url, draft: .isDraft, tag: .tagName}'
