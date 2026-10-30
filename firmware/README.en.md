@@ -48,4 +48,5 @@ Firmware builds and native/browser checks are recorded in `build-info.json`.
 Full SPI/Wi-Fi/EEPROM/OTA verification on the physical board remains pending.
 See [release history](../docs/HISTORY.en.md) and [technical reference](../docs/TECHNICAL.en.md).
 
-Image size, SHA-256 and memory measurements are in `build-info.json` and `SHA256SUMS`.
+Image size: **744,400 bytes**. Static RAM: **38,012 bytes**, unchanged from 0.8.0.
+SHA-256: `c057c01fc77944049626ad330141554b6745061870d57c11f516a83533f26587`.

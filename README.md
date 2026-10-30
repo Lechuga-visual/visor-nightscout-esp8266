@@ -99,8 +99,9 @@ Los [diseños originales del visor](docs/propuestas-visor/README.md) y de
   indicado para GC9A01 SPI. No hay todavía firmware ESP32 ni compatibilidad general
   con otras pantallas.
 
-La versión 0.8.1 tiene comprobaciones de compilación, lógica y navegador; la
-verificación completa de esa versión en una placa física sigue pendiente.
+La versión 0.8.1 tiene comprobaciones de compilación y pruebas automatizadas;
+su interfaz web es idéntica a la de 0.8.0. La verificación de esta actualización
+en una placa física sigue pendiente.
 Los detalles están en los [datos de compilación](firmware/build-info.json).
 
 ## Conexiones y documentación

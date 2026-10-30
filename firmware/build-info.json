@@ -1,9 +1,9 @@
 {
-  "version": "0.8.0",
-  "file": "nightscout-d1-mini-v0.8.0.bin",
-  "sha256": "71d615206e59bee0abed2ced76a3cfad7f2f25d807675bc01ae5e1084e5e6416",
+  "version": "0.8.1",
+  "file": "nightscout-d1-mini-v0.8.1.bin",
+  "sha256": "c057c01fc77944049626ad330141554b6745061870d57c11f516a83533f26587",
   "size_bytes": 744400,
-  "source_commit": "a175c522ba71cfe4db7b0a011167d85053e046b6",
+  "source_commit": "c9281f817b40d731205979dcdc98af6e404378bf",
   "board": "d1_mini",
   "mcu": "ESP8266",
   "flash_size_bytes": 4194304,
@@ -21,7 +21,7 @@
   },
   "memory": {
     "static_ram_bytes": 38012,
-    "application_flash_bytes": 740243,
+    "application_flash_bytes": 740247,
     "request_stack_frame_bytes": 336,
     "json_parser_wrapper_stack_frame_bytes": 112,
     "json_parser_core_stack_frame_bytes": 448,
@@ -41,11 +41,13 @@
     "static_ram_change_from_v071_bytes": -72,
     "language_save_stack_frame_bytes": 64,
     "language_controls_stack_frame_bytes": 16,
-    "application_flash_increase_from_v071_bytes": 33932
+    "application_flash_increase_from_v071_bytes": 33936,
+    "application_flash_change_from_v080_bytes": 4,
+    "static_ram_change_from_v080_bytes": 0
   },
   "private_compile_time_configuration": false,
   "validation": {
-    "tests_passed": 22,
+    "tests_passed": 23,
     "tests_skipped": 0,
     "boot_checksum": "valid",
     "arduino_full_image_crc": "valid",
@@ -64,7 +66,7 @@
     "http_body": "5 native groups: identity/content length, chunked framing/extensions/trailers, fragmented and short reads, truncation/trailing data, malformed chunks/body limits, raw-chunk regression and precise parser stages",
     "patient_name": "Original 3732-byte settings layout and trust-key offset unchanged; tagged EEPROM name extension, erased storage rejection, bounded UTF-8 validation and Spanish display transliteration tested",
     "appearance": "3 native groups: tagged 20-byte extension at EEPROM offset 3836, old server/token/key/name preserved, erased storage defaults, partial mode updates, atomic rejection, presets/custom colors and contrast after RGB565 quantization",
-    "browser_suites_passed": 4,
+    "browser_suites_passed": 0,
     "startup": "Native stage checks: Wi-Fi pending/connected, HTTP and network errors, rejected JSON, valid empty response, first valid reading, non-200 cannot finish startup, live view retained after later failures",
     "browser_setup": "Actual C++ setup page renderer with host String/flash/send adaptations; request interception without HTTP server: mobile/desktop steps, UTF-8 SSID byte limit, Wi-Fi/URL/token/PEM/admin validation, hidden-details error focus, back/Enter without early POST, text-safe secret-free summary, CSRF payload, 400/401/403/500 and network failures retaining fields, duplicate-save guard, success clearing secrets, no-JavaScript fallback",
     "startup_layout": "Representative longest labels, AP SSID/key/IP and footer checked against TFT_eSPI font 2 widths and 240x240 circular bounds; physical SPI output pending",
@@ -73,7 +75,14 @@
     "language": "Actual saveLanguage C++ handler tested with host EEPROM/HTTP adapters: strict es/en, erased/corrupt default, auth and CSRF rejection, exact 8-byte extension preserving all earlier bytes/tail, idempotence, commit failure buffer rollback and restart persistence; generated translation catalog verified",
     "browser_languages": "Production C++ setup and night forms and generated ES/EN dashboard/scripts at 390/1365px: language-only CSRF POST without secrets, localized steps/errors/age/trends/low/high/old/offline, safe UTF-8 name, modes and night preview, no-JavaScript forms and English screenshots",
     "language_tft_layout": "English startup rows and bilingual setup title checked against actual TFT_eSPI Font 2 widths and circular screen bounds; physical SPI verification pending",
-    "key_tools_languages": "English shell and Windows launchers tested against valid RSA/P-256/P-384/P-521 and rejected expired/future/untrusted/wrong-host TLS fixtures; no application data, no overwrites; package sources and permissions checked; native OS CI checks separately"
+    "key_tools_languages": "English shell and Windows launchers tested against valid RSA/P-256/P-384/P-521 and rejected expired/future/untrusted/wrong-host TLS fixtures; no application data, no overwrites; package sources and permissions checked; native OS CI checks separately",
+    "browser_baseline": {
+      "version": "0.8.0",
+      "suites_passed": 4,
+      "web_sources_and_embedded_assets_identical": true,
+      "rerun_for_this_patch": false
+    },
+    "physical_reading_age": "Actual C++ TFT formatter tested: English 0/1/2/9 min ago, OLD at 600 seconds and a day-old reading, Spanish Hace/ANTIGUA wording unchanged, missing clock and missing readings; shared by all three display modes"
   },
   "setup": {
     "ssid": "glucosa-XXXXXX",
@@ -183,7 +192,14 @@
       "tagged": true,
       "old_settings_layout_unchanged": true
     },
-    "language_selection": "Initial setup and Settings, device-wide, persisted without restart; defaults to Spanish after upgrade; units/time zone/credentials unchanged; language form reloads the page and does not retain other unsaved inputs"
+    "language_selection": "Initial setup and Settings, device-wide, persisted without restart; defaults to Spanish after upgrade; units/time zone/credentials unchanged; language form reloads the page and does not retain other unsaved inputs",
+    "physical_reading_age": {
+      "english": "2 min ago",
+      "english_old": "OLD 10 min ago",
+      "spanish": "Hace 2 min",
+      "spanish_old": "ANTIGUA 10 min",
+      "old_threshold_seconds": 600
+    }
   },
   "http_body": {
     "buffer_bytes": 512,
