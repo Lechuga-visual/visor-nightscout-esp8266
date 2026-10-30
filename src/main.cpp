@@ -34,7 +34,7 @@
 #endif
 
 namespace {
-constexpr char VERSION[] = "0.8.0";
+constexpr char VERSION[] = "0.8.1";
 constexpr uint32_t POLL_MS = 30000;
 TFT_eSPI display;
 ESP8266WebServer web(80);
@@ -1259,6 +1259,17 @@ void renderProvisioning() {
   display.drawString(L("Continua en tu telefono"), 120, 208, 1);
 }
 
+String readingAgeText(bool available, int64_t age) {
+  if (!available) return L("Sin lecturas");
+  if (age < 0) return L("Hora sin sincronizar");
+  const bool stale = age >= 600;
+  String text = english() ? (stale ? F("OLD ") : F("")) :
+                            (stale ? F("ANTIGUA ") : F("Hace "));
+  text += String(static_cast<unsigned long>(age / 60));
+  text += english() ? F(" min ago") : F(" min");
+  return text;
+}
+
 void render() {
   updateScreenIntensity();
   if (setupMode) { renderProvisioning(); return; }
@@ -1266,9 +1277,7 @@ void render() {
   const time_t now = time(nullptr);
   const int64_t age = reading_ui::ageSeconds(reading.available, reading.dateMs, now);
   const bool stale = reading.available && age >= 600;
-  const String ageText = !reading.available ? L("Sin lecturas") :
-                         age < 0 ? L("Hora sin sincronizar") :
-                         String(stale ? L("ANTIGUA ") : L("Hace ")) + String(static_cast<unsigned long>(age / 60)) + F(" min");
+  const String ageText = readingAgeText(reading.available, age);
   String frame = String(reading.available) + reading.sgv + reading.direction + ageText +
                  message + WiFi.localIP().toString() + String(historyVersion) + String(static_cast<uint32_t>(now / 60));
   if (frame == lastFrame) return;

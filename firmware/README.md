@@ -2,12 +2,12 @@
 
 **Español** · [English](README.en.md)
 
-**Versión 0.8.0** · **4 MB de flash** · pantalla **GC9A01 SPI 240 × 240**.
+**Versión 0.8.1** · **4 MB de flash** · pantalla **GC9A01 SPI 240 × 240**.
 Este archivo sirve para ese hardware y el cableado del proyecto; no es un binario ESP32.
 
 | Archivo | Uso |
 | --- | --- |
-| [nightscout-d1-mini-v0.8.0.bin](nightscout-d1-mini-v0.8.0.bin) | Programa listo para cargar. En GitHub pulsa **Download raw file**. |
+| [nightscout-d1-mini-v0.8.1.bin](nightscout-d1-mini-v0.8.1.bin) | Programa listo para cargar. En GitHub pulsa **Download raw file**. |
 | [SHA256SUMS](SHA256SUMS) | Sumas para comprobar la descarga. |
 | [build-info.json](build-info.json) | Placa, herramientas de compilación, memoria y validaciones del binario. |
 
@@ -29,12 +29,14 @@ configuración desde el teléfono y solución de problemas. El
 - Una actualización normal conserva los ajustes. Un borrado completo de flash
   los elimina. El proyecto no ofrece reversión automática de firmware.
 
-## Qué incluye 0.8.0
+## Qué incluye 0.8.1
 
-Añade **Español / English** para pantalla y web en un solo binario. En el inicio
-o en Ajustes, elige el idioma y pulsa **Guardar idioma / Save language**. Se guarda
-sin cambiar Wi-Fi, token, apariencia, horario ni zona horaria. La página se recarga:
-elige antes de introducir otros datos que todavía no guardaste.
+Corrige la antigüedad en la pantalla física en inglés: ahora muestra
+**2 min ago**, en lugar de **Age 2 min**. Una lectura antigua muestra
+**OLD 10 min ago**. El español conserva **Hace 2 min** y **ANTIGUA 10 min**;
+el visor web mantiene su formato anterior. El cambio se aplica a los tres modos.
+
+El selector Español / English y todos los ajustes guardados se conservan.
 
 Conserva las funciones anteriores: tres modos, gráfica de 30 minutos, nombre grande,
 cinco temas, colores personalizados, bienvenida y configuración guiada. El horario
@@ -50,9 +52,7 @@ y las [herramientas con ventana](../tools/key-export/README.md).
 
 ## Identificación y comprobaciones
 
-- Tamaño del archivo: **744.400 bytes**.
-- SHA-256: `71d615206e59bee0abed2ced76a3cfad7f2f25d807675bc01ae5e1084e5e6416`.
-- RAM estática de la compilación: **38.012 bytes** (72 menos que 0.7.1).
+- Tamaño, SHA-256 y memoria: consulta `build-info.json` y `SHA256SUMS`.
 - Compilación y pruebas nativas/de navegador registradas en `build-info.json`;
   la validación completa de esta versión en hardware físico sigue pendiente.
 

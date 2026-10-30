@@ -69,9 +69,9 @@ example. For a new build, follow the current table and your board's labels.
 ## 3. Install firmware through USB the first time
 
 **Firmware** means the program running on the board. It is delivered as a `.bin`
-file. The current bilingual version is **0.8.0 for D1 mini ESP8266**.
+file. The current bilingual version is **0.8.1 for D1 mini ESP8266**.
 
-1. Open [nightscout-d1-mini-v0.8.0.bin](../firmware/nightscout-d1-mini-v0.8.0.bin)
+1. Open [nightscout-d1-mini-v0.8.1.bin](../firmware/nightscout-d1-mini-v0.8.1.bin)
    on GitHub and select **Download raw file**.
 2. Save it somewhere easy to find. A repository ZIP or key-tool ZIP is **not firmware**.
 3. Connect the wired Wemos to the computer with a USB data cable.
@@ -107,7 +107,7 @@ system's commands. Replace the example serial port with the port of your board.
 ```powershell
 py -m venv .venv-flash
 .\.venv-flash\Scripts\python.exe -m pip install esptool==4.8.1
-.\.venv-flash\Scripts\python.exe -m esptool --chip esp8266 --port COM3 --baud 115200 write_flash --flash_mode dio --flash_size 4MB 0x00000 nightscout-d1-mini-v0.8.0.bin
+.\.venv-flash\Scripts\python.exe -m esptool --chip esp8266 --port COM3 --baud 115200 write_flash --flash_mode dio --flash_size 4MB 0x00000 nightscout-d1-mini-v0.8.1.bin
 ```
 
 **Linux:**
@@ -115,14 +115,14 @@ py -m venv .venv-flash
 ```bash
 python3 -m venv .venv-flash
 .venv-flash/bin/python -m pip install esptool==4.8.1
-.venv-flash/bin/python -m esptool --chip esp8266 --port /dev/ttyUSB0 --baud 115200 write_flash --flash_mode dio --flash_size 4MB 0x00000 nightscout-d1-mini-v0.8.0.bin
+.venv-flash/bin/python -m esptool --chip esp8266 --port /dev/ttyUSB0 --baud 115200 write_flash --flash_mode dio --flash_size 4MB 0x00000 nightscout-d1-mini-v0.8.1.bin
 ```
 
 **macOS:** use the first two Linux commands. Run `ls /dev/cu.*` before and after
 connecting the board to find its port, then substitute it below:
 
 ```bash
-.venv-flash/bin/python -m esptool --chip esp8266 --port /dev/cu.usbserial-0001 --baud 115200 write_flash --flash_mode dio --flash_size 4MB 0x00000 nightscout-d1-mini-v0.8.0.bin
+.venv-flash/bin/python -m esptool --chip esp8266 --port /dev/cu.usbserial-0001 --baud 115200 write_flash --flash_mode dio --flash_size 4MB 0x00000 nightscout-d1-mini-v0.8.1.bin
 ```
 
 Typical D1 minis enter upload mode automatically. If no port appears, try another

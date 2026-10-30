@@ -8,6 +8,49 @@ ROOT=pathlib.Path(__file__).resolve().parents[1]
 
 
 class LanguageTests(unittest.TestCase):
+    def test_physical_reading_age_uses_english_suffix_and_keeps_spanish_and_warnings(self):
+        main=(ROOT/'src/main.cpp').read_text(encoding='utf-8')
+        start=main.index('String readingAgeText(')
+        formatter=main[start:main.index('void render()',start)]
+        harness=r'''
+#include <cassert>
+#include <string>
+#include <stdint.h>
+#include "generated/ui_translations.h"
+bool useEnglish=false;
+bool english(){return useEnglish;}
+#define F(value) value
+#define L(value) ui_translation::text(value,english())
+class String : public std::string {
+public:
+  using std::string::string;
+  String(unsigned long value):std::string(std::to_string(value)){}
+};
+'''+formatter+r'''
+int main(){
+  assert(readingAgeText(true,120)=="Hace 2 min");
+  assert(readingAgeText(true,599)=="Hace 9 min");
+  assert(readingAgeText(true,600)=="ANTIGUA 10 min");
+  assert(readingAgeText(true,-1)=="Hora sin sincronizar");
+  assert(readingAgeText(false,120)=="Sin lecturas");
+  useEnglish=true;
+  assert(readingAgeText(true,0)=="0 min ago");
+  assert(readingAgeText(true,59)=="0 min ago");
+  assert(readingAgeText(true,60)=="1 min ago");
+  assert(readingAgeText(true,120)=="2 min ago");
+  assert(readingAgeText(true,599)=="9 min ago");
+  assert(readingAgeText(true,600)=="OLD 10 min ago");
+  assert(readingAgeText(true,86400)=="OLD 1440 min ago");
+  assert(readingAgeText(true,-1)=="Clock not synchronized");
+  assert(readingAgeText(false,-1)=="No readings");
+}
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            source=pathlib.Path(directory)/'reading-age.cpp';target=pathlib.Path(directory)/'reading-age'
+            source.write_text(harness,encoding='utf-8')
+            subprocess.run(['g++','-std=c++11','-Wall','-Wextra','-Werror','-I',str(ROOT/'include'),str(source),'-o',str(target)],check=True)
+            subprocess.run([str(target)],check=True)
+
     def test_saved_language_only_changes_its_extension_and_requires_current_access(self):
         main=(ROOT/'src/main.cpp').read_text(encoding='utf-8')
         handler=main[main.index('void saveLanguage()'):main.index('void saveConfiguration()')]

@@ -90,9 +90,9 @@ de tus placas.
 ## 3. Cargar el programa por USB, solo la primera vez
 
 El **firmware** es el programa que ejecuta la placa. Se distribuye como un archivo
-con terminación `.bin`. La versión disponible es **0.8.0** para D1 mini ESP8266.
+con terminación `.bin`. La versión disponible es **0.8.1** para D1 mini ESP8266.
 
-1. Abre [nightscout-d1-mini-v0.8.0.bin](../firmware/nightscout-d1-mini-v0.8.0.bin)
+1. Abre [nightscout-d1-mini-v0.8.1.bin](../firmware/nightscout-d1-mini-v0.8.1.bin)
    en GitHub y pulsa **Download raw file** o el botón de descarga del archivo.
 2. Guarda el `.bin` en una carpeta fácil de encontrar. El ZIP del repositorio y
    los ZIP de las herramientas de claves **no son firmware**.
@@ -140,7 +140,7 @@ reemplazarlo por el puerto de tu placa.
 ```powershell
 py -m venv .venv-flasheo
 .\.venv-flasheo\Scripts\python.exe -m pip install esptool==4.8.1
-.\.venv-flasheo\Scripts\python.exe -m esptool --chip esp8266 --port COM3 --baud 115200 write_flash --flash_mode dio --flash_size 4MB 0x00000 nightscout-d1-mini-v0.8.0.bin
+.\.venv-flasheo\Scripts\python.exe -m esptool --chip esp8266 --port COM3 --baud 115200 write_flash --flash_mode dio --flash_size 4MB 0x00000 nightscout-d1-mini-v0.8.1.bin
 ```
 
 **Linux:**
@@ -148,7 +148,7 @@ py -m venv .venv-flasheo
 ```bash
 python3 -m venv .venv-flasheo
 .venv-flasheo/bin/python -m pip install esptool==4.8.1
-.venv-flasheo/bin/python -m esptool --chip esp8266 --port /dev/ttyUSB0 --baud 115200 write_flash --flash_mode dio --flash_size 4MB 0x00000 nightscout-d1-mini-v0.8.0.bin
+.venv-flasheo/bin/python -m esptool --chip esp8266 --port /dev/ttyUSB0 --baud 115200 write_flash --flash_mode dio --flash_size 4MB 0x00000 nightscout-d1-mini-v0.8.1.bin
 ```
 
 **macOS:** usa los mismos dos primeros comandos de Linux. Para localizar el
@@ -156,7 +156,7 @@ puerto, ejecuta `ls /dev/cu.*` antes y después de conectar la placa. Sustituye
 el puerto del siguiente ejemplo por el nuevo que aparezca:
 
 ```bash
-.venv-flasheo/bin/python -m esptool --chip esp8266 --port /dev/cu.usbserial-0001 --baud 115200 write_flash --flash_mode dio --flash_size 4MB 0x00000 nightscout-d1-mini-v0.8.0.bin
+.venv-flasheo/bin/python -m esptool --chip esp8266 --port /dev/cu.usbserial-0001 --baud 115200 write_flash --flash_mode dio --flash_size 4MB 0x00000 nightscout-d1-mini-v0.8.1.bin
 ```
 
 Los D1 mini habituales entran automáticamente en modo de carga. Si no aparece

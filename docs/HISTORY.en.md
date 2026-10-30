@@ -6,6 +6,14 @@ This is an English overview of the released changes. Per-release measurements
 and validation status belong to the corresponding firmware metadata, not a
 claim that every version has been fully tested on physical hardware.
 
+## 0.8.1 — Correct English reading age on the physical display
+
+The round display says **2 min ago**, instead of **Age 2 min**, in all three
+modes. Old readings keep their warning, for example **OLD 10 min ago**. Spanish
+wording, the web viewer, settings and history are unchanged. Tests exercise the
+actual formatter in both languages, the ten-minute threshold, missing clock and
+missing readings.
+
 ## 0.8.0 — Spanish and English
 
 - One bilingual firmware with a saved language choice for the physical display,

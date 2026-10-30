@@ -2,12 +2,12 @@
 
 [Español](README.md) · **English**
 
-**0.8.0 · Spanish + English in one image** · **4 MB flash** · **GC9A01 SPI 240 × 240**.
+**0.8.1 · Spanish + English in one image** · **4 MB flash** · **GC9A01 SPI 240 × 240**.
 This is not ESP32 firmware. Use the documented pin mapping.
 
 | File | Purpose |
 | --- | --- |
-| [nightscout-d1-mini-v0.8.0.bin](nightscout-d1-mini-v0.8.0.bin) | Ready-to-install program. On GitHub use **Download raw file**. |
+| [nightscout-d1-mini-v0.8.1.bin](nightscout-d1-mini-v0.8.1.bin) | Ready-to-install program. On GitHub use **Download raw file**. |
 | [SHA256SUMS](SHA256SUMS) | Download checksums. |
 | [build-info.json](build-info.json) | Source commit, build tools, memory and validation details. |
 
@@ -19,6 +19,12 @@ wiring, USB installation, phone configuration, HTTPS and troubleshooting.
   not FileSystem.
 - No Wi-Fi credentials, tokens or admin passwords are embedded. Enter them in setup.
 - Normal updates retain settings. Full flash erase deletes them. No automatic rollback.
+
+## Fixed in 0.8.1
+
+The physical display now says **2 min ago**, instead of **Age 2 min**, in all
+three display modes. Old readings retain their warning: **OLD 10 min ago**.
+Spanish wording, the web viewer and saved settings are unchanged.
 
 ## Choose English
 
@@ -42,5 +48,4 @@ Firmware builds and native/browser checks are recorded in `build-info.json`.
 Full SPI/Wi-Fi/EEPROM/OTA verification on the physical board remains pending.
 See [release history](../docs/HISTORY.en.md) and [technical reference](../docs/TECHNICAL.en.md).
 
-Image size: **744,400 bytes**. Static RAM: **38,012 bytes**.
-SHA-256: `71d615206e59bee0abed2ced76a3cfad7f2f25d807675bc01ae5e1084e5e6416`.
+Image size, SHA-256 and memory measurements are in `build-info.json` and `SHA256SUMS`.

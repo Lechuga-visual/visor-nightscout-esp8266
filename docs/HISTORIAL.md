@@ -6,8 +6,16 @@ Notas conservadas al reorganizar la documentación. Describen lo que cambió y l
 comprobaciones realizadas **al publicar cada versión**; no son una guía de instalación
 ni una declaración de validación física de todas las versiones.
 
-La descarga vigente es **0.8.0**. Consulta la [guía de instalación](INSTALACION.md),
+La descarga vigente es **0.8.1**. Consulta la [guía de instalación](INSTALACION.md),
 la [referencia técnica](REFERENCIA-TECNICA.md) y la [hoja de ruta](../ROADMAP.md).
+
+## Antigüedad en inglés corregida en 0.8.1
+
+La pantalla física utiliza **2 min ago**, en lugar de **Age 2 min**, en sus tres
+modos. A partir de diez minutos conserva el aviso, por ejemplo **OLD 10 min ago**.
+El texto español, la web, los ajustes y el historial no cambian. Las pruebas del
+formato real cubren ambos idiomas, el límite de diez minutos, ausencia de reloj
+y ausencia de lecturas.
 
 ## Español e inglés en 0.8.0
 

@@ -19,7 +19,7 @@ todavía no está implementado.
 | --- | --- |
 | Armarlo y dejarlo funcionando | [Guía de instalación paso a paso](docs/INSTALACION.md) |
 | Ver qué cable va en cada pin | [Diagrama nuevo y tabla de conexiones](docs/INSTALACION.md#2-conectar-la-pantalla) |
-| Descargar el programa del dispositivo | [Firmware 0.8.0 para D1 mini](firmware/README.md) |
+| Descargar el programa del dispositivo | [Firmware 0.8.1 para D1 mini](firmware/README.md) |
 | Obtener la clave pública de mi sitio, si la necesito | [Herramientas con ventana para Windows, Linux y macOS](tools/key-export/README.md) |
 | Conocer lo que viene, incluido ESP32 | [Hoja de ruta](ROADMAP.md) |
 | Compilar, revisar HTTPS o colaborar con código | [Referencia técnica](docs/REFERENCIA-TECNICA.md) |
@@ -99,7 +99,7 @@ Los [diseños originales del visor](docs/propuestas-visor/README.md) y de
   indicado para GC9A01 SPI. No hay todavía firmware ESP32 ni compatibilidad general
   con otras pantallas.
 
-La versión 0.8.0 tiene comprobaciones de compilación, lógica y navegador; la
+La versión 0.8.1 tiene comprobaciones de compilación, lógica y navegador; la
 verificación completa de esa versión en una placa física sigue pendiente.
 Los detalles están en los [datos de compilación](firmware/build-info.json).
 
