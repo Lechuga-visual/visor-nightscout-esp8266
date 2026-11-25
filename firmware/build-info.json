@@ -31,7 +31,7 @@
     "platform": "espressif8266 4.2.1",
     "arduino_core": "3.1.2",
     "compiler": "xtensa-lx106-elf GCC 10.3.0",
-    "scons": "4.4.1",
+    "scons": "4.11.1",
     "TFT_eSPI": "2.5.43",
     "ArduinoJson": "6.21.5"
   },
