@@ -2328,7 +2328,7 @@ const char setup_html_5[] PROGMEM = R"NSSETUP(
 </fieldset>
 <fieldset data-step="2">
 <h1 tabindex="-1">Tu acceso</h1>
-<p class="intro">Protege tu pantalla y revisa los datos.</p>
+<p class="intro">Puedes usar admin o elegir otro usuario. Crea una contraseña para administrar el dispositivo.</p>
 <label>Usuario de administración<input name="web_username" maxlength="32" autocomplete="username" required value=")NSSETUP";
 const char setup_html_6[] PROGMEM = R"NSSETUP("></label>
 <label>Contraseña de administración<input name="web_password" type="password" minlength="12" maxlength="64" autocomplete="new-password" required></label>
@@ -2390,7 +2390,7 @@ const char en_setup_html_5[] PROGMEM = R"NSSETUP(
 </fieldset>
 <fieldset data-step="2">
 <h1 tabindex="-1">Your access</h1>
-<p class="intro">Protect your display and review your settings.</p>
+<p class="intro">Use admin or choose another username. Create a password to manage the device.</p>
 <label>Admin username<input name="web_username" maxlength="32" autocomplete="username" required value=")NSSETUP";
 const char en_setup_html_6[] PROGMEM = R"NSSETUP("></label>
 <label>Admin password<input name="web_password" type="password" minlength="12" maxlength="64" autocomplete="new-password" required></label>
