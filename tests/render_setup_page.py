@@ -3,7 +3,9 @@
 Only Arduino String/flash literals and the HTTP send sink are adapted for a host
 compiler. Field templates, escaping and page assembly come from firmware source.
 """
+import os
 import pathlib
+import shlex
 import subprocess
 import tempfile
 import sys
@@ -46,7 +48,6 @@ public:
     }
   }
 };
-struct PublicCaStore { static size_t rootCount() { return 120; } };
 struct WebSink {
   void sendHeader(const char*, const char*) {}
   void send(int status, const char*, const String& page) { if (status != 200) std::abort(); std::cout << page; }
@@ -59,7 +60,7 @@ String baseUrl("https://tu-nightscout.example"), csrf("fixture-csrf-only");
 '''
 harness += function('void appendLanguageControls(', 'String htmlEscape(')
 harness += function('String htmlEscape(', 'String urlEncode(')
-harness += function('void appendServerFields(', 'bool validPinnedKey(')
+harness += function('void appendServerFields(', 'bool serverFields(')
 harness += function('void configurationPage(', 'void saveLanguage(')
 if 'en' in sys.argv:
     harness += 'struct EnglishFixture { EnglishFixture() { languageSettings.locale = device_language::Locale::English; } } englishFixture;\n'
@@ -83,6 +84,8 @@ with tempfile.TemporaryDirectory() as directory:
     path = pathlib.Path(directory)
     (path / 'Arduino.h').write_text('#pragma once\n#define PROGMEM\n')
     (path / 'render.cpp').write_text(harness, encoding='utf-8')
-    subprocess.run(['g++', '-std=c++11', '-I', str(path), '-I', str(ROOT / 'include'),
-                    str(path / 'render.cpp'), '-o', str(path / 'render')], check=True)
-    subprocess.run([str(path / 'render')], check=True)
+    compiler = shlex.split(os.environ.get('CXX', 'g++'))
+    binary = path / ('render.exe' if os.name == 'nt' else 'render')
+    subprocess.run([*compiler, '-std=c++11', '-I', str(path), '-I', str(ROOT / 'include'),
+                    str(path / 'render.cpp'), '-o', str(binary)], check=True)
+    subprocess.run([str(binary)], check=True)

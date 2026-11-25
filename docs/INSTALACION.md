@@ -217,9 +217,7 @@ Escribe el nombre exacto de tu red de casa y su contraseña. Debe ser una red de
 - **Token:** si el Nightscout es privado, utiliza un token con permiso de **solo
   lectura**, proporcionado por quien administra ese servidor. No necesitas su
   `API_SECRET` de administrador. Si permite lectura pública, deja el token vacío.
-- **HTTPS:** para un sitio con certificado público normal, deja vacía la sección
-  opcional de CA o clave pública. El firmware ya incluye certificados de confianza.
-  Si necesitas la opción sin NTP, consulta el [apartado de HTTPS y hora](#8-https-hora-y-clave-pública).
+- **HTTPS:** introduce la URL HTTPS. El visor cifra la conexión sin verificar la identidad del servidor.
 
 <img src="images/configuracion-nightscout-movil.png" alt="Asistente: nombre, URL de Nightscout y token opcional" width="320">
 
@@ -270,7 +268,7 @@ y el estado; un número visible por sí solo no confirma una conexión actual.
 | Ajustes → Nombre de la persona | Hasta 24 caracteres; vacío vuelve a mostrar NIGHTSCOUT. Los nombres largos se acortan en el visor. |
 | Ajustes → Apariencia | Menta, rojo, azul, rosado, celeste o colores personalizados con vista previa y validación de contraste. |
 | Ajustes → Brillo y horario nocturno | Intensidad de día/noche, horario y zona horaria; incluye prueba temporal. |
-| Ajustes → Servidor | URL, token y, si hace falta, CA o clave pública fija. |
+| Ajustes → Servidor | URL y token de solo lectura. |
 | Configurar Wi-Fi y contraseñas | Cambiar la red o los datos de administración. Debes volver a introducir la contraseña Wi-Fi y elegir la de administración; guardar reinicia. |
 
 ### Horario nocturno
@@ -293,14 +291,7 @@ permanece al 100 % para que se pueda leer la clave temporal.
 
 ### Cambiar de Nightscout o quitar un token
 
-Al cambiar la URL a otro origen —protocolo, dominio o puerto— se borran el token
-y la CA o clave propia anteriores para no usarlos en otro servidor. Introduce
-los del nuevo sitio en ese mismo formulario si los necesita.
-
-Para el mismo origen, dejar vacío un token o PEM **conserva el valor guardado**.
-Para quitarlo debes marcar **Borrar token guardado** o **Borrar CA o clave fija y
-usar certificados públicos**, según corresponda. No marques borrar al introducir
-un token o una clave nuevos.
+Al cambiar de origen se borra el token anterior. Para el mismo origen, deja el campo vacío para conservarlo o marca **Borrar token guardado** para quitarlo.
 
 ## 7. Actualizar por Wi-Fi
 
@@ -321,60 +312,9 @@ Hazlo desde una red local de confianza. No abras el panel ni su puerto en Intern
 Esta versión no tiene reversión automática: si una carga no consigue arrancar,
 puede ser necesario repetir la carga por USB.
 
-## 8. HTTPS, hora y clave pública
+## 8. HTTPS y hora
 
-**HTTPS** protege la conexión entre el Wemos y Nightscout. No necesitas crear
-un certificado para el dispositivo ni comprar uno. Estas son las dos opciones
-habituales; la configuración de una CA privada se explica en la
-[referencia técnica](REFERENCIA-TECNICA.md#https-y-autenticación).
-
-### Opción habitual: certificados públicos incluidos
-
-Deja vacío el campo opcional de certificado o clave. El Wemos verifica que el
-certificado corresponda al sitio y sea válido. Para ello necesita saber la hora.
-Intenta obtenerla por NTP, un servicio de hora de Internet.
-
-Si queda en **Esperando hora NTP**, abre **Ajustes → Hora del dispositivo**:
-
-1. Comprueba que la fecha y hora del teléfono o PC sean correctas.
-2. Prueba **Reintentar NTP**.
-3. Si no responde, pulsa **Usar hora de este teléfono/PC**.
-
-Algunas redes bloquean NTP. Los servidores utilizados son `pool.ntp.org`,
-`time.google.com` y `time.cloudflare.com`, por UDP 123. No necesitas abrir puertos
-entrantes. El Wemos no tiene reloj con batería: si sigue bloqueado NTP, tendrás
-que volver a darle la hora después de reiniciarlo.
-
-### Alternativa: clave pública fija del servidor, sin depender de NTP
-
-Es la opción para identificar el sitio por su clave en lugar de validar sus
-certificados desde el Wemos. **No es el token ni una contraseña.**
-
-1. Desde un computador de confianza con fecha correcta, abre las
-   [herramientas con ventana](../tools/key-export/README.md). Elige el ZIP para tu
-   sistema, extráelo y sigue sus instrucciones.
-2. Introduce la URL HTTPS de tu Nightscout. La herramienta verifica el sitio y
-   genera un `.txt` con su clave pública, listo para copiar. No necesita el token.
-3. En la web del Wemos, abre **Ajustes → Seguridad HTTPS y opción sin NTP**.
-4. Pega **todo el contenido** del `.txt`, incluyendo las líneas
-   `-----BEGIN PUBLIC KEY-----` y `-----END PUBLIC KEY-----`.
-5. Pulsa **Guardar servidor**, dejando **sin marcar** la casilla de borrar la clave.
-
-La conexión sigue cifrada y el servidor debe demostrar que posee la clave
-correspondiente. En este modo el Wemos **no comprueba la cadena de certificados,
-el nombre ni las fechas del certificado**; comprueba la clave que guardaste.
-Por eso se obtiene primero desde un computador que sí verifica el sitio.
-Nunca pegues una clave privada ni una clave tomada de una conexión sin verificar.
-
-Una renovación del certificado puede conservar la misma clave, y entonces no
-necesitas cambiarla. Si el servidor cambia de clave, la conexión se detiene:
-tendrás que repetir la extracción y guardarla de nuevo. No se aceptan claves
-nuevas automáticamente.
-
-Después de autenticar HTTPS, el Wemos puede tomar la hora de la cabecera de la
-respuesta del servidor. **La fecha de una medición no sirve como hora actual**,
-porque esa medición podría ser antigua. Si el servidor no entrega una hora válida,
-se indica **Hora sin sincronizar**; puedes usar la hora del teléfono o PC.
+HTTPS cifra la conexión con Nightscout sin verificar la identidad del servidor. La hora del dispositivo se usa para calcular la antigüedad de la lectura. Si NTP falla, abre el control de hora en Ajustes y usa la hora del navegador.
 
 ## 9. Si algo no funciona
 
@@ -390,7 +330,6 @@ se indica **Hora sin sincronizar**; puedes usar la hora del teléfono o PC.
 | HTTP 401 o 403 al consultar Nightscout | URL, token y permisos de lectura en ese servidor. El usuario del Wemos no reemplaza al token Nightscout. |
 | No hay lecturas o son antiguas | Revisa el propio Nightscout y el sistema que sube los datos. El visor no genera mediciones. |
 | La gráfica no está completa | Solo resume 30 minutos y hasta siete puntos; los huecos grandes no se unen. Tras un error puede conservar una parte mientras reintenta. |
-| Error TLS después de un cambio del sitio | Comprueba fecha/hora en modo de certificados. Si usas clave fija y el sitio la cambió, extrae y guarda la nueva con la herramienta. |
 | «Este formulario ha caducado» | El Wemos cambió de sesión al reiniciarse o actualizarse. Abre Ajustes de nuevo, recarga la página y repite; no recuperes el formulario con Atrás. |
 | La luz de fondo no baja de intensidad | Es lo esperado en este módulo: el horario atenúa los colores dibujados, no esa luz. |
 
@@ -425,7 +364,6 @@ No compartas la configuración completa ni claves privadas. La
 | URL base | La dirección principal de tu Nightscout, sin añadir rutas de API ni secretos. |
 | IP del Wemos | La dirección local que muestra la pantalla para abrir su web. |
 | Token | Credencial de Nightscout que autoriza leer datos; no es la contraseña del visor. |
-| Clave pública | Identifica al servidor en el modo HTTPS opcional. No es una clave privada. |
 | OTA | Actualización del programa por Wi-Fi, sin volver a usar USB. |
 
 [Volver al proyecto](../README.md) · [Descarga del firmware](../firmware/README.md) ·

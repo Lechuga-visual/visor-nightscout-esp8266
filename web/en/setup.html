@@ -19,10 +19,10 @@
 <p id="setup-error" class="network-notice" role="alert" hidden></p>
 <fieldset data-step="0">
 <h1 tabindex="-1">Your Wi-Fi</h1>
-<p class="intro">Connect the Wemos to your home network.</p>
+<p class="intro">Connect the device to your home network.</p>
 <label>Your Wi-Fi name<input name="ssid" maxlength="32" autocomplete="off" required value="{{ssid}}"></label>
 <label>Your Wi-Fi password<input name="wifi_password" type="password" maxlength="64" autocomplete="off"></label>
-<p class="notice">Use a <strong>2.4 GHz</strong> network. Enter your home Wi-Fi password here, not the Wemos temporary password. Leave blank only for an open network.</p>
+<p class="notice">Use a <strong>2.4 GHz</strong> network. Enter your home Wi-Fi password here, not the device temporary password. Leave blank only for an open network.</p>
 </fieldset>
 <fieldset data-step="1">
 <h1 tabindex="-1">Your Nightscout</h1>
@@ -40,14 +40,14 @@
 <dl><div><dt>Network</dt><dd id="review-ssid"></dd></div><div><dt>Person</dt><dd id="review-patient"></dd></div><div><dt>Nightscout</dt><dd id="review-url"></dd></div></dl>
 <p>Passwords and token are hidden.</p>
 </section>
-<p class="notice">Saving restarts the Wemos. Reconnect your phone to your Wi-Fi and open the IP address shown on the display.</p>
+<p class="notice">Saving restarts the device. Reconnect your phone to your Wi-Fi and open the IP address shown on the display.</p>
 <input type="hidden" name="csrf" value="{{csrf}}">
 <button id="setup-save" type="submit">Save and restart</button>
 </fieldset>
 <div class="setup-navigation" hidden><button id="setup-next" type="button">Continue</button><button id="setup-back" type="button" class="secondary">Back to previous step</button></div>
 <noscript><p>Complete all three sections and select Save and restart when finished.</p></noscript>
 </form>
-<section id="setup-success" class="card" hidden aria-live="polite"><p class="eyebrow">SETTINGS SAVED</p><h1>All set</h1><p>The Wemos is restarting to join your Wi-Fi.</p><p>Reconnect your phone to that network and open the IP address shown on the device display.</p></section>
+<section id="setup-success" class="card" hidden aria-live="polite"><p class="eyebrow">SETTINGS SAVED</p><h1>All set</h1><p>The device is restarting to join your Wi-Fi.</p><p>Reconnect your phone to that network and open the IP address shown on the device display.</p></section>
 <p class="setup-note">Adjust colors later in Settings.</p>
 </main>
 </body>

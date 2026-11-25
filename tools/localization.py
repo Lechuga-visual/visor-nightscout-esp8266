@@ -51,7 +51,7 @@ def header():
         'Iniciando','Hora del navegador','Servidor cambiado','Memoria baja para lectura',
         'Sin memoria para historial','Sin memoria para JSON','Respuesta incompleta','Lectura no valida',
         'Error en cuerpo HTTP','Servidor sin lecturas','Token requiere HTTPS','Consultando servidor',
-        'Sin memoria para TLS','Clave publica invalida','CA propia invalida','URL HTTPS invalida',
+        'Sin memoria para TLS','URL HTTPS invalida',
         'URL HTTP invalida','Esperando lectura','Codificacion HTTP no admitida','Error al crear Wi-Fi',
         'Configuracion inicial','Lectura; historial parcial','Conectado','Esperando hora NTP',
         'Sin hora: abre la web','Error de conexion','Conectando Wi-Fi','Sin Wi-Fi',

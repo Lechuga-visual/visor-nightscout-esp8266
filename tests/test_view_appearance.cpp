@@ -6,7 +6,7 @@
 
 using namespace view_appearance;
 void testTaggedStoragePreservesCredentialsAndName() {
-  static_assert(sizeof(device_config::Settings)==3732,"Old configuration layout changed");
+  static_assert(device_config::LEGACY_SETTINGS_SLOT_SIZE==3732,"Old configuration layout changed");
   static_assert(patient_label::OFFSET==3732 && OFFSET==3836,"Old extensions moved");
   std::array<unsigned char,device_config::STORAGE_SIZE> storage;
   storage.fill(0xFF);
@@ -14,7 +14,6 @@ void testTaggedStoragePreservesCredentialsAndName() {
   device.magic=device_config::MAGIC;
   strcpy(device.url,"https://nightscout.example");
   strcpy(device.token,"fixture-readonly-token");
-  strcpy(device.customCa,"-----BEGIN PUBLIC KEY-----\nfixture\n-----END PUBLIC KEY-----");
   patient_label::Label person; strcpy(person.name,"María");
   memcpy(storage.data(),&device,sizeof(device));
   memcpy(storage.data()+patient_label::OFFSET,&person,sizeof(person));
@@ -53,6 +52,23 @@ void testPartialAtomicUpdatesAndValidation() {
   assert(update(current,"2",nullptr,nullptr,nullptr,nullptr,output));
   assert(output.mode==Mode::Centered && output.theme==Theme::Custom);
   assert(output.accent==current.accent && output.number==current.number);
+  Settings sized;
+  assert(update(output,nullptr,nullptr,nullptr,nullptr,nullptr,sized,"4"));
+  assert(sized.numberSize==4);
+  assert(update(sized,"1",nullptr,nullptr,nullptr,nullptr,sized) && sized.numberSize==4);
+  assert(!update(sized,nullptr,nullptr,nullptr,nullptr,nullptr,sized,"1"));
+  assert(!update(sized,nullptr,nullptr,nullptr,nullptr,nullptr,sized,"5") && sized.numberSize==4);
+  sized.magic=LEGACY_MAGIC;
+  assert(restore(sized) && sized.numberSize==0 && sized.mode==Mode::Lateral && sized.theme==Theme::Custom);
+  sized.numberSize=4;
+  sized.panelMode=0xff;
+  sized.magic=SIZE_MAGIC;
+  assert(restore(sized) && sized.numberSize==4 && sized.panelMode==0);
+  assert(update(sized,nullptr,nullptr,nullptr,nullptr,nullptr,sized,nullptr,"3"));
+  assert(sized.panelMode==3 && sized.numberSize==4);
+  assert(!update(sized,nullptr,nullptr,nullptr,nullptr,nullptr,sized,nullptr,"4"));
+  assert(panelColor(0xF800,1)==0x001F && panelColor(0x001F,3)==0xF800);
+  assert(panelColor(0x07E0,1)==0x07E0 && panelColor(0xF800,2)==0xF800);
   const Settings untouched=output;
   for (const char* invalid : {"", "3", "-1", "01", "1x"}) {
     assert(!update(current,invalid,nullptr,nullptr,nullptr,nullptr,output));

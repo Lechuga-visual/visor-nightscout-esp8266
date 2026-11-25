@@ -127,54 +127,7 @@ not a versioned integration contract. Never expose the admin port to the Interne
 
 ## HTTPS and authentication
 
-Use the Nightscout base URL without API paths, credentials or query parameters.
-A read-only token is optional depending on the server. Tokens are not sent over
-HTTP, and the Nightscout administrator `API_SECRET` is not needed.
-
-Blank token/PEM inputs keep saved values only for the same HTTPS origin. Changing
-origin clears the old token and custom trust material. Explicit clear checkboxes
-remove them; clear plus a new value is rejected. This prevents forwarding old
-credentials to another server.
-
-### Public or private CA
-
-The default trust store contains 120 public roots from Mozilla via certifi
-2026.10.19. DER/index data stay in flash and only the needed root is decoded into
-RAM. CA mode checks chain, hostname and certificate dates, and waits for valid
-clock time. Firmware updates can refresh roots; certificate renewal under an
-accepted root normally needs no manual change.
-
-An optional single public private-CA certificate, up to 3072 bytes of PEM, replaces
-the public store for that server. It must be a CA, not a private key. It does not
-disable verification. Clear custom trust to return to the bundled public store.
-The [trust-store reference](../certs/README.md) records provenance and reproduction.
-
-### Pinned public key without NTP
-
-An explicitly saved RSA or supported EC public key authenticates the server by
-proof of possession of the matching private key. TLS remains encrypted, but
-certificate-chain, hostname and date checks are not performed in this mode.
-Unknown replacement keys are never accepted automatically. Keys are bound to the
-configured HTTPS origin and cleared on origin changes.
-
-Obtain a key only after normal site verification on a trusted computer with
-correct time. The [desktop tools](../tools/key-export/README.en.md) do that without
-requesting a token or readings. Alternatively:
-
-```bash
-python -m pip install cryptography
-python tools/export_server_key.py https://your-nightscout.example --output server-key.pem
-```
-
-A trusted private CA can be passed as `--ca-file your-ca.pem`. Paste the entire
-public PEM into the device; never paste a private key. Key rotation requires an
-explicit update; certificate renewal with the same key does not.
-
-Only a successful pinned HTTPS response can bootstrap time from a fresh `Date`
-header. Responses declaring a positive cache age do not set the clock. Reading
-timestamps and unverified HTTP responses are never used as the current time.
-No valid Date means unknown age, and browser time remains available. NTP does
-not start automatically in pinned-key mode.
+The viewer uses BearSSL with `setInsecure()` for HTTPS URLs. It encrypts traffic without verifying the server identity. The optional token is sent over HTTPS only and is cleared on origin changes. NTP or browser time is used for reading age.
 
 ### Clock and connectivity diagnostics
 

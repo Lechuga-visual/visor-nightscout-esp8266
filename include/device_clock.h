@@ -60,11 +60,23 @@ inline bool parseHttpDate(const char* text, int64_t& result) {
 class SyncSchedule {
  public:
   bool poll(bool connected, bool clockReady, uint32_t now) {
-    if (!connected) { wasConnected_ = false; return false; }
+    if (!connected) {
+      wasConnected_ = false;
+      firstFetchFinished_ = false;
+      return false;
+    }
     const bool due = !wasConnected_ || (!clockReady && (!attempted_ || now - lastAttempt_ >= RETRY_MS));
     wasConnected_ = true;
     if (due) restarted(now);
     return due;
+  }
+
+  bool afterFetch(bool connected, bool clockReady, uint32_t now) {
+    if (!connected || firstFetchFinished_) return false;
+    firstFetchFinished_ = true;
+    if (clockReady) return false;
+    restarted(now);
+    return true;
   }
 
   void restarted(uint32_t now) {
@@ -76,6 +88,7 @@ class SyncSchedule {
  private:
   bool wasConnected_ = false;
   bool attempted_ = false;
+  bool firstFetchFinished_ = false;
   uint32_t lastAttempt_ = 0;
 };
 }  // namespace device_clock

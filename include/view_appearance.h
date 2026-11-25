@@ -4,7 +4,14 @@
 #include "patient_label.h"
 
 namespace view_appearance {
-constexpr uint32_t MAGIC = 0x4E534131;
+constexpr uint32_t LEGACY_MAGIC = 0x4E534131;
+constexpr uint32_t SIZE_MAGIC = 0x4E534132;
+constexpr uint32_t MAGIC = 0x4E534133;
+#ifdef SD_PRO_SQUARE_DISPLAY
+constexpr uint8_t DEFAULT_PANEL_MODE = 1;
+#else
+constexpr uint8_t DEFAULT_PANEL_MODE = 0;
+#endif
 constexpr size_t OFFSET = patient_label::OFFSET + sizeof(patient_label::Label);
 enum class Mode : uint8_t { Graph, Lateral, Centered };
 enum class Theme : uint8_t { Mint, Red, Blue, Pink, Cyan, Custom };
@@ -16,12 +23,17 @@ struct Settings {
   uint32_t number = 0x74EDBC;
   Mode mode = Mode::Graph;
   Theme theme = Theme::Mint;
+  uint8_t numberSize = 0;  // Automatic, or a TFT scale from 2 to 4.
+  uint8_t panelMode = DEFAULT_PANEL_MODE;  // Bit 0 swaps red/blue. Bit 1 disables inversion.
 };
 static_assert(OFFSET + sizeof(Settings) <= device_config::STORAGE_SIZE, "Appearance exceeds EEPROM allocation");
 static_assert(sizeof(Settings) == 20, "Keep the tagged appearance layout stable");
 
 inline uint16_t rgb565(uint32_t rgb) {
   return ((rgb >> 8) & 0xF800) | ((rgb >> 5) & 0x07E0) | ((rgb >> 3) & 0x001F);
+}
+inline uint16_t panelColor(uint16_t rgb, uint8_t mode) {
+  return (mode & 1) ? ((rgb & 31) << 11) | (rgb & 0x07E0) | (rgb >> 11) : rgb;
 }
 inline double linear(unsigned channel) {
   const double value = channel / 255.0;
@@ -65,7 +77,16 @@ inline Palette palette(const Settings& settings) {
 inline bool valid(const Settings& settings) {
   return settings.magic == MAGIC && static_cast<unsigned>(settings.mode) <= 2 &&
          static_cast<unsigned>(settings.theme) <= 5 &&
+         settings.numberSize <= 4 && settings.numberSize != 1 && settings.panelMode <= 3 &&
          readable({settings.accent, settings.background, settings.number});
+}
+inline bool restore(Settings& settings) {
+  if (settings.magic == LEGACY_MAGIC) settings.numberSize = 0;
+  if (settings.magic == LEGACY_MAGIC || settings.magic == SIZE_MAGIC) {
+    settings.magic = MAGIC;
+    settings.panelMode = DEFAULT_PANEL_MODE;
+  }
+  return valid(settings);
 }
 inline bool color(const char* text, uint32_t& output) {
   if (!text || strlen(text) != 7 || text[0] != '#') return false;
@@ -89,7 +110,8 @@ inline bool choice(const char* text, unsigned maximum, uint8_t& output) {
 // Missing fields preserve the stored value, supporting a mode-only selector.
 // Assign only after validating everything, so a rejected request is atomic.
 inline bool update(const Settings& current, const char* mode, const char* theme,
-                   const char* accent, const char* background, const char* number, Settings& output) {
+                   const char* accent, const char* background, const char* number, Settings& output,
+                   const char* numberSize = nullptr, const char* panelMode = nullptr) {
   Settings candidate = current;
   uint8_t selected;
   if (mode) { if (!choice(mode, 2, selected)) return false; candidate.mode = static_cast<Mode>(selected); }
@@ -97,6 +119,8 @@ inline bool update(const Settings& current, const char* mode, const char* theme,
   if (accent && !color(accent, candidate.accent)) return false;
   if (background && !color(background, candidate.background)) return false;
   if (number && !color(number, candidate.number)) return false;
+  if (numberSize && !choice(numberSize, 4, candidate.numberSize)) return false;
+  if (panelMode && !choice(panelMode, 3, candidate.panelMode)) return false;
   if (!valid(candidate)) return false;
   output = candidate;
   return true;

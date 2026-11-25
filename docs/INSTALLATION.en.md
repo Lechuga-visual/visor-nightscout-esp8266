@@ -175,9 +175,7 @@ an open network.
   an example, not a test server. Do not append `/api/v1`, a token, an API secret or query parameters.
 - **Read-only token:** needed only if your Nightscout requires authentication.
   Ask its administrator for read permission; do not use the administrator `API_SECRET`.
-- **HTTPS:** for a normal publicly trusted certificate, leave the optional CA/key
-  section blank. Trusted public certificates are already included. If you need
-  the option without NTP, see [HTTPS and time](#8-https-time-and-public-keys).
+- **HTTPS:** enter the HTTPS URL. The viewer encrypts the connection without verifying the server identity.
 
 ### Step 3: Your access
 
@@ -237,15 +235,9 @@ Only drawn colors are dimmed: number, arrow, text, graph and background.
 **The backlight is unchanged.** The seven-pin module has no BL/BLK pin. The web
 viewer stays at its usual intensity; temporary setup stays at 100 % for readability.
 
-### Change server or remove a token/key
+### Change server or remove a token
 
-Changing HTTPS origin—protocol, domain or port—clears the old token and custom
-CA/key, so they are not sent to another server. Enter the new server's credentials
-in that form if needed.
-
-For the same origin, a blank token/PEM field **keeps the saved value**. Use **Clear
-saved token** or **Clear CA or pinned key and use public certificates** to remove
-it. Do not select clear while entering a new value.
+Changing origin clears the saved token. For the same origin, leave the token field blank to keep it or select **Clear saved token** to remove it.
 
 ## 7. Update over Wi-Fi
 
@@ -263,53 +255,9 @@ of a normal update.
 Use a trusted local network. Do not expose the administration port to the Internet.
 There is no automatic rollback in this version; a non-booting image may require USB recovery.
 
-## 8. HTTPS, time and public keys
+## 8. HTTPS and time
 
-HTTPS protects the Wemos-to-Nightscout connection. You do not need to create or
-buy a client certificate for this device.
-
-### Usual option: included public certificates
-
-Leave the optional CA/key blank. The Wemos verifies the server certificate chain,
-name and dates, so it needs correct time. NTP provides time over the Internet.
-
-If it waits for NTP, open **Settings → Device time**:
-
-1. Check your phone/PC date and time.
-2. Try **Retry NTP**.
-3. If it still fails, select **Use this phone/PC's time**.
-
-NTP uses `pool.ntp.org`, `time.google.com` and `time.cloudflare.com`, UDP 123.
-Some networks block it. No inbound router ports are required. The Wemos has no
-battery-backed clock, so manual time must be set again after restart if NTP remains blocked.
-
-### Alternative: pinned public key, without depending on NTP
-
-This identifies the server by a verified key. **It is not the token or a password.**
-
-1. On a trusted computer with correct time, download the
-   [English key-export tool](../tools/key-export/README.en.md) for your OS.
-2. Extract/open it and enter only your Nightscout HTTPS URL. It verifies the site
-   and creates a `.txt` public key. No token is needed.
-3. Open **Settings → HTTPS security and option without NTP** on the Wemos.
-4. Paste the entire TXT, including `-----BEGIN PUBLIC KEY-----` and
-   `-----END PUBLIC KEY-----`.
-5. Select **Save server**, leaving the clear-key checkbox **unchecked**.
-
-Traffic remains encrypted and the server must prove it holds the corresponding
-private key. In this mode the Wemos **does not check the certificate chain, name
-or dates**; identity is pinned by key. The computer verifies the site before
-exporting it. Never paste a private key or a key obtained over an unverified connection.
-
-Certificate renewal can keep the same key, in which case no update is needed.
-If the server rotates its key, the connection fails until you export and save
-the new key. Unknown keys are not automatically accepted.
-
-After authenticated HTTPS, time may come from a fresh server response's `Date`
-header. **A reading timestamp is not the current time**: the reading may already
-be old. If no valid server time is available, the viewer says **Clock not synchronized**;
-you can use the phone/PC clock. Private-CA details are in the
-[technical reference](TECHNICAL.en.md#https-and-authentication).
+HTTPS encrypts the Nightscout connection without verifying the server identity. The device clock is used to calculate reading age. If NTP fails, open the clock control in Settings and use the browser time.
 
 ## 9. Troubleshooting
 
@@ -325,7 +273,6 @@ you can use the phone/PC clock. Private-CA details are in the
 | Nightscout HTTP 401/403 | Base URL, token and read permissions. Wemos login is not the Nightscout token. |
 | No readings or old readings | Check Nightscout and the uploader. The viewer does not generate data. |
 | Partial graph | Only 30 minutes/up to seven points are shown; large gaps are not joined. Partial history may be kept while retrying. |
-| TLS failure after a site change | Check time in CA mode. If a pinned key changed, obtain and save a new verified key. |
 | Expired form/session | Restart/update changed the session. Reopen Settings and reload; do not restore an old form using Back. |
 | Backlight does not dim | Expected: this module dims content only. |
 | Another open tab shows the old language | The dashboard reloads when it detects the saved language changed; reload other settings tabs manually. |
@@ -357,7 +304,6 @@ private keys. Diagnostic field names stay stable in English in either language.
 | Base URL | Main Nightscout address without API paths or secrets. |
 | Wemos IP | Local address shown on the round display. |
 | Token | Nightscout read credential, separate from viewer login. |
-| Public key | Server identity in the optional pinned HTTPS mode. Not a private key. |
 | OTA | A firmware update over Wi-Fi instead of USB. |
 
 [Project](../README.en.md) · [Firmware](../firmware/README.en.md) ·

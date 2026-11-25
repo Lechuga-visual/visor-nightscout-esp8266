@@ -5,7 +5,8 @@
 #include <string.h>
 
 namespace device_config {
-constexpr uint32_t MAGIC = 0x4E534334;
+constexpr uint32_t MAGIC = 0x4E534335;
+constexpr uint32_t V4_MAGIC = 0x4E534334;
 constexpr uint32_t V3_MAGIC = 0x4E534333;
 constexpr uint32_t V2_MAGIC = 0x4E534332;
 constexpr uint32_t LEGACY_MAGIC = 0x4E534331;
@@ -28,10 +29,6 @@ struct Settings {
   char webUsername[33];
   char webPassword[65];
   char token[257];
-  // One CA certificate or one explicitly pinned server public key (PEM).
-  // Reuse the last byte of v3 padding to preserve all EEPROM offsets.
-  char customCa[3073];
-  uint8_t insecureHttps;
 };
 
 struct LegacySettings {
@@ -39,7 +36,8 @@ struct LegacySettings {
   char url[201];
 };
 
-static_assert(sizeof(Settings) == 3732, "Keep existing EEPROM offsets");
+constexpr size_t LEGACY_SETTINGS_SLOT_SIZE = 3732;
+static_assert(sizeof(Settings) == 660, "Keep the historical Wi-Fi, admin and token layout");
 static_assert(sizeof(Settings) <= STORAGE_SIZE, "Settings exceed EEPROM allocation");
 
 template <size_t N>
@@ -60,17 +58,16 @@ inline bool validBaseUrl(const char* url) {
 }
 
 inline bool validStoredSettings(const Settings& settings) {
-  return settings.magic == MAGIC && settings.insecureHttps <= 1 && terminated(settings.url) &&
+  return settings.magic == MAGIC && terminated(settings.url) &&
          terminated(settings.ssid) && terminated(settings.wifiPassword) &&
          terminated(settings.webUsername) && terminated(settings.webPassword) &&
-         terminated(settings.token) && terminated(settings.customCa) &&
+         terminated(settings.token) &&
          validBaseUrl(settings.url);
 }
 
-inline bool migrateV3(Settings& settings) {
-  if (settings.magic != V3_MAGIC) return false;
+inline bool migrateV3OrV4(Settings& settings) {
+  if (settings.magic != V3_MAGIC && settings.magic != V4_MAGIC) return false;
   settings.magic = MAGIC;
-  settings.insecureHttps = 0;
   return validStoredSettings(settings);
 }
 
@@ -120,59 +117,20 @@ inline bool withUpdatedUrl(const Settings& current, const char* url, Settings& u
   memcpy(updated.url, url, strlen(url) + 1);
   if (!sameHttpsOrigin(current.url, url)) {
     // An old server's credential must never be forwarded to a different origin.
-    updated.insecureHttps = 0;
     memset(updated.token, 0, sizeof(updated.token));
-    memset(updated.customCa, 0, sizeof(updated.customCa));
-  }
-  return true;
-}
-
-inline bool pinnedPublicKey(const char* pem) {
-  return pem && strncmp(pem, "-----BEGIN PUBLIC KEY-----", 26) == 0;
-}
-
-enum class TlsAuthentication { CertificateAuthority, PinnedPublicKey, Insecure };
-
-inline TlsAuthentication tlsAuthentication(const Settings& settings) {
-  if (settings.insecureHttps == 1 && strncmp(settings.url, "https://", 8) == 0)
-    return TlsAuthentication::Insecure;
-  return pinnedPublicKey(settings.customCa) ? TlsAuthentication::PinnedPublicKey
-                                           : TlsAuthentication::CertificateAuthority;
-}
-
-inline bool setInsecureHttps(Settings& settings, bool enabled) {
-  if (enabled && strncmp(settings.url, "https://", 8) != 0) return false;
-  settings.insecureHttps = enabled;
-  return true;
-}
-
-inline bool trustPemEnvelope(const char* pem) {
-  if (!pem || !*pem) return true;
-  const bool key = pinnedPublicKey(pem);
-  const char* begin = key ? "-----BEGIN PUBLIC KEY-----" : "-----BEGIN CERTIFICATE-----";
-  const char* end = key ? "-----END PUBLIC KEY-----" : "-----END CERTIFICATE-----";
-  if (strncmp(pem, begin, strlen(begin)) != 0 || strstr(pem, "PRIVATE KEY")) return false;
-  const char* ending = strstr(pem + strlen(begin), end);
-  if (!ending || strstr(pem + strlen(begin), "-----BEGIN ")) return false;
-  for (const char* c = ending + strlen(end); *c; ++c) {
-    if (*c != '\r' && *c != '\n' && *c != ' ' && *c != '\t') return false;
   }
   return true;
 }
 
 inline bool updateServer(const Settings& current, const char* url, const char* token,
-                         bool clearToken, const char* ca, bool clearCa, Settings& updated) {
-  if (!url || !token || !ca || strlen(token) > 256 || strlen(ca) > 3072 ||
-      (clearToken && *token) || (clearCa && *ca)) return false;
+                         bool clearToken, Settings& updated) {
+  if (!url || !token || strlen(token) > 256 || (clearToken && *token)) return false;
   for (const unsigned char* c = reinterpret_cast<const unsigned char*>(token); *c; ++c) {
     if (*c <= ' ' || *c >= 127) return false;
   }
-  if (!trustPemEnvelope(ca)) return false;
   if (!withUpdatedUrl(current, url, updated)) return false;
   if (clearToken) memset(updated.token, 0, sizeof(updated.token));
   else if (*token) { memset(updated.token, 0, sizeof(updated.token)); memcpy(updated.token, token, strlen(token)); }
-  if (clearCa) memset(updated.customCa, 0, sizeof(updated.customCa));
-  else if (*ca) { memset(updated.customCa, 0, sizeof(updated.customCa)); memcpy(updated.customCa, ca, strlen(ca)); }
   return !updated.token[0] || strncmp(updated.url, "https://", 8) == 0;
 }
 
@@ -187,9 +145,7 @@ inline bool migrateV2(const V2Settings& previous, Settings& settings) {
   memcpy(settings.webUsername, previous.webUsername, sizeof(settings.webUsername));
   memcpy(settings.webPassword, previous.webPassword, sizeof(settings.webPassword));
   memset(settings.token, 0, sizeof(settings.token));
-  memset(settings.customCa, 0, sizeof(settings.customCa));
   settings.magic = MAGIC;
-  settings.insecureHttps = 0;
   return true;
 }
 
@@ -198,9 +154,7 @@ inline bool migrateLegacy(const LegacySettings& legacy, Settings& settings) {
   // Retain current credential defaults; legacy firmware persisted only the URL.
   memcpy(settings.url, legacy.url, sizeof(settings.url));
   memset(settings.token, 0, sizeof(settings.token));
-  memset(settings.customCa, 0, sizeof(settings.customCa));
   settings.magic = MAGIC;
-  settings.insecureHttps = 0;
   return true;
 }
 }  // namespace device_config

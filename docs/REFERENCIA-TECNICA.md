@@ -137,7 +137,7 @@ En **Ajustes** (`/settings`) puedes guardar otra **URL base**, sin `/api/v1`, cr
 parámetros. La URL se conserva en la memoria de configuración y se vuelve a consultar sin
 reiniciar. Guardar otra URL descarta la lectura del servidor anterior y conserva
 las claves de Wi-Fi y administración. También permite guardar un token de solo
-lectura y, opcionalmente, una CA privada o una clave pública fija. Los campos de token nunca se rellenan
+lectura. Los campos de token nunca se rellenan
 con el valor guardado.
 
 Dejar el token vacío conserva el anterior **solo para el mismo origen HTTPS**
@@ -176,113 +176,7 @@ se transfieren desde el firmware anterior.
 
 ## HTTPS y autenticación
 
-El mismo `.bin` sirve para configurar distintas instalaciones. En la web del
-Wemos introduce:
-
-1. **URL base:** por ejemplo `https://tu-nightscout.example`, sin API secret,
-   token, parámetros ni `/api/v1`.
-2. **Token de solo lectura:** generado en la administración de tu Nightscout,
-   si el servidor exige autenticación. No uses el `API_SECRET` de administrador.
-   El firmware rechaza guardar/enviar tokens con una URL HTTP.
-3. **Seguridad HTTPS y opción sin NTP:** puedes usar certificados CA o fijar la
-   clave pública del servidor, como se explica debajo.
-
-El firmware incluye **120 raíces públicas de confianza** de Mozilla, distribuidas
-por certifi 2026.10.19. Están en flash y solo se carga en RAM la raíz necesaria.
-No se necesita un certificado propio para el Wemos ni subir una imagen de
-filesystem. En el modo predeterminado se verifican la cadena, el nombre del servidor
-y la hora; el reloj se sincroniza por NTP o desde el navegador. En este modo,
-hasta tener una hora válida se espera antes de consultar HTTPS. Las renovaciones
-del certificado del servidor funcionan mientras la
-cadena siga siendo válida bajo una raíz admitida. Nuevas raíces se distribuyen
-con actualizaciones del firmware.
-
-Si tu instalación utiliza una **CA privada**, abre la sección opcional y pega
-un certificado público de esa autoridad en PEM (máximo 3072 bytes). Debe ser
-un único certificado CA válido, sin claves privadas. Esa CA reemplaza el
-almacén público para ese servidor; no desactiva la validación. Para volver al
-almacén incluido, marca **Borrar CA o clave fija y usar certificados públicos**.
-
-El token y la CA quedan en la configuración local del dispositivo y se cambian
-sin recompilar. El repositorio y el binario distribuido no incluyen tokens ni
-datos de Wi-Fi de usuarios.
-
-La API consultada sigue siendo v1 y las entradas `sgv` se muestran en mg/dL;
-aún no se puede seleccionar mmol/L en pantalla. Ver [certs/README.md](../certs/README.md)
-para la procedencia y reproducción del almacén de confianza.
-
-### HTTPS sin NTP: fijar la clave pública del servidor
-
-Desde 0.4.0 puedes autenticar el servidor mediante su clave pública RSA o EC
-fijada en el Wemos. No necesitas crear un certificado autofirmado ni cambiar
-Nightscout. TLS sigue cifrando la conexión y exige demostrar la posesión de la
-clave privada correspondiente; **no se comprueban cadena, nombre ni fechas del
-certificado**, porque la identidad queda fijada por esa clave. El token puede
-seguir usándose. Si el servidor cambia de clave, la conexión falla hasta que
-actualices la clave guardada; no hay aceptación automática de claves nuevas.
-
-Obtén la clave desde un PC de confianza con su reloj correctamente ajustado.
-Para hacerlo con una ventana y sin instalar `cryptography`, utiliza las
-[herramientas para Windows, Linux y macOS](../tools/key-export/README.md). Solo piden
-la URL y generan un `.txt` con la clave, listo para copiar al Wemos. Hay paquetes
-ZIP y capturas de las ventanas. No requieren actualizar el firmware.
-
-Como alternativa por terminal, descarga
-[export_server_key.py](../tools/export_server_key.py) y, en esa carpeta, ejecuta:
-
-```bash
-python -m pip install cryptography
-python export_server_key.py https://tu-nightscout.example --output clave-servidor.pem
-```
-
-La herramienta verifica normalmente el certificado y el nombre del servidor
-antes de exportar la clave. No envía tokens ni consulta glucosa. Si utilizas
-una CA privada, puedes añadir `--ca-file tu-ca.pem`. No obtengas la clave desde
-una conexión sin verificar ni desde un proxy que sustituya el certificado del
-servidor: estarías fijando la identidad equivocada.
-
-En el Wemos, abre **Ajustes → Seguridad HTTPS y opción sin NTP**, pega todo el contenido
-de `clave-servidor.pem` (desde `BEGIN PUBLIC KEY` hasta `END PUBLIC KEY`) y pulsa
-**Guardar servidor**, sin marcar la casilla de borrar. Desde 0.4.1 aparece la
-confirmación **Servidor guardado**, con el modo de autenticación elegido. El modo se reconoce por
-el PEM y se conserva después de reiniciar. La clave es pública; nunca pegues
-la clave privada del servidor. Se conserva únicamente para el mismo origen HTTPS.
-
-En este modo NTP no arranca automáticamente. Después de autenticar la conexión,
-el Wemos ajusta su reloj con la cabecera **Date** de una respuesta HTTPS correcta
-y calcula la antigüedad usando la fecha de cada lectura. Pide respuestas sin
-caché y descarta la hora si la respuesta declara una antigüedad de caché mayor
-que cero. **La fecha de una lectura nunca se usa como hora actual**: una lectura
-antigua debe seguir apareciendo como antigua. Si falta una cabecera Date válida,
-puede mostrar el valor con **Hora sin sincronizar**, sin afirmar su antigüedad;
-puedes darle la hora desde el navegador.
-
-Un Nightscout con lectura pública puede funcionar con el campo token vacío.
-Si ya había uno guardado, marca **Borrar token guardado** para eliminarlo.
-La lectura pública permite que otras personas con la URL consulten esos datos;
-quitar el token no cambia el funcionamiento de HTTPS.
-
-### Si se queda esperando la hora NTP
-
-En el modo de certificados CA, NTP arranca después de conectar el Wi-Fi y reintenta cada 30 segundos
-mientras falta la hora. Alterna entre `pool.ntp.org`, `time.google.com` y
-`time.cloudflare.com`, por UDP al puerto 123. Algunas redes bloquean esas consultas.
-
-Si aparece **Esperando hora NTP** o **Sin hora: abre la web**:
-
-1. Desde un teléfono o computador conectado a la misma red, abre
-   `http://IP_DEL_WEMOS/` e inicia sesión con tus datos de administración.
-2. En **Ajustes → Hora del dispositivo**, comprueba el estado y pulsa **Reintentar NTP**.
-3. Si sigue sin sincronizar, comprueba que el teléfono/PC tenga la fecha y hora
-   correctas, preferentemente automáticas, y pulsa **Usar hora de este teléfono/PC**.
-
-El navegador entrega su hora al Wemos y este vuelve a intentar consultar
-Nightscout. La verificación del certificado HTTPS permanece activa. La hora
-se muestra en UTC; una diferencia respecto a tu hora local es normal.
-El Wemos no tiene un reloj con batería: si NTP sigue bloqueado, tendrás que
-repetir este paso después de reiniciarlo. No es necesario abrir puertos entrantes
-en el router. Esta opción requiere el firmware 0.3.1; puedes actualizar por
-`/update` aunque todavía no se haya sincronizado la hora.
+El visor usa BearSSL con `setInsecure()` para URL HTTPS. La conexión se cifra sin verificar la identidad del servidor. El token opcional se envía únicamente por HTTPS y se borra al cambiar de origen. La hora se sincroniza por NTP o desde el navegador para calcular la antigüedad de las lecturas.
 
 ### Si aparece Sin Wi-Fi
 
@@ -307,7 +201,7 @@ la hora puede terminar antes de abrir la conexión al servidor.
 
 El código de sesión de los formularios cambia cada vez que arranca el Wemos.
 Una página abierta antes de un reinicio o una actualización ya no sirve para
-guardar datos. Ese rechazo sucede **antes de validar la clave o el certificado**.
+guardar datos.
 Abre de nuevo `http://IP_DEL_WEMOS/settings`, recarga completamente la página y vuelve
 a pegar la clave; no uses Atrás para recuperar el formulario anterior. No se
 desactiva esta protección ni se reenvía automáticamente una solicitud rechazada.

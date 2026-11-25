@@ -22,7 +22,6 @@ The `sd_pro` build supports the SD PRO clock with a 4 MB ESP-12F and a square 24
 | Build and set up the device | [Step-by-step installation guide](docs/INSTALLATION.en.md) |
 | Check the seven connections | [Wiring table and diagram](docs/INSTALLATION.en.md#2-connect-the-display) |
 | Download ready-to-install firmware | [Firmware downloads](firmware/README.en.md) |
-| Get a server public key, if needed | [Windows, Linux and macOS key tools](tools/key-export/README.en.md) |
 | See future plans, including ESP32 | [Roadmap](ROADMAP.en.md) |
 | Build from source or understand security | [Technical reference](docs/TECHNICAL.en.md) |
 
@@ -53,7 +52,7 @@ afterwards, settings and normal updates are available through the local web page
 | Guided setup | Three steps for Wi-Fi, Nightscout and local administrator credentials. |
 | Startup screen | Real progress through Wi-Fi, server connection and first reading. |
 | Night schedule | Start/end times, time zone and day/night intensity from 10–100 %, with a five-second preview. |
-| Nightscout connection | Configurable URL, optional read-only token, and HTTPS with public CAs or a pinned public key. |
+| Nightscout connection | Configurable URL, optional read-only token, and encrypted HTTPS without server identity verification. |
 | Wireless updates | Upload a `.bin` through the browser; normal firmware updates retain settings. |
 | Diagnostics and recovery | Wi-Fi reconnection, last-reading retention with warnings, and a diagnostics page. |
 | **Spanish / English** | One bilingual firmware. Choose the language during setup or in Settings; it is saved for both the physical display and web pages. |

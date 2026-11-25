@@ -5,7 +5,9 @@
 
 namespace reading_ui {
 struct ParsedReadings {
+#ifndef SD_PRO_SQUARE_DISPLAY
   History history;
+#endif
   bool available = false;
   int value = 0;
   int64_t date = 0;
@@ -63,7 +65,12 @@ template <typename Input> ParseResult parseEntries(Input& input, int64_t now, Pa
   if (token(input) != '[') return ParseResult::Invalid;
   int next = token(input);
   if (next == ']') { diagnostic.stage = "empty"; return ParseResult::Empty; }
-  for (size_t count = 0; count < SOURCE_READINGS; ++count) {
+#ifdef SD_PRO_SQUARE_DISPLAY
+  constexpr size_t limit = 1;
+#else
+  constexpr size_t limit = SOURCE_READINGS;
+#endif
+  for (size_t count = 0; count < limit; ++count) {
     diagnostic.stage = "object_start";
     if (next != '{') return ParseResult::Invalid;
     ObjectReader<Input> object(input);
@@ -80,7 +87,9 @@ template <typename Input> ParseResult parseEntries(Input& input, int64_t now, Pa
     // Do not conceal an invalid newest reading. Older sensor error records
     // should leave gaps, rather than preventing all future updates.
     if (!valid && count == 0) { diagnostic.stage = "invalid_reading"; return ParseResult::Invalid; }
+#ifndef SD_PRO_SQUARE_DISPLAY
     if (valid) output.history.add(date, static_cast<uint16_t>(value));
+#endif
     if (valid && (!output.available || date > output.date)) {
       output.available = true;
       output.value = value;

@@ -36,7 +36,7 @@
       timer = setTimeout(() => { feedback.textContent = "Preview finished. The display returns to the saved schedule."; }, 5000);
     } catch (error) {
       feedback.textContent = error instanceof TypeError
-        ? "Disconnected from Wemos. A started preview restores itself; no changes are saved." : error.message;
+        ? "Disconnected from the device. A started preview restores itself; no changes are saved." : error.message;
     } finally { preview.disabled = false; save.disabled = false; }
   });
 })();

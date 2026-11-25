@@ -40,6 +40,9 @@
     preview.style.setProperty('--preview-accent',colors.accent);
     preview.style.setProperty('--preview-background',colors.background);
     preview.style.setProperty('--preview-number',colors.number);
+    if (fields.number_size) {
+      preview.querySelector('strong').style.fontSize = ({2:40,3:49,4:64}[fields.number_size.value] || 58) + 'px';
+    }
     apply(colors);
     const valid=readable(colors);
     document.getElementById('save-appearance').disabled=!valid;
@@ -47,7 +50,28 @@
   }
   form.addEventListener('input',update);
   form.addEventListener('change',update);
-  form.addEventListener('submit',event=>{update();if(document.getElementById('save-appearance').disabled)event.preventDefault();});
+  form.addEventListener('submit', async event=>{
+    update();
+    if (document.getElementById('save-appearance').disabled) {
+      event.preventDefault();
+      return;
+    }
+    if (event.submitter?.id !== 'panel-preview') return;
+    event.preventDefault();
+    const button = event.submitter;
+    const feedback = document.getElementById('panel-feedback');
+    const body = new URLSearchParams(new FormData(form));
+    body.set('panel_preview','1');
+    body.set('quick','1');
+    button.disabled = true;
+    try {
+      const response = await fetch(form.action,{method:'POST',body,credentials:'same-origin'});
+      if (!response.ok) throw new Error();
+      feedback.textContent = "Test active for 12 seconds. Changes were not saved.";
+    } catch {
+      feedback.textContent = "Could not start the display test.";
+    } finally { button.disabled = false; }
+  });
   document.getElementById('reset-theme').addEventListener('click',()=>{fields.theme.value='0';update();});
   update();
 })();

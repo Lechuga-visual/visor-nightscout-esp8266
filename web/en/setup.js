@@ -45,15 +45,11 @@
         invalid('url', "Use your Nightscout's http:// or https:// base URL, without a token, API secret or /api/v1.");
       if (Array.from(name).length > 24 || /[\u0000-\u001f\u007f-\u009f]/.test(name))
         invalid('patient_name', "Use up to 24 characters, without line breaks or control characters.");
-      const token = field('token').value.trim(), pem = field('custom_ca').value.trim();
+      const token = field('token').value.trim();
       if (token && (!url.startsWith('https://') || /[^\x21-\x7e]/.test(token) || token.length > 256))
         invalid('token', "The token requires HTTPS and up to 256 characters without spaces.");
       if (field('clear_token').checked && token)
         invalid('token', "Either clear the saved token or enter a new one.");
-      if (bytes(pem) > 3072 || /PRIVATE KEY/.test(pem))
-        invalid('custom_ca', "Use a CA certificate or PEM public key up to 3072 bytes. Never a private key.");
-      if (field('clear_ca').checked && pem)
-        invalid('custom_ca', "Either clear the saved PEM or enter a new one.");
     } else {
       const username = field('web_username').value.trim();
       if (!username || bytes(username) > 32 || /[\u0000-\u001f\u007f:]/.test(username))
@@ -102,7 +98,7 @@
         body: new URLSearchParams(new FormData(form))
       });
       if (!response.ok) {
-        if (response.status === 403) throw new Error("The form expired or the Wemos restarted. Reload this page before saving again.");
+        if (response.status === 403) throw new Error("The form expired or the device restarted. Reload this page before saving again.");
         if (response.status === 401) throw new Error("The admin session ended. Reload the page and sign in.");
         const detail = await response.text();
         throw new Error(detail && !detail.includes('<') ? detail.slice(0, 500) : "Could not save. Check the fields and try again.");
@@ -114,7 +110,7 @@
       $('setup-success').focus();
     } catch (error) {
       $('setup-error').textContent = error instanceof TypeError
-        ? "Could not confirm saving. Check whether the Wemos restarted and shows a new IP. If it is still in setup mode, you can retry."
+        ? "Could not confirm saving. Check whether the device restarted and shows a new IP. If it is still in setup mode, you can retry."
         : error.message;
       $('setup-error').hidden = false;
       $('setup-error').scrollIntoView({block:'center'});

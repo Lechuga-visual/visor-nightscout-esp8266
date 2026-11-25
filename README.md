@@ -24,7 +24,6 @@ La variante `sd_pro` admite el reloj SD PRO con ESP-12F de 4 MB y pantalla ST778
 | Armarlo y dejarlo funcionando | [Guía de instalación paso a paso](docs/INSTALACION.md) |
 | Ver qué cable va en cada pin | [Diagrama nuevo y tabla de conexiones](docs/INSTALACION.md#2-conectar-la-pantalla) |
 | Descargar el programa del dispositivo | [Firmware para D1 mini y SD PRO](firmware/README.md) |
-| Obtener la clave pública de mi sitio, si la necesito | [Herramientas con ventana para Windows, Linux y macOS](tools/key-export/README.md) |
 | Conocer lo que viene, incluido ESP32 | [Hoja de ruta](ROADMAP.md) |
 | Compilar, revisar HTTPS o colaborar con código | [Referencia técnica](docs/REFERENCIA-TECNICA.md) |
 
@@ -56,7 +55,7 @@ actualizaciones se hacen desde la web del dispositivo.
 | Configuración desde el teléfono | Asistente de tres pasos para Wi-Fi, Nightscout y acceso de administración. |
 | Bienvenida al encender | Indica el avance real de Wi-Fi, servidor y primera lectura. |
 | Horario nocturno | Horas de inicio y fin, zona horaria e intensidad de día/noche entre 10 y 100 %, con prueba de cinco segundos. |
-| Conexión con Nightscout | URL configurable, token de solo lectura cuando hace falta y HTTPS con certificados públicos, CA privada o clave pública fija. También permite desactivar de forma explícita la verificación de identidad. |
+| Conexión con Nightscout | URL configurable, token de solo lectura cuando hace falta y HTTPS cifrado sin validación de la identidad del servidor. |
 | Actualizaciones por Wi-Fi | Carga de un archivo `.bin` desde el navegador; una actualización normal conserva los ajustes. |
 | Recuperación y diagnóstico | Reconexión de Wi-Fi, conservación de la última lectura con avisos y página de diagnóstico. |
 

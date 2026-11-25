@@ -45,15 +45,11 @@
         invalid('url', 'Usa la URL base http:// o https:// de tu Nightscout, sin token, API secret ni /api/v1.');
       if (Array.from(name).length > 24 || /[\u0000-\u001f\u007f-\u009f]/.test(name))
         invalid('patient_name', 'Usa hasta 24 caracteres, sin saltos de línea ni controles.');
-      const token = field('token').value.trim(), pem = field('custom_ca').value.trim();
+      const token = field('token').value.trim();
       if (token && (!url.startsWith('https://') || /[^\x21-\x7e]/.test(token) || token.length > 256))
         invalid('token', 'El token requiere HTTPS y hasta 256 caracteres sin espacios.');
       if (field('clear_token').checked && token)
         invalid('token', 'Elige borrar el token guardado o escribir uno nuevo.');
-      if (bytes(pem) > 3072 || /PRIVATE KEY/.test(pem))
-        invalid('custom_ca', 'Usa un certificado CA o una clave pública PEM de hasta 3072 bytes. Nunca una clave privada.');
-      if (field('clear_ca').checked && pem)
-        invalid('custom_ca', 'Elige borrar el PEM guardado o escribir uno nuevo.');
     } else {
       const username = field('web_username').value.trim();
       if (!username || bytes(username) > 32 || /[\u0000-\u001f\u007f:]/.test(username))
@@ -102,7 +98,7 @@
         body: new URLSearchParams(new FormData(form))
       });
       if (!response.ok) {
-        if (response.status === 403) throw new Error('El formulario caducó o el Wemos se reinició. Recarga esta página antes de guardar de nuevo.');
+        if (response.status === 403) throw new Error('El formulario caducó o el dispositivo se reinició. Recarga esta página antes de guardar de nuevo.');
         if (response.status === 401) throw new Error('La sesión de administración terminó. Recarga la página e inicia sesión.');
         const detail = await response.text();
         throw new Error(detail && !detail.includes('<') ? detail.slice(0, 500) : 'No se pudo guardar. Revisa los campos e intenta nuevamente.');
@@ -114,7 +110,7 @@
       $('setup-success').focus();
     } catch (error) {
       $('setup-error').textContent = error instanceof TypeError
-        ? 'No se pudo confirmar el guardado. Revisa si el Wemos se reinició y muestra una nueva IP. Si sigue en configuración, puedes reintentar.'
+        ? 'No se pudo confirmar el guardado. Revisa si el dispositivo se reinició y muestra una nueva IP. Si sigue en configuración, puedes reintentar.'
         : error.message;
       $('setup-error').hidden = false;
       $('setup-error').scrollIntoView({block:'center'});

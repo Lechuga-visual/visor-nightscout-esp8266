@@ -5,8 +5,7 @@
 using namespace patient_label;
 int main() {
   // Original EEPROM offsets and size must remain compatible with v0.4/0.5.0.
-  static_assert(sizeof(device_config::Settings) == 3732, "Existing layout changed");
-  static_assert(offsetof(device_config::Settings, customCa) == 658, "Saved trust key moved");
+  static_assert(device_config::LEGACY_SETTINGS_SLOT_SIZE == 3732, "Existing layout changed");
   Label label;
   assert(valid(label) && !label.name[0]);
   label.magic = 0xFFFFFFFF;
