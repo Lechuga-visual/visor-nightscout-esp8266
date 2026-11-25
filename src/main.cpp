@@ -34,7 +34,8 @@
 #endif
 
 namespace {
-constexpr char VERSION[] = "0.8.1";
+constexpr char VERSION[] = "0.9.0";
+using device_config::TlsAuthentication;
 constexpr uint32_t POLL_MS = 30000;
 TFT_eSPI display;
 ESP8266WebServer web(80);
@@ -178,7 +179,7 @@ bool persistSettings(const device_config::Settings& candidate, const patient_lab
   settings = candidate;
   patient = label;
   baseUrl = settings.url;
-  if (device_config::pinnedPublicKey(settings.customCa)) sntp_stop();
+  if (device_config::tlsAuthentication(settings) == TlsAuthentication::PinnedPublicKey) sntp_stop();
   return true;
 }
 
@@ -236,7 +237,9 @@ void appendClockControls(String& page) {
     page += clockSource == ClockSource::Ntp ? F(" · NTP") :
             clockSource == ClockSource::Browser ? L(" · hora del navegador") :
             clockSource == ClockSource::Server ? L(" · hora del servidor HTTPS") : L(" · reloj disponible");
-  } else page += device_config::pinnedPublicKey(settings.customCa)
+  } else if (device_config::tlsAuthentication(settings) == TlsAuthentication::Insecure) {
+    page += L("Sin hora. Este modo HTTPS no requiere validar fechas del certificado.");
+  } else page += (device_config::tlsAuthentication(settings) == TlsAuthentication::PinnedPublicKey)
                     ? L("Sin hora. La clave pública fija permite consultar HTTPS igualmente.")
                     : L("Hora sin sincronizar. HTTPS con certificados CA espera una hora válida.");
   page += L("</p><p>Intentos NTP: ");
@@ -253,7 +256,7 @@ void appendClockControls(String& page) {
   page += csrf;
   page += L("'><button>Usar hora de este teléfono/PC</button></form>"
             "<p>Esta hora dura hasta el próximo reinicio.</p>");
-  page += device_config::pinnedPublicKey(settings.customCa)
+  page += (device_config::tlsAuthentication(settings) == TlsAuthentication::PinnedPublicKey)
               ? L("<p>En modo clave fija no se inicia NTP automáticamente. Se toma la hora de la respuesta HTTPS autenticada del servidor.</p></section>")
               : L("<p>NTP sigue intentando sincronizar en segundo plano.</p></section>");
 }
@@ -317,6 +320,11 @@ void appendServerFields(String& page) {
   page += L("<label><input name='clear_token' type='checkbox' value='1' style='width:auto'>"
             " Borrar token guardado</label><p>El token solo se envía por HTTPS. "
             "Al cambiar de servidor se borra el anterior; introduce el token del nuevo servidor.</p>"
+            "<label><input name='insecure_https' type='checkbox' value='1' style='width:auto'");
+  if (settings.insecureHttps) page += F(" checked");
+  page += L(" aria-describedby='insecure-https-help'> HTTPS sin validar certificado</label>"
+            "<p id='insecure-https-help'>Mantiene el cifrado, pero no verifica la identidad del servidor. "
+            "Un intermediario podría leer el token o alterar las lecturas.</p>"
             "<details><summary>Seguridad HTTPS y opción sin NTP</summary><p>El firmware incluye ");
   page += String(PublicCaStore::rootCount());
   page += L(" autoridades de confianza. Para servidores públicos normalmente no necesitas pegar un certificado.</p>"
@@ -365,7 +373,8 @@ bool serverFields(device_config::Settings& candidate, const String& url) {
   return device_config::updateServer(settings, url.c_str(), token.c_str(),
                                     web.arg("clear_token") == "1", ca.c_str(),
                                     web.arg("clear_ca") == "1", candidate) &&
-         validCustomTrust(candidate.customCa);
+         device_config::setInsecureHttps(candidate, web.arg("insecure_https") == "1") &&
+         (candidate.insecureHttps || validCustomTrust(candidate.customCa));
 }
 
 bool patientFields(patient_label::Label& label) {
@@ -619,7 +628,7 @@ void saveConfiguration() {
   std::unique_ptr<device_config::Settings> candidate(new (std::nothrow) device_config::Settings);
   if (!candidate) { web.send(503, "text/plain", L("Memoria insuficiente. Intenta nuevamente.")); return; }
   if (!serverFields(*candidate, url)) {
-    web.send(400, "text/plain; charset=utf-8", L("Revisa el token y el PEM: una CA válida o una clave pública RSA/EC. Nunca una clave privada. El token requiere HTTPS. No combines borrar con introducir un valor nuevo."));
+    web.send(400, "text/plain; charset=utf-8", L("Revisa el token y el PEM: una CA válida o una clave pública RSA/EC. Nunca una clave privada. El token requiere HTTPS. El modo sin validar también requiere HTTPS. No combines borrar con introducir un valor nuevo."));
     return;
   }
   ssid.toCharArray(candidate->ssid, sizeof(candidate->ssid));
@@ -744,7 +753,10 @@ void saveSettings() {
   String page = L("<meta name='viewport' content='width=device-width,initial-scale=1'>"
                   "<meta charset='utf-8'><h1>Servidor guardado</h1><p>La configuración se guardó correctamente. "
                   "El Wi-Fi y los datos de administración se conservan.</p><p>Modo HTTPS: ");
-  page += device_config::pinnedPublicKey(settings.customCa) ? L("clave pública fija, sin NTP") : L("certificados CA, requiere hora");
+  const auto tls = device_config::tlsAuthentication(settings);
+  page += tls == TlsAuthentication::Insecure ? L("HTTPS sin validar certificado") :
+          tls == TlsAuthentication::PinnedPublicKey ? L("clave pública fija, sin NTP") :
+          L("certificados CA, requiere hora");
   page += L(".</p><p>La consulta se iniciará cuando se cierre esta conexión web, después de unos segundos.</p>"
             "<p><a href='/'>Volver a la página principal</a> · <a href='/diagnostics'>Ver diagnóstico</a></p>");
   web.send(200, "text/html; charset=utf-8", page);
@@ -840,9 +852,10 @@ void fetchReading() {
   endpoint += latestOnlyRequest ? F("/api/v1/entries.json?count=1") : F("/api/v1/entries/sgv.json?count=");
   if (!latestOnlyRequest) endpoint += String(reading_ui::SOURCE_READINGS);
   const bool https = baseUrl.startsWith("https://");
-  const bool pinned = device_config::pinnedPublicKey(settings.customCa);
+  const auto tls = device_config::tlsAuthentication(settings);
+  const bool pinned = tls == TlsAuthentication::PinnedPublicKey;
   // Avoid allocating the TLS stack and buffers until a connection is possible.
-  if (https && !pinned && !device_clock::plausible(time(nullptr))) {
+  if (https && tls == TlsAuthentication::CertificateAuthority && !device_clock::plausible(time(nullptr))) {
     message = ntpAttempts < 2 ? "Esperando hora NTP" : "Sin hora: abre la web";
     return;
   }
@@ -870,7 +883,8 @@ void fetchReading() {
     largestBlockBeforeTls = ESP.getMaxFreeBlockSize();
     secure.reset(new (std::nothrow) BearSSL::WiFiClientSecure);
     if (!secure) { message = F("Sin memoria para TLS"); return; }
-    if (pinned) {
+    if (tls == TlsAuthentication::Insecure) secure->setInsecure();
+    else if (pinned) {
       key.reset(new (std::nothrow) BearSSL::PublicKey(settings.customCa));
       if (!key || !validPinnedKey(*key)) { message = F("Clave publica invalida"); return; }
       secure->setKnownKey(key.get());
@@ -883,7 +897,7 @@ void fetchReading() {
     // client's value. Set it here so the TLS handshake actually gets 5 s.
     http.setTimeout(5000);
     Serial.printf_P(PSTR("TLS inicio: modo=%s heap=%u bloque=%u RSSI=%d\n"),
-                  pinned ? "clave" : "CA", heapBeforeTls, largestBlockBeforeTls, WiFi.RSSI());
+                  tls == TlsAuthentication::Insecure ? "insecure" : pinned ? "clave" : "CA", heapBeforeTls, largestBlockBeforeTls, WiFi.RSSI());
     if (!http.begin(*secure, endpoint)) {
       message = F("URL HTTPS invalida");
       return;
@@ -1086,7 +1100,10 @@ void diagnostics() {
                              clockSource == ClockSource::Browser ? "browser" :
                              clockSource == ClockSource::Ntp ? "ntp" : "unknown";
   document[F("ntp_attempts")] = ntpAttempts;
-  document[F("tls_authentication")] = device_config::pinnedPublicKey(settings.customCa) ? "pinned_public_key" : "certificate_authority";
+  const auto tls = device_config::tlsAuthentication(settings);
+  document[F("tls_authentication")] = !baseUrl.startsWith("https://") ? "none" :
+      tls == TlsAuthentication::Insecure ? "insecure" :
+      tls == TlsAuthentication::PinnedPublicKey ? "pinned_public_key" : "certificate_authority";
   if (document.overflowed()) { web.send(503, "text/plain", L("Sin memoria para diagnostico")); return; }
   String body;
   serializeJson(document, body);
@@ -1149,17 +1166,23 @@ void drawValue(const String& value, int x, int y, int width, int height) {
 void drawHistory(time_t now, uint16_t color, uint16_t background) {
   const auto plot = reading_ui::plot(history, now);
   display.setTextColor(screenColor(0x9AABB0), background);
-  display.drawString(F("-30 min"), 50, 139, 1);
-  display.drawString(L("ahora"), 188, 139, 1);
+#ifdef SD_PRO_SQUARE_DISPLAY
+  constexpr int left = 18, right = 222;
+#else
+  constexpr int left = 38, right = 202;
+#endif
+  constexpr int width = right - left;
+  display.drawString(F("-30 min"), left + 12, 139, 1);
+  display.drawString(L("ahora"), right - 14, 139, 1);
   for (int value : {70, 180}) {
     if (value < plot.low || value > plot.high) continue;
     const int y = 148 + (plot.high - value) * 30 / (plot.high - plot.low);
-    for (int x = 38; x < 202; x += 5) display.drawFastHLine(x, y, 2, night_display::scale565(0x3207, screenIntensity));
+    for (int x = left; x < right; x += 5) display.drawFastHLine(x, y, 2, night_display::scale565(0x3207, screenIntensity));
   }
   for (size_t i = 0; i < plot.count; ++i) {
-    const int x = 38 + plot.points[i].x * 164 / 1000, y = 148 + plot.points[i].y * 30 / 1000;
+    const int x = left + plot.points[i].x * width / 1000, y = 148 + plot.points[i].y * 30 / 1000;
     if (i && !plot.points[i].start)
-      display.drawLine(38 + plot.points[i-1].x * 164 / 1000, 148 + plot.points[i-1].y * 30 / 1000, x, y, color);
+      display.drawLine(left + plot.points[i-1].x * width / 1000, 148 + plot.points[i-1].y * 30 / 1000, x, y, color);
     display.fillCircle(x, y, 1, color);
   }
   if (!plot.count) display.drawString(device_clock::plausible(now) ? L("Esperando historial") : L("Hora sin sincronizar"), 120, 163, 1);
@@ -1197,7 +1220,11 @@ void renderWelcome() {
   const uint16_t background = screenColor(colors.background);
   const uint16_t accent = screenColor(colors.accent);
   display.fillScreen(background);
+#ifdef SD_PRO_SQUARE_DISPLAY
+  display.drawRect(4, 4, 232, 232, accent);
+#else
   display.drawCircle(120, 120, 115, accent);
+#endif
   display.setTextDatum(MC_DATUM);
   display.setTextSize(1);
   display.drawLine(106, 47, 112, 47, accent);
@@ -1210,7 +1237,8 @@ void renderWelcome() {
   drawStartupStage(startup.wifi(connected), 121);
   display.drawString(connected ? L("Wi-Fi conectado") : L("Conectando Wi-Fi"), 67, 121, 2);
   drawStartupStage(startup.server(connected), 147);
-  const bool waitingClock = baseUrl.startsWith("https://") && !device_config::pinnedPublicKey(settings.customCa) &&
+  const bool waitingClock = baseUrl.startsWith("https://") &&
+                            device_config::tlsAuthentication(settings) == TlsAuthentication::CertificateAuthority &&
                             !device_clock::plausible(time(nullptr));
   display.drawString(!connected ? L("Esperando Wi-Fi") :
                      startup.responseCode == 200 ? L("Servidor conectado") :
@@ -1234,7 +1262,11 @@ void renderProvisioning() {
   const uint16_t background = screenColor(colors.background);
   const uint16_t accent = screenColor(colors.accent);
   display.fillScreen(background);
+#ifdef SD_PRO_SQUARE_DISPLAY
+  display.drawRect(4, 4, 232, 232, accent);
+#else
   display.drawCircle(120, 120, 115, accent);
+#endif
   display.setTextDatum(MC_DATUM);
   display.setTextSize(1);
   display.setTextColor(accent, background);
@@ -1271,9 +1303,9 @@ String readingAgeText(bool available, int64_t age) {
 }
 
 void render() {
+  if (!setupMode && !startup.finished) { renderWelcome(); return; }
   updateScreenIntensity();
   if (setupMode) { renderProvisioning(); return; }
-  if (!startup.finished) { renderWelcome(); return; }
   const time_t now = time(nullptr);
   const int64_t age = reading_ui::ageSeconds(reading.available, reading.dateMs, now);
   const bool stale = reading.available && age >= 600;
@@ -1291,10 +1323,18 @@ void render() {
   const uint16_t accent = tone == reading_ui::Tone::Normal ? screenColor(colors.accent) : statusColor;
   const uint16_t trendColor = tone == reading_ui::Tone::Old ? valueColor : accent;
   display.fillScreen(background);
+#ifdef SD_PRO_SQUARE_DISPLAY
+  display.drawRect(4, 4, 232, 232, accent);
+#else
   display.drawCircle(120, 120, 115, accent);
   display.drawCircle(120, 120, 114, accent);
+#endif
   display.setTextDatum(MC_DATUM);
+#ifdef SD_PRO_SQUARE_DISPLAY
+  drawPatientName(background, 33, 208);
+#else
   drawPatientName(background);
+#endif
   display.setTextColor(valueColor, background);
   const String value = reading.available ? String(reading.sgv) : String(F("---"));
   if (appearance.mode == view_appearance::Mode::Graph) {
@@ -1357,7 +1397,7 @@ void setup() {
     std::unique_ptr<device_config::Settings> saved(new (std::nothrow) device_config::Settings);
     if (saved) {
       EEPROM.get(0, *saved);
-      if (device_config::validStoredSettings(*saved)) settings = *saved;
+      if (device_config::validStoredSettings(*saved) || device_config::migrateV3(*saved)) settings = *saved;
       else {
         device_config::V2Settings previous{};
         EEPROM.get(0, previous);
@@ -1426,7 +1466,7 @@ void loop() {
   if (!setupMode && WiFi.status() == WL_CONNECTED) {
     hasConnected = true;
     // Start/retry DNS and SNTP only after the station has acquired a connection.
-    if (!device_config::pinnedPublicKey(settings.customCa)) {
+    if (device_config::tlsAuthentication(settings) != TlsAuthentication::PinnedPublicKey) {
       if (clockSchedule.poll(true, device_clock::plausible(time(nullptr)), millis())) startNtp();
     } else clockSchedule.poll(false, device_clock::plausible(time(nullptr)), millis());
     static bool mdnsStarted = false;

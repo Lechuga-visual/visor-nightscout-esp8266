@@ -3,15 +3,19 @@
 **Español** · [English](README.en.md)
 
 Un pequeño visor de escritorio para ver las lecturas de glucosa de **Nightscout**
-en una pantalla redonda y, también, desde el navegador del teléfono o computador.
+en una pantalla TFT y, también, desde el navegador del teléfono o computador.
 Muestra el número, una flecha de tendencia y cuánto tiempo tiene la lectura,
 con una interfaz oscura y letras grandes.
 
-La versión actual funciona con **Wemos D1 mini ESP8266 y pantalla GC9A01 de
+El montaje original usa **Wemos D1 mini ESP8266 y pantalla GC9A01 de
 240 × 240 píxeles**. El soporte para ESP32 es parte de la evolución futura y
 todavía no está implementado.
 
 ![Panel web con lectura grande y flecha lateral; datos de ejemplo](docs/images/visor-lateral.png)
+
+## Reloj SD PRO
+
+La variante `sd_pro` admite el reloj SD PRO con ESP-12F de 4 MB y pantalla ST7789 cuadrada de 240 × 240. Para compilar y grabar, sigue la [guía SD PRO](docs/SD-PRO.md).
 
 ## Para comenzar
 
@@ -19,7 +23,7 @@ todavía no está implementado.
 | --- | --- |
 | Armarlo y dejarlo funcionando | [Guía de instalación paso a paso](docs/INSTALACION.md) |
 | Ver qué cable va en cada pin | [Diagrama nuevo y tabla de conexiones](docs/INSTALACION.md#2-conectar-la-pantalla) |
-| Descargar el programa del dispositivo | [Firmware 0.8.1 para D1 mini](firmware/README.md) |
+| Descargar el programa del dispositivo | [Firmware para D1 mini y SD PRO](firmware/README.md) |
 | Obtener la clave pública de mi sitio, si la necesito | [Herramientas con ventana para Windows, Linux y macOS](tools/key-export/README.md) |
 | Conocer lo que viene, incluido ESP32 | [Hoja de ruta](ROADMAP.md) |
 | Compilar, revisar HTTPS o colaborar con código | [Referencia técnica](docs/REFERENCIA-TECNICA.md) |
@@ -52,7 +56,7 @@ actualizaciones se hacen desde la web del dispositivo.
 | Configuración desde el teléfono | Asistente de tres pasos para Wi-Fi, Nightscout y acceso de administración. |
 | Bienvenida al encender | Indica el avance real de Wi-Fi, servidor y primera lectura. |
 | Horario nocturno | Horas de inicio y fin, zona horaria e intensidad de día/noche entre 10 y 100 %, con prueba de cinco segundos. |
-| Conexión con Nightscout | URL configurable, token de solo lectura cuando hace falta y HTTPS con certificados públicos o clave pública fija. |
+| Conexión con Nightscout | URL configurable, token de solo lectura cuando hace falta y HTTPS con certificados públicos, CA privada o clave pública fija. También permite desactivar de forma explícita la verificación de identidad. |
 | Actualizaciones por Wi-Fi | Carga de un archivo `.bin` desde el navegador; una actualización normal conserva los ajustes. |
 | Recuperación y diagnóstico | Reconexión de Wi-Fi, conservación de la última lectura con avisos y página de diagnóstico. |
 
@@ -95,13 +99,8 @@ Los [diseños originales del visor](docs/propuestas-visor/README.md) y de
 - **La web es local.** Se abre en la misma red del Wemos, con usuario y contraseña.
   Usa HTTP dentro de esa red; la conexión con Nightscout usa HTTPS. No incluye
   acceso remoto propio y no debe publicarse el panel de administración en Internet.
-- **El hardware soportado es específico.** D1 mini ESP8266 de 4 MB y el cableado
-  indicado para GC9A01 SPI. No hay todavía firmware ESP32 ni compatibilidad general
-  con otras pantallas.
+- **Hardware.** Wemos D1 mini con GC9A01 redonda o reloj SD PRO con ST7789 cuadrada. Ambos usan ESP8266 y 4 MB de flash.
 
-La versión 0.8.1 tiene comprobaciones de compilación y pruebas automatizadas;
-su interfaz web es idéntica a la de 0.8.0. La verificación de esta actualización
-en una placa física sigue pendiente.
 Los detalles están en los [datos de compilación](firmware/build-info.json).
 
 ## Conexiones y documentación

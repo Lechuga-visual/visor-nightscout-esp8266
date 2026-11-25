@@ -182,6 +182,32 @@ void testPinnedKeyStorageAndEnvelopeValidation() {
   assert(trustPemEnvelope("-----BEGIN CERTIFICATE-----\nx\n-----END CERTIFICATE-----\n"));
 }
 
+void testTlsModeMigrationAndPersistence() {
+  Settings stored = sample();
+  strcpy(stored.url, "https://nightscout.example");
+  stored.magic = V3_MAGIC;
+  stored.insecureHttps = 0xff;
+  strcpy(stored.token, "preserved-token");
+  strcpy(stored.customCa, "-----BEGIN PUBLIC KEY-----\nfixture\n-----END PUBLIC KEY-----");
+  assert(migrateV3(stored));
+  assert(tlsAuthentication(stored) == TlsAuthentication::PinnedPublicKey);
+  assert(strcmp(stored.token, "preserved-token") == 0);
+  assert(setInsecureHttps(stored, true));
+  unsigned char eeprom[sizeof(Settings)];
+  memcpy(eeprom, &stored, sizeof(stored));
+  Settings rebooted{};
+  memcpy(&rebooted, eeprom, sizeof(rebooted));
+  assert(validStoredSettings(rebooted));
+  assert(tlsAuthentication(rebooted) == TlsAuthentication::Insecure);
+  assert(setInsecureHttps(rebooted, false));
+  assert(tlsAuthentication(rebooted) == TlsAuthentication::PinnedPublicKey);
+  Settings updated{};
+  assert(withUpdatedUrl(stored, "https://new.example", updated));
+  assert(tlsAuthentication(updated) == TlsAuthentication::CertificateAuthority);
+  strcpy(updated.url, "http://nightscout.example");
+  assert(!setInsecureHttps(updated, true));
+}
+
 int main() {
   testFirstBootNeedsProvisioning();
   testWifiValidation();
@@ -193,5 +219,6 @@ int main() {
   testServerTokenUpdateAndClear();
   testVersionTwoMigrationKeepsWifiAndAdmin();
   testPinnedKeyStorageAndEnvelopeValidation();
-  puts("10 settings test groups passed");
+  testTlsModeMigrationAndPersistence();
+  puts("11 settings test groups passed");
 }

@@ -93,7 +93,6 @@
   "CAMBIAR CONEXIÓN": "CHANGE CONNECTION",
   "Revisa la URL y la longitud de los campos.": "Check the URL and field lengths.",
   "Memoria insuficiente. Intenta nuevamente.": "Not enough memory. Try again.",
-  "Revisa el token y el PEM: una CA válida o una clave pública RSA/EC. Nunca una clave privada. El token requiere HTTPS. No combines borrar con introducir un valor nuevo.": "Check the token and PEM: a valid CA or RSA/EC public key. Never a private key. The token requires HTTPS. Do not clear a value and enter a new one at the same time.",
   "SSID y usuario obligatorios; clave Wi-Fi de 8 a 63 caracteres (o vacia para red abierta); clave de administracion de 12 a 64.": "SSID and username are required; Wi-Fi password must be 8 to 63 characters (or blank for an open network); admin password must be 12 to 64.",
   "No se pudo guardar. Intenta nuevamente.": "Could not save. Try again.",
   "Configuración guardada": "Settings saved",
@@ -399,5 +398,9 @@
   "VCC → 3V3, nunca 5V.    RST de pantalla → D0, no RST del Wemos.": "VCC → 3V3, never 5V.    Display RST → D0, not Wemos RST.",
   "SCL y SDA son SPI en esta pantalla. No se conectan como I²C. No necesita MISO.": "SCL and SDA use SPI on this display, not I²C. No MISO wire is needed.",
   "Alimenta el Wemos por USB después de revisar todo el cableado.": "Power the Wemos over USB after checking all seven connections.",
-  "Esquema ilustrativo · Sigue las etiquetas de tus módulos · Guía completa: docs/INSTALACION.md": "Illustrative diagram · Follow your module labels · Full guide: docs/INSTALLATION.en.md"
+  "Esquema ilustrativo · Sigue las etiquetas de tus módulos · Guía completa: docs/INSTALACION.md": "Illustrative diagram · Follow your module labels · Full guide: docs/INSTALLATION.en.md",
+  "Revisa el token y el PEM: una CA válida o una clave pública RSA/EC. Nunca una clave privada. El token requiere HTTPS. El modo sin validar también requiere HTTPS. No combines borrar con introducir un valor nuevo.": "Check the token and PEM: a valid CA or RSA/EC public key. Never a private key. The token requires HTTPS. Do not clear a value and enter a new one at the same time. Unverified mode also requires HTTPS.",
+  "HTTPS sin validar certificado": "HTTPS without certificate verification",
+  "Mantiene el cifrado, pero no verifica la identidad del servidor. Un intermediario podría leer el token o alterar las lecturas.": "Encryption stays enabled, but the server identity is not verified. An intermediary could read the token or alter readings.",
+  "Sin hora. Este modo HTTPS no requiere validar fechas del certificado.": "Clock not set. This HTTPS mode does not check certificate dates."
 }

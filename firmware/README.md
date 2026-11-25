@@ -1,13 +1,13 @@
-# Firmware para Wemos D1 mini ESP8266
+# Firmware para D1 mini y SD PRO
 
 **Español** · [English](README.en.md)
 
-**Versión 0.8.1** · **4 MB de flash** · pantalla **GC9A01 SPI 240 × 240**.
-Este archivo sirve para ese hardware y el cableado del proyecto; no es un binario ESP32.
+Ambas variantes incluyen español e inglés y usan ESP8266 con 4 MB de flash. [Guía SD PRO](../docs/SD-PRO.md).
 
 | Archivo | Uso |
 | --- | --- |
-| [nightscout-d1-mini-v0.8.1.bin](nightscout-d1-mini-v0.8.1.bin) | Programa listo para cargar. En GitHub pulsa **Download raw file**. |
+| [nightscout-d1-mini-v0.9.0.bin](nightscout-d1-mini-v0.9.0.bin) | Programa listo para cargar. En GitHub pulsa **Download raw file**. |
+| [nightscout-sd-pro-v0.9.0.bin](nightscout-sd-pro-v0.9.0.bin) | SD PRO · ST7789 |
 | [SHA256SUMS](SHA256SUMS) | Sumas para comprobar la descarga. |
 | [build-info.json](build-info.json) | Placa, herramientas de compilación, memoria y validaciones del binario. |
 

@@ -138,7 +138,7 @@
   async function refresh() {
     if (busy) return;
     clearTimeout(timer);
-    if (document.hidden) { timer = setTimeout(refresh,5000); return; }
+    if (document.hidden) return;
     busy = true; $('refresh').disabled = true;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(),9000);
@@ -160,12 +160,12 @@
       if (!snapshot) { text('connection',"Wemos not responding"); $('connection').className = 'connection-pill offline'; }
     } finally {
       clearTimeout(timeout); busy = false; $('refresh').disabled = false;
-      render(); timer = setTimeout(refresh,5000);
+      if (!document.hidden) { render(); timer = setTimeout(refresh,5000); }
     }
   }
   $('refresh').addEventListener('click',refresh);
   $('view-mode').addEventListener('change',changeMode);
   document.addEventListener('visibilitychange',() => { if (!document.hidden) refresh(); });
-  setInterval(render,1000);
+  setInterval(() => { if (!document.hidden) render(); },1000);
   refresh();
 })();
