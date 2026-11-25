@@ -36,7 +36,7 @@
       timer = setTimeout(() => { feedback.textContent = 'Prueba terminada. La pantalla vuelve al horario guardado.'; }, 5000);
     } catch (error) {
       feedback.textContent = error instanceof TypeError
-        ? 'Sin conexión con el Wemos. Una prueba iniciada se restaura sola; no se guardan cambios.' : error.message;
+        ? 'Sin conexión con el dispositivo. Una prueba iniciada se restaura sola; no se guardan cambios.' : error.message;
     } finally { preview.disabled = false; save.disabled = false; }
   });
 })();

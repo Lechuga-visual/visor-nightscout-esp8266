@@ -1,3 +1,4 @@
+#include <initializer_list>
 #include "device_settings.h"
 
 #include <assert.h>
@@ -80,12 +81,11 @@ void testLegacyMigrationPreservesDefaults() {
   strcpy(legacy.url, "http://192.168.1.5:9000");
   Settings settings = sample();
   strcpy(settings.token, "discard-legacy-default-token");
-  strcpy(settings.customCa, "discard-legacy-default-ca");
   assert(migrateLegacy(legacy, settings));
   assert(strcmp(settings.url, legacy.url) == 0);
   assert(strcmp(settings.ssid, "test-network") == 0);
   assert(strcmp(settings.webPassword, "test-admin-fixture-only") == 0);
-  assert(!settings.token[0] && !settings.customCa[0]);
+  assert(!settings.token[0]);
   assert(configured(settings));
   legacy.magic = 0;
   assert(!migrateLegacy(legacy, settings));
@@ -109,13 +109,11 @@ void testTokenIsBoundToHttpsOrigin() {
   Settings before = sample();
   strcpy(before.url, "https://my-nightscout.example");
   strcpy(before.token, "test-readonly-token");
-  strcpy(before.customCa, "test-CA-placeholder");
   Settings after{};
   assert(withUpdatedUrl(before, "https://MY-nightscout.example/path", after));
   assert(strcmp(after.token, before.token) == 0);
-  assert(strcmp(after.customCa, before.customCa) == 0);
   assert(withUpdatedUrl(before, "https://another-nightscout.example", after));
-  assert(!after.token[0] && !after.customCa[0]);
+  assert(!after.token[0]);
   assert(strcmp(after.wifiPassword, before.wifiPassword) == 0);
   assert(withUpdatedUrl(before, "http://my-nightscout.example", after));
   assert(!after.token[0]);
@@ -126,17 +124,16 @@ void testTokenIsBoundToHttpsOrigin() {
 void testServerTokenUpdateAndClear() {
   Settings current = sample();
   Settings updated{};
-  assert(!updateServer(current, "http://192.168.1.100:8000", "token-fixture", false, "", false, updated));
-  assert(updateServer(current, "https://nightscout.example", "token-fixture", false, "", false, updated));
+  assert(!updateServer(current, "http://192.168.1.100:8000", "token-fixture", false, updated));
+  assert(updateServer(current, "https://nightscout.example", "token-fixture", false, updated));
   assert(strcmp(updated.token, "token-fixture") == 0);
   current = updated;
-  assert(updateServer(current, current.url, "", false, "", false, updated));
+  assert(updateServer(current, current.url, "", false, updated));
   assert(strcmp(updated.token, "token-fixture") == 0);
-  assert(updateServer(current, current.url, "", true, "", false, updated));
+  assert(updateServer(current, current.url, "", true, updated));
   assert(!updated.token[0]);
-  assert(!updateServer(current, current.url, "new", true, "", false, updated));
-  assert(!updateServer(current, current.url, "bad\r\ntoken", false, "", false, updated));
-  assert(!updateServer(current, current.url, "", false, "-----BEGIN PRIVATE KEY-----", false, updated));
+  assert(!updateServer(current, current.url, "new", true, updated));
+  assert(!updateServer(current, current.url, "bad\r\ntoken", false, updated));
 }
 
 void testVersionTwoMigrationKeepsWifiAndAdmin() {
@@ -149,37 +146,32 @@ void testVersionTwoMigrationKeepsWifiAndAdmin() {
   strcpy(old.webPassword, "old-admin-fixture-password");
   Settings migrated = sample();
   strcpy(migrated.token, "discard-compile-default");
-  strcpy(migrated.customCa, "discard-old-default");
   assert(migrateV2(old, migrated));
   assert(configured(migrated));
   assert(strcmp(migrated.url, old.url) == 0 && strcmp(migrated.ssid, old.ssid) == 0);
   assert(strcmp(migrated.wifiPassword, old.wifiPassword) == 0);
   assert(strcmp(migrated.webPassword, old.webPassword) == 0);
-  assert(!migrated.token[0] && !migrated.customCa[0]);
+  assert(!migrated.token[0]);
   memset(old.webPassword, 'x', sizeof(old.webPassword));
   assert(!migrateV2(old, migrated));
 }
 
-void testPinnedKeyStorageAndEnvelopeValidation() {
-  const char* key = "-----BEGIN PUBLIC KEY-----\nfixture\n-----END PUBLIC KEY-----";
-  Settings current = sample();
-  Settings updated{};
-  assert(pinnedPublicKey(key));
-  assert(trustPemEnvelope(key));
-  assert(updateServer(current, "https://nightscout.example", "", false, key, false, updated));
-  current = updated;
-  assert(updateServer(current, current.url, "", false, "", false, updated));
-  assert(strcmp(updated.customCa, key) == 0);
-  assert(updateServer(current, current.url, "", false, "", true, updated));
-  assert(!updated.customCa[0]);
-  assert(withUpdatedUrl(current, "https://another-nightscout.example", updated));
-  assert(!updated.customCa[0]);
-  assert(!trustPemEnvelope("-----BEGIN PRIVATE KEY-----\nx\n-----END PRIVATE KEY-----"));
-  assert(!trustPemEnvelope("-----BEGIN PUBLIC KEY-----\nx\n-----END CERTIFICATE-----"));
-  assert(!trustPemEnvelope("-----BEGIN PUBLIC KEY-----\nx\n-----END PUBLIC KEY-----garbage"));
-  assert(!trustPemEnvelope("-----BEGIN PUBLIC KEY-----\n-----BEGIN PUBLIC KEY-----\n-----END PUBLIC KEY-----"));
-  assert(!trustPemEnvelope("prefix-----BEGIN CERTIFICATE-----\nx\n-----END CERTIFICATE-----"));
-  assert(trustPemEnvelope("-----BEGIN CERTIFICATE-----\nx\n-----END CERTIFICATE-----\n"));
+void testCompactSettingsMigrateBothPreviousVersions() {
+  static_assert(sizeof(Settings) == 660, "Do not load retired trust data");
+  for (uint32_t magic : {V3_MAGIC, V4_MAGIC}) {
+    Settings old = sample();
+    old.magic = magic;
+    strcpy(old.url, "https://nightscout.example");
+    strcpy(old.token, "preserved-token");
+    Settings migrated{};
+    memcpy(&migrated, &old, sizeof(migrated));
+    assert(migrateV3OrV4(migrated));
+    assert(configured(migrated));
+    assert(strcmp(migrated.token, old.token) == 0);
+    assert(strcmp(migrated.ssid, old.ssid) == 0);
+    assert(strcmp(migrated.wifiPassword, old.wifiPassword) == 0);
+    assert(strcmp(migrated.webPassword, old.webPassword) == 0);
+  }
 }
 
 int main() {
@@ -192,6 +184,6 @@ int main() {
   testTokenIsBoundToHttpsOrigin();
   testServerTokenUpdateAndClear();
   testVersionTwoMigrationKeepsWifiAndAdmin();
-  testPinnedKeyStorageAndEnvelopeValidation();
+  testCompactSettingsMigrateBothPreviousVersions();
   puts("10 settings test groups passed");
 }

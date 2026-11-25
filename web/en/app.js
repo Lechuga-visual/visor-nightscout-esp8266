@@ -7,13 +7,16 @@
   const ageText = seconds => seconds < 60 ? "Less than 1 min ago" : `${Math.floor(seconds / 60)} min ago`;
   function text(id, value) { $(id).textContent = value; }
   function move(id,x,y) { $(id).setAttribute('x',x); $(id).setAttribute('y',y); }
-  function layout(mode, digits) {
-    const selected = [0,1,2].includes(mode) ? mode : 0;
+  function layout(mode, digits, numberSize) {
+    const selected = [0,1,2].includes(mode) ? mode : ($('history-group') ? 0 : 1);
     const positions = [[104,115,188,108,104,132],[100,148,201,131,100,170],[120,154,155,183,102,179]][selected];
     move('glucose',positions[0],positions[1]);
     move('dial-unit',positions[4],positions[5]);
-    $('glucose').style.fontSize = `${(digits>3 ? [48,70,84] : [64,94,112])[selected]}px`;
-    $('history-group').style.display = selected===0 ? '' : 'none';
+    const base = (digits>3 ? [48,70,84] : [64,94,112])[selected];
+    const multiplier = {2:.68,3:.85,4:1.1}[numberSize] || 1;
+    $('glucose').style.fontSize = `${base * multiplier}px`;
+    const history = $('history-group');
+    if (history) history.style.display = selected===0 ? '' : 'none';
     $('dial').dataset.mode = String(selected);
     if (!modeSaving) $('view-mode').value=String(selected);
     text('view-scope',["Last 30 minutes","Number · side arrow","Number · arrow below"][selected]);
@@ -34,7 +37,10 @@
     }
     $('trend').setAttribute('d',path);
   }
-  function drawGraph(plot) {
+  function drawGraph(plot, square) {
+    const left = square ? 18 : 38, right = 240 - left;
+    $('history-start').setAttribute('x', left);
+    $('history-end').setAttribute('x', right);
     const grid = $('graph-grid'), dots = $('history-dots');
     grid.replaceChildren(); dots.replaceChildren();
     let path = '';
@@ -43,11 +49,11 @@
         if (value < plot.low || value > plot.high) continue;
         const line = document.createElementNS('http://www.w3.org/2000/svg','line');
         const y = 148 + (plot.high - value) * 30 / (plot.high - plot.low);
-        for (const [key,v] of Object.entries({x1:38,x2:202,y1:y,y2:y,class:'graph-grid'})) line.setAttribute(key,v);
+        for (const [key,v] of Object.entries({x1:left,x2:right,y1:y,y2:y,class:'graph-grid'})) line.setAttribute(key,v);
         grid.append(line);
       }
       for (const point of plot.points || []) {
-        const x = 38 + point[0] * 164 / 1000, y = 148 + point[1] * 30 / 1000;
+        const x = left + point[0] * (right - left) / 1000, y = 148 + point[1] * 30 / 1000;
         path += `${point[2] ? 'M':'L'}${x.toFixed(2)} ${y.toFixed(2)} `;
         const dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
         for (const [key,value] of Object.entries({cx:x,cy:y,r:1.1,class:'history-dot'})) dot.setAttribute(key,value);
@@ -71,7 +77,7 @@
     const number = hasReading ? String(s.glucose) : '---';
     text('glucose',number);
     const mode = s.appearance && Number.isInteger(s.appearance.mode) ? s.appearance.mode : 0;
-    layout(mode,number.length);
+    layout(mode,number.length,s.appearance && s.appearance.number_size);
     if (window.GlucoseAppearance) window.GlucoseAppearance.apply(s.appearance,$('dial'));
     $('view-mode').disabled = modeSaving || !browserOnline || typeof s.csrf !== 'string';
     drawTrend(s.trend_symbol,mode,hasReading);
@@ -90,11 +96,12 @@
     const fullName=s.patient_name || 'NIGHTSCOUT';
     const name=$('dial-brand');
     name.setAttribute('aria-label',fullName);
-    name.setAttribute('y',s.patient_name ? '53' : '47');
+    const square = s.display_shape === 'square';
+    name.setAttribute('y', s.patient_name ? (square ? 43 : 53) : (square ? 37 : 47));
     name.style.fontSize=s.patient_name ? '28px' : '14px';
     name.style.letterSpacing='.6px';
     name.removeAttribute('textLength');
-    const maximumNameWidth=s.patient_name ? 128 : 148;
+    const maximumNameWidth=s.patient_name ? (square ? 208 : 128) : 148;
     const letters=Array.from(fullName);
     text('dial-brand',fullName);
     while (letters.length>1 && name.getComputedTextLength()>maximumNameWidth) {
@@ -114,7 +121,7 @@
     $('dial').setAttribute('aria-label',hasReading ? `${s.glucose} milligrams per deciliter. ${s.trend_label}. ${ageLabel}` : "No readings");
     const connection = $('connection');
     connection.className = 'connection-pill ' + (browserOnline ? 'online' : 'offline');
-    connection.replaceChildren(Object.assign(document.createElement('i'),{}),document.createTextNode(browserOnline ? "Connected to Wemos" : "Wemos not responding"));
+    connection.replaceChildren(Object.assign(document.createElement('i'),{}),document.createTextNode(browserOnline ? "Connected to the device" : "Device not responding"));
   }
   async function changeMode() {
     if (!snapshot || !browserOnline || modeSaving || typeof snapshot.csrf !== 'string') return;
@@ -132,40 +139,42 @@
       snapshot.appearance={...snapshot.appearance,mode:selected};
       text('view-feedback',"Mode saved on the display and viewer.");
     } catch(error) {
-      text('view-feedback',error.name==='AbortError' ? "The Wemos took too long to respond. Refresh the viewer to check the saved mode." : error.message);
+      text('view-feedback',error.name==='AbortError' ? "The device took too long to respond. Refresh the viewer to check the saved mode." : error.message);
     } finally {modeSaving=false;render();}
   }
   async function refresh() {
     if (busy) return;
     clearTimeout(timer);
-    if (document.hidden) { timer = setTimeout(refresh,5000); return; }
+    if (document.hidden) return;
     busy = true; $('refresh').disabled = true;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(),9000);
     try {
       const response = await fetch('/api/state',{cache:'no-store',credentials:'same-origin',signal:controller.signal});
-      if (!response.ok) throw new Error(response.status === 401 ? "Sign in to the Wemos again." : "The Wemos could not provide its state.");
+      if (!response.ok) throw new Error(response.status === 401 ? "Sign in to the device again." : "The device could not provide its state.");
       const data = await response.json();
       if (data.language && data.language !== document.documentElement.lang) { location.reload(); return; }
       if (typeof data.available !== 'boolean') throw new Error("Reload the page after updating firmware.");
       snapshot = data; receivedAt = performance.now(); browserOnline = true;
       $('network-notice').hidden = true;
       text('viewer-status',"Viewer connected · refreshes every 5 s");
-      drawGraph(data.plot);
+      const square = data.display_shape === 'square';
+      $('dial').dataset.shape = square ? 'square' : 'round';
+      if ($('history-group')) drawGraph(data.plot, square);
     } catch (error) {
       browserOnline = false;
-      text('network-notice',error.name === 'AbortError' ? "The Wemos took too long to respond. The viewer will retry automatically and keep the last received reading." : error.message);
+      text('network-notice',error.name === 'AbortError' ? "The device took too long to respond. The viewer will retry automatically and keep the last received reading." : error.message);
       $('network-notice').hidden = false;
-      text('viewer-status',"Wemos not responding · retrying");
-      if (!snapshot) { text('connection',"Wemos not responding"); $('connection').className = 'connection-pill offline'; }
+      text('viewer-status',"Device not responding · retrying");
+      if (!snapshot) { text('connection',"Device not responding"); $('connection').className = 'connection-pill offline'; }
     } finally {
       clearTimeout(timeout); busy = false; $('refresh').disabled = false;
-      render(); timer = setTimeout(refresh,5000);
+      if (!document.hidden) { render(); timer = setTimeout(refresh,5000); }
     }
   }
   $('refresh').addEventListener('click',refresh);
   $('view-mode').addEventListener('change',changeMode);
   document.addEventListener('visibilitychange',() => { if (!document.hidden) refresh(); });
-  setInterval(render,1000);
+  setInterval(() => { if (!document.hidden) render(); },1000);
   refresh();
 })();

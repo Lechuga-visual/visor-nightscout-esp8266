@@ -62,10 +62,20 @@ jobs:
           assert hashlib.sha256(firmware.read_bytes()).hexdigest() == info['sha256'], 'Firmware hash mismatch'
           assert info['private_compile_time_configuration'] is False, 'Private firmware is not distributable'
 
+          sd_pro = info.get('sd_pro')
+          if sd_pro:
+              assert sd_pro['board'] == 'sd_pro'
+              assert sd_pro['file'] == 'nightscout-sd-pro-v' + info['version'] + '.bin'
+              sd_firmware = root / 'firmware' / sd_pro['file']
+              assert sd_firmware.stat().st_size == sd_pro['size_bytes'], 'SD PRO size mismatch'
+              assert hashlib.sha256(sd_firmware.read_bytes()).hexdigest() == sd_pro['sha256'], 'SD PRO hash mismatch'
+
           tools = root / 'tools/key-export'
           hashes = dict((name, digest) for digest, name in
                         (line.split('  ') for line in (tools / 'SHA256SUMS').read_text(encoding='utf-8').splitlines()))
           files = [firmware, root / 'firmware/build-info.json']
+          if sd_pro:
+              files.append(sd_firmware)
           for name in ['clave-nightscout-windows.zip', 'clave-nightscout-linux-macos.zip',
                        'nightscout-key-windows-en.zip', 'nightscout-key-linux-macos-en.zip']:
               source = tools / name

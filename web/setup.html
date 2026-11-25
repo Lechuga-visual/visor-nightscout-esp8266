@@ -19,10 +19,10 @@
 <p id="setup-error" class="network-notice" role="alert" hidden></p>
 <fieldset data-step="0">
 <h1 tabindex="-1">Tu Wi-Fi</h1>
-<p class="intro">Conecta el Wemos a tu red de casa.</p>
+<p class="intro">Conecta el dispositivo a tu red de casa.</p>
 <label>Nombre de tu Wi-Fi<input name="ssid" maxlength="32" autocomplete="off" required value="{{ssid}}"></label>
 <label>Contraseña de tu Wi-Fi<input name="wifi_password" type="password" maxlength="64" autocomplete="off"></label>
-<p class="notice">Usa una red de <strong>2,4 GHz</strong>. Aquí va la contraseña de tu casa, no la clave temporal del Wemos. Déjala vacía solo si la red es abierta.</p>
+<p class="notice">Usa una red de <strong>2,4 GHz</strong>. Aquí va la contraseña de tu casa, no la clave temporal del dispositivo. Déjala vacía solo si la red es abierta.</p>
 </fieldset>
 <fieldset data-step="1">
 <h1 tabindex="-1">Tu Nightscout</h1>
@@ -40,14 +40,14 @@
 <dl><div><dt>Red</dt><dd id="review-ssid"></dd></div><div><dt>Persona</dt><dd id="review-patient"></dd></div><div><dt>Nightscout</dt><dd id="review-url"></dd></div></dl>
 <p>Contraseñas y token ocultos.</p>
 </section>
-<p class="notice">Al guardar, el Wemos se reinicia. Reconecta tu teléfono a tu Wi-Fi y abre la IP que muestre la pantalla.</p>
+<p class="notice">Al guardar, el dispositivo se reinicia. Reconecta tu teléfono a tu Wi-Fi y abre la IP que muestre la pantalla.</p>
 <input type="hidden" name="csrf" value="{{csrf}}">
 <button id="setup-save" type="submit">Guardar y reiniciar</button>
 </fieldset>
 <div class="setup-navigation" hidden><button id="setup-next" type="button">Continuar</button><button id="setup-back" type="button" class="secondary">Volver al paso anterior</button></div>
 <noscript><p>Completa los tres grupos y pulsa Guardar y reiniciar al terminar.</p></noscript>
 </form>
-<section id="setup-success" class="card" hidden aria-live="polite"><p class="eyebrow">CONFIGURACIÓN GUARDADA</p><h1>Todo listo</h1><p>El Wemos se está reiniciando para conectar a tu Wi-Fi.</p><p>Reconecta tu teléfono a esa red y abre la IP que aparecerá en la pantalla del dispositivo.</p></section>
+<section id="setup-success" class="card" hidden aria-live="polite"><p class="eyebrow">CONFIGURACIÓN GUARDADA</p><h1>Todo listo</h1><p>El dispositivo se está reiniciando para conectar a tu Wi-Fi.</p><p>Reconecta tu teléfono a esa red y abre la IP que aparecerá en la pantalla del dispositivo.</p></section>
 <p class="setup-note">Los colores se ajustan después, desde Ajustes.</p>
 </main>
 </body>

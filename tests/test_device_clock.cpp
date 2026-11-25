@@ -33,6 +33,23 @@ void testReconnectAndManualRetryRestartSchedule() {
   assert(schedule.poll(true, true, 60001));
 }
 
+void testRetriesOnceAfterFirstFetch() {
+  SyncSchedule schedule;
+  assert(schedule.poll(true, false, 100));
+  assert(schedule.afterFetch(true, false, 5000));
+  assert(!schedule.afterFetch(true, false, 6000));
+  assert(!schedule.poll(true, false, 5000 + RETRY_MS - 1));
+  assert(schedule.poll(true, false, 5000 + RETRY_MS));
+  assert(!schedule.poll(false, false, 40000));
+  assert(!schedule.afterFetch(false, false, 40001));
+  assert(schedule.poll(true, true, 41000));
+  assert(!schedule.afterFetch(true, true, 42000));
+  assert(!schedule.afterFetch(true, false, 43000));
+  assert(!schedule.poll(false, false, 44000));
+  assert(schedule.poll(true, false, 45000));
+  assert(schedule.afterFetch(true, false, 46000));
+}
+
 void testMillisWraparound() {
   SyncSchedule schedule;
   const uint32_t start = UINT32_MAX - 1000;
@@ -76,8 +93,9 @@ int main() {
   testWaitsForWifiAndStartsOnConnection();
   testRetriesWithoutBusyLoopAndStopsWhenClockReady();
   testReconnectAndManualRetryRestartSchedule();
+  testRetriesOnceAfterFirstFetch();
   testMillisWraparound();
   testBrowserEpochValidation();
   testAuthenticatedHttpDateParsing();
-  puts("6 clock test groups passed");
+  puts("7 clock test groups passed");
 }

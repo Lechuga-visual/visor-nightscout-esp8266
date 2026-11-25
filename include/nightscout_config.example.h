@@ -18,7 +18,3 @@ constexpr char WEB_PASSWORD[] = "";
 // Optional compile-time default. Normally enter this in the device web form.
 // Sent only over HTTPS; never copied into the UI.
 constexpr char NIGHTSCOUT_TOKEN[] = "";
-
-// Optional private CA default (PEM). Normally leave empty to use the public root
-// store. A custom CA can also be entered in the device web form without rebuilding.
-static const char NIGHTSCOUT_ROOT_CA[] PROGMEM = R"PEM()PEM";

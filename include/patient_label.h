@@ -5,7 +5,7 @@
 namespace patient_label {
 constexpr uint32_t MAGIC = 0x4E534E31;
 constexpr size_t MAX_CHARACTERS = 24;
-constexpr size_t OFFSET = sizeof(device_config::Settings);
+constexpr size_t OFFSET = device_config::LEGACY_SETTINGS_SLOT_SIZE;
 // Separate tagged extension: all existing v3 settings retain their offsets.
 struct Label {
   uint32_t magic = MAGIC;

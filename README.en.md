@@ -2,14 +2,18 @@
 
 [Español](README.md) · **English**
 
-A small desktop viewer that shows **Nightscout** glucose readings on a round
+A small desktop viewer that shows **Nightscout** glucose readings on a TFT
 screen and in a phone or computer browser. It displays a large number, trend
 arrow and reading age, using a dark, high-contrast interface.
 
-The current hardware is a **Wemos D1 mini ESP8266 with 4 MB flash** and a
+The original build uses a **Wemos D1 mini ESP8266 with 4 MB flash** and a
 **GC9A01 SPI 240 × 240 display**. ESP32 support is planned; it is not available yet.
 
 ![English web dashboard with sample readings](docs/images/viewer-en.png)
+
+## SD PRO clock
+
+The `sd_pro` build supports the SD PRO clock with a 4 MB ESP-12F and a square 240 × 240 ST7789 display. See the [SD PRO guide](docs/SD-PRO.en.md) for build and flashing instructions.
 
 ## Start here
 
@@ -18,7 +22,6 @@ The current hardware is a **Wemos D1 mini ESP8266 with 4 MB flash** and a
 | Build and set up the device | [Step-by-step installation guide](docs/INSTALLATION.en.md) |
 | Check the seven connections | [Wiring table and diagram](docs/INSTALLATION.en.md#2-connect-the-display) |
 | Download ready-to-install firmware | [Firmware downloads](firmware/README.en.md) |
-| Get a server public key, if needed | [Windows, Linux and macOS key tools](tools/key-export/README.en.md) |
 | See future plans, including ESP32 | [Roadmap](ROADMAP.en.md) |
 | Build from source or understand security | [Technical reference](docs/TECHNICAL.en.md) |
 
@@ -49,7 +52,7 @@ afterwards, settings and normal updates are available through the local web page
 | Guided setup | Three steps for Wi-Fi, Nightscout and local administrator credentials. |
 | Startup screen | Real progress through Wi-Fi, server connection and first reading. |
 | Night schedule | Start/end times, time zone and day/night intensity from 10–100 %, with a five-second preview. |
-| Nightscout connection | Configurable URL, optional read-only token, and HTTPS with public CAs or a pinned public key. |
+| Nightscout connection | Configurable URL, optional read-only token, and encrypted HTTPS without server identity verification. |
 | Wireless updates | Upload a `.bin` through the browser; normal firmware updates retain settings. |
 | Diagnostics and recovery | Wi-Fi reconnection, last-reading retention with warnings, and a diagnostics page. |
 | **Spanish / English** | One bilingual firmware. Choose the language during setup or in Settings; it is saved for both the physical display and web pages. |
@@ -81,8 +84,7 @@ readings**, not patient data or photographs of the physical display.
 - **Local web access:** administrator login is required on your trusted LAN.
   The local interface uses HTTP; the server connection supports HTTPS. There is
   no built-in remote-access service. Do not expose Wemos administration to the Internet.
-- **Specific hardware:** this firmware targets the documented ESP8266 board,
-  GC9A01 and pin mapping. It is not an ESP32 firmware or a general display driver.
+- **Hardware:** Wemos D1 mini with a round GC9A01 or SD PRO with a square ST7789. Both use ESP8266 and 4 MB flash.
 
 Selecting English does **not** change units, time zone, credentials or other
 preferences. Existing devices keep Spanish until you select English.

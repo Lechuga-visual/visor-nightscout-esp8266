@@ -5,7 +5,9 @@
 #include <string.h>
 
 namespace device_config {
-constexpr uint32_t MAGIC = 0x4E534333;
+constexpr uint32_t MAGIC = 0x4E534335;
+constexpr uint32_t V4_MAGIC = 0x4E534334;
+constexpr uint32_t V3_MAGIC = 0x4E534333;
 constexpr uint32_t V2_MAGIC = 0x4E534332;
 constexpr uint32_t LEGACY_MAGIC = 0x4E534331;
 constexpr size_t STORAGE_SIZE = 4096;
@@ -27,9 +29,6 @@ struct Settings {
   char webUsername[33];
   char webPassword[65];
   char token[257];
-  // One CA certificate or one explicitly pinned server public key (PEM).
-  // Keep the v3 layout so existing devices retain their settings on upgrade.
-  char customCa[3073];
 };
 
 struct LegacySettings {
@@ -37,6 +36,8 @@ struct LegacySettings {
   char url[201];
 };
 
+constexpr size_t LEGACY_SETTINGS_SLOT_SIZE = 3732;
+static_assert(sizeof(Settings) == 660, "Keep the historical Wi-Fi, admin and token layout");
 static_assert(sizeof(Settings) <= STORAGE_SIZE, "Settings exceed EEPROM allocation");
 
 template <size_t N>
@@ -60,8 +61,14 @@ inline bool validStoredSettings(const Settings& settings) {
   return settings.magic == MAGIC && terminated(settings.url) &&
          terminated(settings.ssid) && terminated(settings.wifiPassword) &&
          terminated(settings.webUsername) && terminated(settings.webPassword) &&
-         terminated(settings.token) && terminated(settings.customCa) &&
+         terminated(settings.token) &&
          validBaseUrl(settings.url);
+}
+
+inline bool migrateV3OrV4(Settings& settings) {
+  if (settings.magic != V3_MAGIC && settings.magic != V4_MAGIC) return false;
+  settings.magic = MAGIC;
+  return validStoredSettings(settings);
 }
 
 inline bool validWifi(const Settings& settings) {
@@ -111,42 +118,19 @@ inline bool withUpdatedUrl(const Settings& current, const char* url, Settings& u
   if (!sameHttpsOrigin(current.url, url)) {
     // An old server's credential must never be forwarded to a different origin.
     memset(updated.token, 0, sizeof(updated.token));
-    memset(updated.customCa, 0, sizeof(updated.customCa));
-  }
-  return true;
-}
-
-inline bool pinnedPublicKey(const char* pem) {
-  return pem && strncmp(pem, "-----BEGIN PUBLIC KEY-----", 26) == 0;
-}
-
-inline bool trustPemEnvelope(const char* pem) {
-  if (!pem || !*pem) return true;
-  const bool key = pinnedPublicKey(pem);
-  const char* begin = key ? "-----BEGIN PUBLIC KEY-----" : "-----BEGIN CERTIFICATE-----";
-  const char* end = key ? "-----END PUBLIC KEY-----" : "-----END CERTIFICATE-----";
-  if (strncmp(pem, begin, strlen(begin)) != 0 || strstr(pem, "PRIVATE KEY")) return false;
-  const char* ending = strstr(pem + strlen(begin), end);
-  if (!ending || strstr(pem + strlen(begin), "-----BEGIN ")) return false;
-  for (const char* c = ending + strlen(end); *c; ++c) {
-    if (*c != '\r' && *c != '\n' && *c != ' ' && *c != '\t') return false;
   }
   return true;
 }
 
 inline bool updateServer(const Settings& current, const char* url, const char* token,
-                         bool clearToken, const char* ca, bool clearCa, Settings& updated) {
-  if (!url || !token || !ca || strlen(token) > 256 || strlen(ca) > 3072 ||
-      (clearToken && *token) || (clearCa && *ca)) return false;
+                         bool clearToken, Settings& updated) {
+  if (!url || !token || strlen(token) > 256 || (clearToken && *token)) return false;
   for (const unsigned char* c = reinterpret_cast<const unsigned char*>(token); *c; ++c) {
     if (*c <= ' ' || *c >= 127) return false;
   }
-  if (!trustPemEnvelope(ca)) return false;
   if (!withUpdatedUrl(current, url, updated)) return false;
   if (clearToken) memset(updated.token, 0, sizeof(updated.token));
   else if (*token) { memset(updated.token, 0, sizeof(updated.token)); memcpy(updated.token, token, strlen(token)); }
-  if (clearCa) memset(updated.customCa, 0, sizeof(updated.customCa));
-  else if (*ca) { memset(updated.customCa, 0, sizeof(updated.customCa)); memcpy(updated.customCa, ca, strlen(ca)); }
   return !updated.token[0] || strncmp(updated.url, "https://", 8) == 0;
 }
 
@@ -161,7 +145,6 @@ inline bool migrateV2(const V2Settings& previous, Settings& settings) {
   memcpy(settings.webUsername, previous.webUsername, sizeof(settings.webUsername));
   memcpy(settings.webPassword, previous.webPassword, sizeof(settings.webPassword));
   memset(settings.token, 0, sizeof(settings.token));
-  memset(settings.customCa, 0, sizeof(settings.customCa));
   settings.magic = MAGIC;
   return true;
 }
@@ -171,7 +154,6 @@ inline bool migrateLegacy(const LegacySettings& legacy, Settings& settings) {
   // Retain current credential defaults; legacy firmware persisted only the URL.
   memcpy(settings.url, legacy.url, sizeof(settings.url));
   memset(settings.token, 0, sizeof(settings.token));
-  memset(settings.customCa, 0, sizeof(settings.customCa));
   settings.magic = MAGIC;
   return true;
 }

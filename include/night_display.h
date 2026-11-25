@@ -64,6 +64,9 @@ inline bool nightAt(const Settings& s, int minute, bool clockValid) {
 inline uint8_t intensity(const Settings& s, int minute, bool clockValid) {
   return nightAt(s,minute,clockValid) ? s.night : s.day;
 }
+inline uint8_t activeLowBacklight(uint8_t percent) {
+  return 255 - (static_cast<unsigned>(percent) * 255 + 50) / 100;
+}
 // Scale each RGB565 channel once, including text, warnings, graph and background.
 inline uint16_t scale565(uint16_t color, uint8_t percent) {
   return (((((color >> 11) & 31) * percent + 50) / 100) << 11) |

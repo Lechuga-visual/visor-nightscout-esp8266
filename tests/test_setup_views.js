@@ -7,7 +7,7 @@ const path = require('path');
 const {chromium} = require('playwright');
 const root = path.resolve(__dirname, '..');
 const {execFileSync} = require('child_process');
-const html = execFileSync('python3', [path.join(root, 'tests/render_setup_page.py')], {encoding:'utf8'});
+const html = execFileSync(process.env.PYTHON || 'python3', [path.join(root, 'tests/render_setup_page.py')], {encoding:'utf8'});
 (async () => {
   const browser = await chromium.launch({executablePath:process.env.CHROMIUM_PATH || '/usr/bin/chromium',
     headless:true,args:['--no-sandbox']});
@@ -22,7 +22,7 @@ const html = execFileSync('python3', [path.join(root, 'tests/render_setup_page.p
         posts.push(Object.fromEntries(new URLSearchParams(request.postData())));
         if (networkFail) return route.abort('connectionreset');
         if (pending) await new Promise(resolve => { release = resolve; });
-        return route.fulfill({status,contentType:'text/plain',body:status === 200 ? 'Saved' : status === 400 ? 'Revisa el PEM.' : 'Rejected'});
+        return route.fulfill({status,contentType:'text/plain',body:status === 200 ? 'Saved' : status === 400 ? 'Revisa el token.' : 'Rejected'});
       }
       if (pathname === '/' || pathname === '/configure') return route.fulfill({contentType:'text/html',body:html});
       const asset = {'/assets/ui.css':['ui.css','text/css'], '/assets/setup.js':['setup.js','application/javascript']}[pathname];
@@ -50,21 +50,17 @@ const html = execFileSync('python3', [path.join(root, 'tests/render_setup_page.p
     await input('url').fill('https://tu-nightscout.example');
     await input('clear_token').check(); await page.locator('#setup-next').click(); await step(1);
     await input('clear_token').uncheck();
-    await page.locator('summary').click();
-    await input('custom_ca').fill('-----BEGIN PRIVATE KEY-----');
-    await page.locator('summary').click(); // Invalid advanced fields must reopen before focus.
-    await page.locator('#setup-next').click(); await step(1); assert(await page.locator('details').getAttribute('open') !== null);
-    await input('custom_ca').fill('-----BEGIN PUBLIC KEY-----\nfixture-public-key\n-----END PUBLIC KEY-----');
+    assert.equal(await input('custom_ca').count(),0);
+    assert.equal(await input('insecure_https').count(),0);
     await page.locator('#setup-next').click(); await step(2);
     assert.equal(posts.length,0);
     assert.equal(await page.locator('#review-patient').textContent(), '<img src=x onerror=bad>');
     assert.equal(await page.locator('#review-patient *').count(),0);
     const review = await page.locator('#setup-review').textContent();
-    assert(!review.includes('wifi-secret-fixture') && !review.includes('token-secret-fixture') && !review.includes('fixture-public-key'));
+    assert(!review.includes('wifi-secret-fixture') && !review.includes('token-secret-fixture'));
     await input('web_password').fill('admin-secret-fixture');
     await page.locator('#setup-back').click(); await step(1);
     assert.equal(await input('token').inputValue(),'token-secret-fixture');
-    assert((await input('custom_ca').inputValue()).includes('fixture-public-key'));
     await page.locator('#setup-back').click(); await step(0);
     assert.equal(await input('wifi_password').inputValue(),'wifi-secret-fixture');
     await page.locator('#setup-next').click(); await page.locator('#setup-next').click(); await step(2);
@@ -95,7 +91,7 @@ const html = execFileSync('python3', [path.join(root, 'tests/render_setup_page.p
     const saved=posts.at(-1);
     assert.equal(saved.csrf,'fixture-csrf-only'); assert.equal(saved.ssid,'Casa Wi-Fi');
     assert.equal(saved.wifi_password,'wifi-secret-fixture'); assert.equal(saved.token,'token-secret-fixture');
-    assert.equal(saved.web_password,'admin-secret-fixture'); assert(saved.custom_ca.includes('fixture-public-key'));
+    assert.equal(saved.web_password,'admin-secret-fixture'); assert(!('custom_ca' in saved));
     release(); await page.locator('#setup-success').waitFor({state:'visible'});
     assert.equal(await page.locator('#setup-form').isVisible(),false);
     assert.equal(await input('wifi_password').inputValue(),''); assert.equal(await input('token').inputValue(),'');

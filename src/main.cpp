@@ -15,8 +15,6 @@
 #include <sntp.h>
 #include "device_clock.h"
 #include "device_settings.h"
-#include "public_ca_store.h"
-#include "pinned_key.h"
 #include "reading_json.h"
 #include "http_body.h"
 #include "patient_label.h"
@@ -34,12 +32,11 @@
 #endif
 
 namespace {
-constexpr char VERSION[] = "0.8.1";
+constexpr char VERSION[] = "0.9.1";
 constexpr uint32_t POLL_MS = 30000;
 TFT_eSPI display;
 ESP8266WebServer web(80);
 ESP8266HTTPUpdateServer updater;
-PublicCaStore publicRoots;
 String baseUrl;
 String message = "Iniciando";
 String csrf;
@@ -61,7 +58,7 @@ String setupPassword;
 device_clock::SyncSchedule clockSchedule;
 constexpr const char* NTP_SERVERS[] = {"pool.ntp.org", "time.google.com", "time.cloudflare.com"};
 uint32_t ntpAttempts = 0;
-enum class ClockSource { Unknown, Ntp, Browser, Server };
+enum class ClockSource { Unknown, Ntp, Browser };
 ClockSource clockSource = ClockSource::Unknown;
 WiFiEventHandler wifiDisconnectedHandler;
 uint8_t lastWifiReason = 0;
@@ -85,7 +82,9 @@ const char* transferMode = "unknown";
 const char* contentEncoding = "unknown";
 const char* historyErrorStage = "none";
 bool historyRetryPending = false;
+#ifndef SD_PRO_SQUARE_DISPLAY
 uint32_t historyFailedAt = 0;
+#endif
 bool lastReadingRequestOk = false;
 bool latestOnlyRequest = false;
 
@@ -95,12 +94,19 @@ struct Reading {
   int64_t dateMs = 0;
   String direction;
 } reading;
+#ifndef SD_PRO_SQUARE_DISPLAY
 reading_ui::History history;
 uint32_t historyVersion = 0;
+#endif
 startup_view::Progress startup;
 night_display::Settings nightSettings;
 night_display::Preview nightPreview;
 uint8_t screenIntensity = 100;
+#ifdef SD_PRO_SQUARE_DISPLAY
+bool panelPreviewActive = false;
+uint32_t panelPreviewStarted = 0;
+constexpr uint32_t PANEL_PREVIEW_MS = 12000;
+#endif
 void renderWelcome();
 device_language::Settings languageSettings;
 bool english() { return languageSettings.locale == device_language::Locale::English; }
@@ -178,7 +184,6 @@ bool persistSettings(const device_config::Settings& candidate, const patient_lab
   settings = candidate;
   patient = label;
   baseUrl = settings.url;
-  if (device_config::pinnedPublicKey(settings.customCa)) sntp_stop();
   return true;
 }
 
@@ -200,18 +205,18 @@ bool authenticated(bool interactive = true) {
 bool currentForm() {
   if (web.hasArg("csrf") && web.arg("csrf") == csrf) return true;
   lastOperation = "stale_form";
-  Serial.printf_P(PSTR("Formulario rechazado antes de validar PEM: sesion=%08x uptime=%lu\n"),
+  Serial.printf_P(PSTR("Formulario rechazado: sesion=%08x uptime=%lu\n"),
                   bootId, static_cast<unsigned long>(millis() / 1000));
   // A stale form must remain rejected. Give the user a fresh page instead of
   // silently resubmitting old settings or removing CSRF protection.
   web.sendHeader("Cache-Control", "no-store, max-age=0");
   web.send_P(403, PSTR("text/html; charset=utf-8"),
            reinterpret_cast<const char*>(L("<meta name='viewport' content='width=device-width,initial-scale=1'>"
-           "<h1>Recarga el formulario</h1><p>Esta página ya no corresponde a la sesión del Wemos. "
+           "<h1>Recarga el formulario</h1><p>Esta página ya no corresponde a la sesión del dispositivo. "
            "Puede haber ocurrido un reinicio o una actualización mientras estaba abierta. "
-           "La solicitud fue rechazada antes de validar el certificado o la clave y no cambió la configuración.</p>"
+           "La solicitud fue rechazada y la configuración se conserva.</p>"
            "<p><a href='/'>Abrir página actualizada</a></p>"
-           "<p>En Ajustes, vuelve a pegar la clave pública y pulsa Guardar servidor. No uses Atrás para recuperar el formulario.</p>")));
+           "<p>Abre Ajustes de nuevo antes de guardar. No uses Atrás para recuperar el formulario.</p>")));
   return false;
 }
 
@@ -235,10 +240,8 @@ void appendClockControls(String& page) {
     page += formatted;
     page += clockSource == ClockSource::Ntp ? F(" · NTP") :
             clockSource == ClockSource::Browser ? L(" · hora del navegador") :
-            clockSource == ClockSource::Server ? L(" · hora del servidor HTTPS") : L(" · reloj disponible");
-  } else page += device_config::pinnedPublicKey(settings.customCa)
-                    ? L("Sin hora. La clave pública fija permite consultar HTTPS igualmente.")
-                    : L("Hora sin sincronizar. HTTPS con certificados CA espera una hora válida.");
+            L(" · reloj disponible");
+  } else page += L("Hora sin sincronizar. La hora permite calcular la antigüedad de las lecturas.");
   page += L("</p><p>Intentos NTP: ");
   page += String(ntpAttempts);
   page += L(". Servidores: pool.ntp.org, time.google.com y time.cloudflare.com (UDP 123).</p>"
@@ -246,23 +249,21 @@ void appendClockControls(String& page) {
   page += csrf;
   page += L("'><button>Reintentar NTP</button></form>"
             "<p>Si NTP no responde, comprueba que la fecha y hora de este teléfono o computador "
-            "sean correctas y usa su reloj. Se mantienen las verificaciones HTTPS.</p>"
+            "sean correctas y usa su reloj.</p>"
             "<form method='post' action='/clock/browser' onsubmit=\"document.getElementById('browser-epoch').value="
             "Math.floor(Date.now()/1000)\"><input type='hidden' id='browser-epoch' name='epoch'>"
             "<input type='hidden' name='csrf' value='");
   page += csrf;
   page += L("'><button>Usar hora de este teléfono/PC</button></form>"
             "<p>Esta hora dura hasta el próximo reinicio.</p>");
-  page += device_config::pinnedPublicKey(settings.customCa)
-              ? L("<p>En modo clave fija no se inicia NTP automáticamente. Se toma la hora de la respuesta HTTPS autenticada del servidor.</p></section>")
-              : L("<p>NTP sigue intentando sincronizar en segundo plano.</p></section>");
+  page += L("<p>NTP sigue intentando sincronizar en segundo plano.</p></section>");
 }
 
 bool clockRequestAllowed() {
   if (!authenticated()) return false;
   if (!currentForm()) return false;
   if (setupMode || WiFi.status() != WL_CONNECTED) {
-    web.send(409, "text/plain", L("Conecta primero el Wemos a tu Wi-Fi."));
+    web.send(409, "text/plain", L("Conecta primero el dispositivo a tu Wi-Fi."));
     return false;
   }
   return true;
@@ -296,7 +297,7 @@ void useBrowserClock() {
   message = F("Hora del navegador");
   web.send(200, "text/html; charset=utf-8",
            L("<meta name='viewport' content='width=device-width,initial-scale=1'>"
-           "<h1>Hora ajustada</h1><p>El reloj del Wemos recibió la hora del navegador. "
+           "<h1>Hora ajustada</h1><p>El reloj del dispositivo recibió la hora del navegador. "
            "La consulta al servidor se reanudará en unos segundos.</p><p><a href='/'>Volver</a></p>"));
 }
 
@@ -317,55 +318,15 @@ void appendServerFields(String& page) {
   page += L("<label><input name='clear_token' type='checkbox' value='1' style='width:auto'>"
             " Borrar token guardado</label><p>El token solo se envía por HTTPS. "
             "Al cambiar de servidor se borra el anterior; introduce el token del nuevo servidor.</p>"
-            "<details><summary>Seguridad HTTPS y opción sin NTP</summary><p>El firmware incluye ");
-  page += String(PublicCaStore::rootCount());
-  page += L(" autoridades de confianza. Para servidores públicos normalmente no necesitas pegar un certificado.</p>"
-            "<label>CA privada o clave pública fija del servidor (PEM, opcional)"
-            "<textarea name='custom_ca' maxlength='3072' rows='6' style='width:100%;box-sizing:border-box' "
-            "placeholder='-----BEGIN CERTIFICATE-----'></textarea></label>");
-  if (device_config::pinnedPublicKey(settings.customCa))
-    page += L("<p>Modo actual: clave pública fija, sin requerir NTP. Dejar vacío la conserva para el mismo servidor.</p>");
-  else page += settings.customCa[0] ? L("<p>Hay una CA privada guardada. Dejar vacío la conserva para el mismo servidor.</p>")
-                                  : L("<p>Se utilizarán los certificados públicos incluidos.</p>");
-  page += L("<label><input name='clear_ca' type='checkbox' value='1' style='width:auto'>"
-            " Borrar CA o clave fija y usar certificados públicos</label>"
-            "<p>Para consultar sin NTP, pega la clave pública verificada del servidor, con "
-            "BEGIN PUBLIC KEY, obtenida desde un PC con tools/export_server_key.py. "
-            "HTTPS exige que el servidor demuestre que posee esa clave; en este modo "
-            "la identidad se fija por clave, sin comprobar la cadena, el nombre ni las fechas del certificado. "
-            "Si el proveedor cambia la clave, deberás actualizarla. No se acepta automáticamente una clave nueva.</p>"
-            "<p>Con certificados CA se comprueban cadena, nombre y hora. Nunca pegues una clave privada.</p></details>");
-}
-
-bool validPinnedKey(BearSSL::PublicKey& key) {
-  if (key.isRSA()) return true;
-  if (!key.isEC()) return false;
-  // PublicKey owns a mutable malloc-backed point despite its const accessor.
-  return normalizeOwnedPinnedEcPoint(*const_cast<br_ec_public_key*>(key.getEC()));
-}
-
-bool validCustomTrust(const char* pem) {
-  if (!pem[0]) return true;
-  if (!device_config::trustPemEnvelope(pem)) return false;
-  if (device_config::pinnedPublicKey(pem)) {
-    BearSSL::PublicKey key;
-    return key.parse(pem) && validPinnedKey(key);
-  }
-  BearSSL::X509List certificate;
-  return certificate.append(pem) && certificate.getCount() == 1 &&
-         (certificate.getTrustAnchors()[0].flags & BR_X509_TA_CA);
+            "<p>HTTPS cifra la conexión sin verificar la identidad del servidor.</p>");
 }
 
 bool serverFields(device_config::Settings& candidate, const String& url) {
   lastOperation = "validating_settings";
   String token = web.arg("token");
   token.trim();
-  String ca = web.arg("custom_ca");
-  ca.trim();
   return device_config::updateServer(settings, url.c_str(), token.c_str(),
-                                    web.arg("clear_token") == "1", ca.c_str(),
-                                    web.arg("clear_ca") == "1", candidate) &&
-         validCustomTrust(candidate.customCa);
+                                     web.arg("clear_token") == "1", candidate);
 }
 
 bool patientFields(patient_label::Label& label) {
@@ -412,11 +373,22 @@ void updateScreenIntensity() {
   const int minute = localMinute();
   const uint8_t percent = setupMode ? 100 : nightPreview.active(millis()) ? nightPreview.percent :
                           night_display::intensity(nightSettings, minute, minute >= 0);
-  if (percent != screenIntensity) { screenIntensity = percent; lastFrame = ""; }
+  if (percent != screenIntensity) {
+    screenIntensity = percent;
+#ifdef SD_PRO_SQUARE_DISPLAY
+    analogWrite(TFT_BL, night_display::activeLowBacklight(percent));
+#else
+    lastFrame = "";
+#endif
+  }
 }
 
 uint16_t screenColor(uint32_t rgb) {
+#ifdef SD_PRO_SQUARE_DISPLAY
+  return view_appearance::panelColor(view_appearance::rgb565(rgb), appearance.panelMode);
+#else
   return night_display::scale565(view_appearance::rgb565(rgb), screenIntensity);
+#endif
 }
 
 String minuteText(uint16_t minute) {
@@ -425,11 +397,50 @@ String minuteText(uint16_t minute) {
   return String(value);
 }
 
+#ifdef SD_PRO_SQUARE_DISPLAY
+void applyPanelMode(uint8_t mode) {
+  display.invertDisplay((mode & 2) == 0);
+}
+
+void previewPanel(const view_appearance::Settings& candidate) {
+  applyPanelMode(candidate.panelMode);
+  const auto convert = [&candidate](uint32_t rgb) {
+    return view_appearance::panelColor(view_appearance::rgb565(rgb), candidate.panelMode);
+  };
+  constexpr uint32_t samples[] = {0xFF0000, 0x00FF00, 0x0000FF, 0xFFFFFF, 0x000000};
+  const char* labels[] = {"R", "G", "B", "W", "K"};
+  const auto colors = view_appearance::palette(candidate);
+  const auto background = convert(colors.background);
+  display.fillScreen(background);
+  display.setTextDatum(MC_DATUM);
+  display.setTextSize(1);
+  display.setTextColor(convert(0xFFFFFF), background);
+  display.drawString(L("Prueba de pantalla"), 120, 33, 2);
+  for (int i = 0; i < 5; ++i) {
+    const int x = 12 + 44 * i;
+    display.fillRect(x, 61, 40, 48, convert(samples[i]));
+    display.drawRect(x, 61, 40, 48, convert(0x808080));
+    display.drawString(labels[i], x + 20, 120, 2);
+  }
+  display.setTextColor(convert(colors.number), background);
+  display.drawString("142", 120, 170, 4);
+  display.drawRect(68, 143, 104, 54, convert(colors.accent));
+  display.setTextColor(convert(0xFFFFFF), background);
+  display.drawString(L("Muestra temporal"), 120, 215, 2);
+  panelPreviewStarted = millis();
+  panelPreviewActive = true;
+}
+#endif
+
 void appendNightControls(String& page) {
   page += L("<form id='night-display-form' class='card' method='post' action='/night-display'>"
-            "<h2>Brillo y horario nocturno</h2><p>Reduce la intensidad de los colores de la pantalla física. "
-            "La luz de fondo sigue encendida con la misma intensidad; este módulo no tiene pin BL/BLK.</p>"
-            "<input type='hidden' name='csrf' value='");
+            "<h2>Brillo y horario nocturno</h2>");
+#ifdef SD_PRO_SQUARE_DISPLAY
+  page += L("<p>Ajusta la retroiluminación de la pantalla. Los colores se mantienen.</p>");
+#else
+  page += L("<p>Reduce la intensidad de los colores de la pantalla física. La luz de fondo sigue encendida con la misma intensidad.</p>");
+#endif
+  page += F("<input type='hidden' name='csrf' value='");
   page += csrf;
   page += F("'><label><input type='checkbox' name='enabled' value='1'");
   if (nightSettings.enabled) page += F(" checked");
@@ -505,10 +516,18 @@ void appendAppearanceControls(String& page) {
             "<h2>Apariencia</h2><input type='hidden' name='csrf' value='");
   page += csrf;
   page += L("'><label>Modo del visor<select name='mode'>");
+#ifndef SD_PRO_SQUARE_DISPLAY
   appearanceOption(page, 0, static_cast<unsigned>(appearance.mode), L("Con gráfica · 30 minutos"));
+#endif
   appearanceOption(page, 1, static_cast<unsigned>(appearance.mode), L("Número grande · flecha lateral"));
   appearanceOption(page, 2, static_cast<unsigned>(appearance.mode), L("Número centrado · flecha debajo"));
-  page += L("</select></label><label>Tema de colores<select name='theme'>");
+  page += L("</select></label><label>Tamaño de la glucosa<select name='number_size'>");
+  appearanceOption(page, 0, appearance.numberSize, L("Automático"));
+  appearanceOption(page, 2, appearance.numberSize, L("Mediano"));
+  appearanceOption(page, 3, appearance.numberSize, L("Grande"));
+  appearanceOption(page, 4, appearance.numberSize, L("Máximo"));
+  page += L("</select></label><p>El número se ajusta si la lectura o la flecha necesitan más espacio.</p>"
+            "<label>Tema de colores<select name='theme'>");
   appearanceOption(page, 0, static_cast<unsigned>(appearance.theme), L("Menta"));
   appearanceOption(page, 1, static_cast<unsigned>(appearance.theme), L("Rojo"));
   appearanceOption(page, 2, static_cast<unsigned>(appearance.theme), L("Azul"));
@@ -520,11 +539,22 @@ void appendAppearanceControls(String& page) {
   appearanceColor(page, F("background"), L("Fondo del visor"), appearance.background);
   appearanceColor(page, F("number"), L("Número"), appearance.number);
   page += L("</div><p>Los colores elegidos se usan en Personalizado. Los avisos de lectura baja, alta o antigua mantienen texto y colores propios.</p>"
-            "<div id='appearance-preview' class='appearance-preview' aria-label='Vista previa de colores'>"
+            "<div id='appearance-preview' class='appearance-preview' aria-label='Vista previa de tamaño y colores'>"
             "<span>Vista previa · datos de ejemplo</span><strong>142 <svg viewBox='0 0 40 40' aria-hidden='true'><path d='M7 33 33 7M10 7H33V30'/></svg></strong><small>mg/dL</small></div>"
             "<p id='contrast-feedback' role='status'></p><button id='save-appearance'>Guardar apariencia</button> "
-            "<button id='reset-theme' class='button secondary' type='button'>Volver a menta</button>"
-            "<p>Se aplica a la pantalla y al visor web. El nombre se cambia en el formulario siguiente.</p></form>");
+            "<button id='reset-theme' class='button secondary' type='button'>Volver a menta</button>");
+#ifdef SD_PRO_SQUARE_DISPLAY
+  page += L("<label>Calibración del panel<select name='panel_mode'>");
+  appearanceOption(page, 0, appearance.panelMode, L("RGB · inversión activada"));
+  appearanceOption(page, 1, appearance.panelMode, L("BGR · inversión activada"));
+  appearanceOption(page, 2, appearance.panelMode, L("RGB · inversión desactivada"));
+  appearanceOption(page, 3, appearance.panelMode, L("BGR · inversión desactivada"));
+  page += L("</select></label><p>La prueba muestra rojo, verde, azul, blanco y negro, en ese orden. "
+            "Guarda el modo que coincida con las barras de referencia.</p>"
+            "<button type='submit' name='panel_preview' value='1' class='secondary' id='panel-preview'>Probar en la pantalla</button>"
+            "<p id='panel-feedback' role='status' aria-live='polite'></p>");
+#endif
+  page += L("<p>Se aplica a la pantalla y al visor web. El nombre se cambia en el formulario siguiente.</p></form>");
 }
 
 void saveAppearance() {
@@ -532,16 +562,34 @@ void saveAppearance() {
   if (!currentForm()) return;
   const String mode = web.arg("mode"), theme = web.arg("theme");
   const String accent = web.arg("accent"), background = web.arg("background"), number = web.arg("number");
+  const String numberSize = web.arg("number_size");
+  const String panelMode = web.arg("panel_mode");
   view_appearance::Settings candidate;
   if (!view_appearance::update(appearance, web.hasArg("mode") ? mode.c_str() : nullptr,
       web.hasArg("theme") ? theme.c_str() : nullptr, web.hasArg("accent") ? accent.c_str() : nullptr,
-      web.hasArg("background") ? background.c_str() : nullptr, web.hasArg("number") ? number.c_str() : nullptr, candidate)) {
+      web.hasArg("background") ? background.c_str() : nullptr, web.hasArg("number") ? number.c_str() : nullptr,
+      candidate, web.hasArg("number_size") ? numberSize.c_str() : nullptr,
+      web.hasArg("panel_mode") ? panelMode.c_str() : nullptr)) {
     web.send(400, "text/plain; charset=utf-8", L("Revisa el modo y los colores. Elige un fondo oscuro y colores con más contraste para mantener legibles la lectura y los avisos."));
     return;
   }
+#ifdef SD_PRO_SQUARE_DISPLAY
+  if (candidate.mode == view_appearance::Mode::Graph) {
+    web.send(400, "text/plain", L("Modo del visor no disponible."));
+    return;
+  }
+  if (web.arg("panel_preview") == "1") {
+    previewPanel(candidate);
+    if (web.arg("quick") == "1") web.send(200, "application/json", F("{\"ok\":true}"));
+    else web.send(200, "text/plain; charset=utf-8", L("Prueba activa durante 12 segundos. Los cambios no se guardaron."));
+    return;
+  }
+#endif
   if (!storageReady) { web.send(503, "text/plain", L("No se puede guardar la apariencia.")); return; }
   const bool changed = candidate.mode != appearance.mode || candidate.theme != appearance.theme ||
-                       candidate.accent != appearance.accent || candidate.background != appearance.background || candidate.number != appearance.number;
+                       candidate.accent != appearance.accent || candidate.background != appearance.background ||
+                       candidate.number != appearance.number || candidate.numberSize != appearance.numberSize ||
+                       candidate.panelMode != appearance.panelMode;
   if (changed) {
     EEPROM.put(view_appearance::OFFSET, candidate);
     if (!EEPROM.commit()) {
@@ -551,6 +599,13 @@ void saveAppearance() {
     appearance = candidate;
     lastFrame = "";
   }
+#ifdef SD_PRO_SQUARE_DISPLAY
+  if (panelPreviewActive || changed) {
+    panelPreviewActive = false;
+    applyPanelMode(appearance.panelMode);
+    lastFrame = "";
+  }
+#endif
   if (web.arg("quick") == "1") web.send(200, "application/json", F("{\"ok\":true}"));
   else { web.sendHeader("Location", "/settings?appearance=saved#appearance-form"); web.send(303); }
 }
@@ -619,7 +674,7 @@ void saveConfiguration() {
   std::unique_ptr<device_config::Settings> candidate(new (std::nothrow) device_config::Settings);
   if (!candidate) { web.send(503, "text/plain", L("Memoria insuficiente. Intenta nuevamente.")); return; }
   if (!serverFields(*candidate, url)) {
-    web.send(400, "text/plain; charset=utf-8", L("Revisa el token y el PEM: una CA válida o una clave pública RSA/EC. Nunca una clave privada. El token requiere HTTPS. No combines borrar con introducir un valor nuevo."));
+    web.send(400, "text/plain; charset=utf-8", L("Revisa el token. Usa HTTPS y elige entre conservarlo, borrarlo o escribir uno nuevo."));
     return;
   }
   ssid.toCharArray(candidate->ssid, sizeof(candidate->ssid));
@@ -643,8 +698,8 @@ void saveConfiguration() {
            "<meta name='color-scheme' content='dark'><link rel='stylesheet' href='/assets/ui.css'>"
            "<title>Configuración guardada</title><main class='settings setup-page'><section class='card'>"
            "<p class='eyebrow'>CONFIGURACIÓN GUARDADA</p><h1>Todo listo</h1>"
-           "<p>El Wemos se reiniciará. Vuelve a conectar tu teléfono "
-           "a tu Wi-Fi y abre la IP que aparecerá en la pantalla del Wemos.</p></section></main></html>"));
+           "<p>El dispositivo se reiniciará. Vuelve a conectar tu teléfono "
+           "a tu Wi-Fi y abre la IP que aparecerá en la pantalla del dispositivo.</p></section></main></html>"));
   restartPending = true;
   lastOperation = "restart_requested";
   restartRequestedAt = millis();
@@ -721,7 +776,7 @@ void saveSettings() {
   std::unique_ptr<device_config::Settings> saved(new (std::nothrow) device_config::Settings);
   if (!saved) { web.send(503, "text/plain", L("Memoria insuficiente.")); return; }
   if (!serverFields(*saved, candidate)) {
-    web.send(400, "text/plain; charset=utf-8", L("Revisa el token, HTTPS y el PEM de CA o clave pública."));
+    web.send(400, "text/plain; charset=utf-8", L("Revisa el token. Usa HTTPS y elige entre conservarlo, borrarlo o escribir uno nuevo."));
     return;
   }
   lastOperation = "saving_settings";
@@ -733,8 +788,10 @@ void saveSettings() {
   }
   baseUrl = candidate;
   reading.available = false;
+#ifndef SD_PRO_SQUARE_DISPLAY
   history.count = 0;
   ++historyVersion;
+#endif
   historyRetryPending = false;
   historyErrorStage = "none";
   lastReadingRequestOk = false;
@@ -743,9 +800,8 @@ void saveSettings() {
   lastOperation = "settings_saved";
   String page = L("<meta name='viewport' content='width=device-width,initial-scale=1'>"
                   "<meta charset='utf-8'><h1>Servidor guardado</h1><p>La configuración se guardó correctamente. "
-                  "El Wi-Fi y los datos de administración se conservan.</p><p>Modo HTTPS: ");
-  page += device_config::pinnedPublicKey(settings.customCa) ? L("clave pública fija, sin NTP") : L("certificados CA, requiere hora");
-  page += L(".</p><p>La consulta se iniciará cuando se cierre esta conexión web, después de unos segundos.</p>"
+                  "El Wi-Fi y los datos de administración se conservan.</p>");
+  page += L("<p>La consulta se iniciará cuando se cierre esta conexión web, después de unos segundos.</p>"
             "<p><a href='/'>Volver a la página principal</a> · <a href='/diagnostics'>Ver diagnóstico</a></p>");
   web.send(200, "text/html; charset=utf-8", page);
 }
@@ -762,7 +818,7 @@ struct HttpInput {
   }
 };
 
-__attribute__((noinline)) bool parseReading(HTTPClient& http, bool latestOnly, bool chunked) {
+__attribute__((noinline)) bool parseReading(HTTPClient& http, bool latestOnly __attribute__((unused)), bool chunked) {
   lastOperation = "parsing_body";
   heapBeforeJson = ESP.getFreeHeap();
   parseDiagnostic = reading_ui::ParseDiagnostics{};
@@ -807,20 +863,28 @@ __attribute__((noinline)) bool parseReading(HTTPClient& http, bool latestOnly, b
   }
   if (result == reading_ui::ParseResult::Empty) {
     reading.available = false;
+#ifndef SD_PRO_SQUARE_DISPLAY
     history.count = 0;
     ++historyVersion;
+#endif
     message = F("Servidor sin lecturas");
     return true;
   }
+#ifndef SD_PRO_SQUARE_DISPLAY
   if (latestOnly) history.add(parsed->date, static_cast<uint16_t>(parsed->value));
   else history = parsed->history;
   ++historyVersion;
+#endif
   reading.available = true;
   reading.sgv = parsed->value;
   reading.dateMs = parsed->date;
   reading.direction = parsed->direction;
   lastReadingRequestOk = true;
+#ifdef SD_PRO_SQUARE_DISPLAY
+  message = F("Conectado");
+#else
   message = latestOnly ? "Lectura; historial parcial" : "Conectado";
+#endif
   return true;
 }
 
@@ -835,17 +899,15 @@ void fetchReading() {
   responseLength = -1;
   transferMode = "unknown";
   contentEncoding = "unknown";
+#ifdef SD_PRO_SQUARE_DISPLAY
+  latestOnlyRequest = true;
+#else
   latestOnlyRequest = historyRetryPending && millis() - historyFailedAt < 300000;
+#endif
   String endpoint = baseUrl;
   endpoint += latestOnlyRequest ? F("/api/v1/entries.json?count=1") : F("/api/v1/entries/sgv.json?count=");
   if (!latestOnlyRequest) endpoint += String(reading_ui::SOURCE_READINGS);
   const bool https = baseUrl.startsWith("https://");
-  const bool pinned = device_config::pinnedPublicKey(settings.customCa);
-  // Avoid allocating the TLS stack and buffers until a connection is possible.
-  if (https && !pinned && !device_clock::plausible(time(nullptr))) {
-    message = ntpAttempts < 2 ? "Esperando hora NTP" : "Sin hora: abre la web";
-    return;
-  }
   if (settings.token[0]) {
     if (!https) {
       message = F("Token requiere HTTPS");
@@ -855,10 +917,8 @@ void fetchReading() {
   }
   startup.beginRequest();
   if (!startup.finished) { message = F("Consultando servidor"); renderWelcome(); }
-  // Destruction order matters: HTTPClient -> TLS client -> pinned key / trust anchors.
+  // Destruction order matters: HTTPClient must be destroyed before its TLS client.
   WiFiClient plain;
-  std::unique_ptr<BearSSL::X509List> trust;
-  std::unique_ptr<BearSSL::PublicKey> key;
   std::unique_ptr<BearSSL::WiFiClientSecure> secure;
   HTTPClient http;
   http.useHTTP10(true);  // Still decode chunked responses from HTTP/1.1 proxies.
@@ -870,20 +930,12 @@ void fetchReading() {
     largestBlockBeforeTls = ESP.getMaxFreeBlockSize();
     secure.reset(new (std::nothrow) BearSSL::WiFiClientSecure);
     if (!secure) { message = F("Sin memoria para TLS"); return; }
-    if (pinned) {
-      key.reset(new (std::nothrow) BearSSL::PublicKey(settings.customCa));
-      if (!key || !validPinnedKey(*key)) { message = F("Clave publica invalida"); return; }
-      secure->setKnownKey(key.get());
-    } else if (settings.customCa[0]) {
-      trust.reset(new (std::nothrow) BearSSL::X509List(settings.customCa));
-      if (!trust || trust->getCount() != 1) { message = F("CA propia invalida"); return; }
-      secure->setTrustAnchors(trust.get());
-    } else secure->setCertStore(&publicRoots);
+    secure->setInsecure();
     // HTTPClient applies its own timeout before connect(), overriding the
     // client's value. Set it here so the TLS handshake actually gets 5 s.
     http.setTimeout(5000);
-    Serial.printf_P(PSTR("TLS inicio: modo=%s heap=%u bloque=%u RSSI=%d\n"),
-                  pinned ? "clave" : "CA", heapBeforeTls, largestBlockBeforeTls, WiFi.RSSI());
+    Serial.printf_P(PSTR("TLS inicio: modo=insecure heap=%u bloque=%u RSSI=%d\n"),
+                  heapBeforeTls, largestBlockBeforeTls, WiFi.RSSI());
     if (!http.begin(*secure, endpoint)) {
       message = F("URL HTTPS invalida");
       return;
@@ -892,8 +944,8 @@ void fetchReading() {
     message = F("URL HTTP invalida");
     return;
   }
-  const char* responseHeaders[] = {"Date", "Age", "Transfer-Encoding", "Content-Encoding"};
-  http.collectHeaders(responseHeaders, 4);
+  const char* responseHeaders[] = {"Transfer-Encoding", "Content-Encoding"};
+  http.collectHeaders(responseHeaders, 2);
   http.addHeader("Cache-Control", "no-cache, no-store");
   http.addHeader("Accept-Encoding", "identity");
   lastOperation = https ? "tls_request" : "http_request";
@@ -914,18 +966,6 @@ void fetchReading() {
   Serial.printf_P(PSTR("Consulta: HTTP=%d TLS=%d WiFi=%d heap=%u\n"), result, lastTlsError,
                 WiFi.status(), ESP.getFreeHeap());
   if (result == HTTP_CODE_OK) {
-    if (pinned && https) {
-      // The pinned key authenticated TLS before any response headers were read.
-      // Ignore cached responses; a reading's own date is never used as 'now'.
-      const String age = http.header("Age");
-      int64_t epoch = 0;
-      if ((!age.length() || age == "0") && device_clock::parseHttpDate(http.header("Date").c_str(), epoch) &&
-          epoch <= static_cast<int64_t>(std::numeric_limits<time_t>::max())) {
-        struct timeval value{};
-        value.tv_sec = static_cast<time_t>(epoch);
-        if (settimeofday(&value, nullptr) == 0) clockSource = ClockSource::Server;
-      }
-    }
     if (!startup.finished) { message = F("Esperando lectura"); renderWelcome(); }
     bool parsedOk = false;
     if (!strcmp(transferMode, "unsupported") || !strcmp(contentEncoding, "unsupported")) {
@@ -933,6 +973,7 @@ void fetchReading() {
       message = F("Codificacion HTTP no admitida");
     } else parsedOk = parseReading(http, latestOnlyRequest, chunked);
     startup.parsed(parsedOk, reading.available);
+#ifndef SD_PRO_SQUARE_DISPLAY
     if (parsedOk) {
       if (!latestOnlyRequest) { historyRetryPending = false; historyErrorStage = "none"; }
     } else if (!latestOnlyRequest) {
@@ -943,6 +984,7 @@ void fetchReading() {
       historyErrorStage = strcmp(bodyError, "none") ? bodyError :
                           strcmp(parseDiagnostic.jsonError, "Ok") ? parseDiagnostic.jsonError : parseDiagnostic.stage;
     }
+#endif
   } else {
     // Never print the endpoint or token to Serial or the web UI.
     if (result == 401 || result == 403) message = "Revisa token (" + String(result) + ")";
@@ -970,12 +1012,54 @@ void homePage() {
   else sendAsset("text/html; charset=utf-8", web_assets::index_html, sizeof(web_assets::index_html));
 }
 
+class JsonResponseWriter {
+ public:
+  explicit JsonResponseWriter(WiFiClient& client) : client_(client) {}
+  size_t write(uint8_t byte) {
+    if (failed_) return 0;
+    buffer_[used_++] = byte;
+    return used_ < sizeof(buffer_) || flush() ? 1 : 0;
+  }
+  size_t write(const uint8_t* bytes, size_t size) {
+    size_t written = 0;
+    while (written < size && write(bytes[written])) ++written;
+    return written;
+  }
+  bool flush() {
+    if (failed_) return false;
+    if (used_ && client_.write(buffer_, used_) != used_) failed_ = true;
+    used_ = 0;
+    return !failed_;
+  }
+
+ private:
+  WiFiClient& client_;
+  uint8_t buffer_[256];
+  size_t used_ = 0;
+  bool failed_ = false;
+};
+
+void sendJsonResponse(const JsonDocument& document) {
+  const size_t length = measureJson(document);
+  web.setContentLength(length);
+  web.send(200, "application/json", "", 0);
+  if (web.method() == HTTP_HEAD) return;
+  auto& client = web.client();
+  JsonResponseWriter writer(client);
+  const size_t written = serializeJson(document, writer);
+  if (!writer.flush() || written != length) client.stop();
+}
+
 void statePage() {
   if (!authenticated(false)) return;
-  static_assert(JSON_OBJECT_SIZE(25) + JSON_OBJECT_SIZE(5) + JSON_OBJECT_SIZE(3) +
+  static_assert(JSON_OBJECT_SIZE(26) + JSON_OBJECT_SIZE(6) + JSON_OBJECT_SIZE(3) +
                 JSON_ARRAY_SIZE(reading_ui::HISTORY_SIZE) + reading_ui::HISTORY_SIZE * JSON_ARRAY_SIZE(3) + 768 <= 2048,
                 "State JSON needs room for appearance, patient name and all history points");
+#ifdef SD_PRO_SQUARE_DISPLAY
+  DynamicJsonDocument document(1280);
+#else
   DynamicJsonDocument document(2048);
+#endif
   if (!document.capacity()) { web.send(503, "text/plain", L("Sin memoria para el visor")); return; }
   const auto now = static_cast<int64_t>(time(nullptr));
   const auto age = reading_ui::ageSeconds(reading.available, reading.dateMs, now);
@@ -984,6 +1068,9 @@ void statePage() {
   const auto trend = reading_ui::trend(reading.direction.c_str());
   document[F("firmware")] = VERSION;
   document[F("language")] = device_language::code(languageSettings);
+#ifdef SD_PRO_SQUARE_DISPLAY
+  document[F("display_shape")] = "square";
+#endif
   document[F("patient_name")] = patient.name;
   document[F("csrf")] = csrf;
   const auto colors = view_appearance::palette(appearance);
@@ -993,6 +1080,7 @@ void statePage() {
   view[F("accent")] = colorHex(colors.accent);
   view[F("background")] = colorHex(colors.background);
   view[F("number")] = colorHex(colors.number);
+  view[F("number_size")] = appearance.numberSize;
   document[F("available")] = reading.available;
   if (reading.available) {
     document[F("glucose")] = reading.sgv;
@@ -1013,6 +1101,7 @@ void statePage() {
   document[F("ip")] = WiFi.localIP().toString();
   if (attemptedFetch) document[F("checked_seconds_ago")] = (millis() - lastFetch) / 1000;
   else document[F("checked_seconds_ago")] = nullptr;
+#ifndef SD_PRO_SQUARE_DISPLAY
   const auto plot = reading_ui::plot(history, now);
   JsonObject graph = document.createNestedObject(F("plot"));
   graph[F("low")] = plot.low;
@@ -1024,11 +1113,9 @@ void statePage() {
     point.add(plot.points[i].y);
     point.add(plot.points[i].start);
   }
+#endif
   if (document.overflowed()) { web.send(503, "text/plain", L("Sin memoria para el visor")); return; }
-  String body;
-  if (!body.reserve(measureJson(document) + 1)) { web.send(503, "text/plain", L("Sin memoria para el visor")); return; }
-  serializeJson(document, body);
-  web.send(200, "application/json", body);
+  sendJsonResponse(document);
 }
 
 void firmwarePage() {
@@ -1038,8 +1125,8 @@ void firmwarePage() {
       "<title>Actualizar · Glucosa</title><main class='settings'><a class='back' href='/'>← Volver al panel</a>"
       "<p class='eyebrow'>MANTENIMIENTO</p><h1>Actualizar firmware</h1><p class='intro'>Instala una nueva versión desde tu red local.</p>"
       "<form class='card' method='post' action='/update' enctype='multipart/form-data'><h2>Selecciona el archivo .bin</h2>"
-      "<label>Firmware para Wemos D1 mini<input type='file' name='firmware' accept='.bin' required></label>"
-      "<p>Los ajustes guardados se conservan. Mantén el Wemos conectado a la alimentación hasta que termine y se reinicie.</p>"
+      "<label>Archivo .bin para tu dispositivo<input type='file' name='firmware' accept='.bin' required></label>"
+      "<p>Los ajustes guardados se conservan. Mantén el dispositivo conectado a la alimentación hasta que termine y se reinicie.</p>"
       "<button>Instalar actualización</button></form><p>Utiliza el archivo de Firmware. No se necesita una imagen de FileSystem.</p></main></html>")));
 }
 
@@ -1082,15 +1169,12 @@ void diagnostics() {
   document[F("history_retry_pending")] = historyRetryPending;
   document[F("history_error_stage")] = historyErrorStage;
   document[F("clock_valid")] = device_clock::plausible(time(nullptr));
-  document[F("clock_source")] = clockSource == ClockSource::Server ? "https_server" :
-                             clockSource == ClockSource::Browser ? "browser" :
+  document[F("clock_source")] = clockSource == ClockSource::Browser ? "browser" :
                              clockSource == ClockSource::Ntp ? "ntp" : "unknown";
   document[F("ntp_attempts")] = ntpAttempts;
-  document[F("tls_authentication")] = device_config::pinnedPublicKey(settings.customCa) ? "pinned_public_key" : "certificate_authority";
+  document[F("tls_authentication")] = baseUrl.startsWith("https://") ? "insecure" : "none";
   if (document.overflowed()) { web.send(503, "text/plain", L("Sin memoria para diagnostico")); return; }
-  String body;
-  serializeJson(document, body);
-  web.send(200, "application/json", body);
+  sendJsonResponse(document);
 }
 
 uint16_t readingColor(reading_ui::Tone tone, const view_appearance::Palette& colors) {
@@ -1138,7 +1222,8 @@ void drawPatientName(uint16_t background, int y = 43, int width = 120) {
 void drawValue(const String& value, int x, int y, int width, int height) {
   display.setTextSize(1);
   uint8_t scale = static_cast<uint8_t>(height / display.fontHeight(4));
-  if (scale > 4) scale = 4;
+  const uint8_t requested = appearance.numberSize ? appearance.numberSize : 4;
+  if (scale > requested) scale = requested;
   if (!scale) scale = 1;
   display.setTextSize(scale);
   while (scale > 1 && display.textWidth(value, 4) > width) display.setTextSize(--scale);
@@ -1146,24 +1231,28 @@ void drawValue(const String& value, int x, int y, int width, int height) {
   display.setTextSize(1);
 }
 
+#ifndef SD_PRO_SQUARE_DISPLAY
 void drawHistory(time_t now, uint16_t color, uint16_t background) {
   const auto plot = reading_ui::plot(history, now);
   display.setTextColor(screenColor(0x9AABB0), background);
-  display.drawString(F("-30 min"), 50, 139, 1);
-  display.drawString(L("ahora"), 188, 139, 1);
+  constexpr int left = 38, right = 202;
+  constexpr int width = right - left;
+  display.drawString(F("-30 min"), left + 12, 139, 1);
+  display.drawString(L("ahora"), right - 14, 139, 1);
   for (int value : {70, 180}) {
     if (value < plot.low || value > plot.high) continue;
     const int y = 148 + (plot.high - value) * 30 / (plot.high - plot.low);
-    for (int x = 38; x < 202; x += 5) display.drawFastHLine(x, y, 2, night_display::scale565(0x3207, screenIntensity));
+    for (int x = left; x < right; x += 5) display.drawFastHLine(x, y, 2, night_display::scale565(0x3207, screenIntensity));
   }
   for (size_t i = 0; i < plot.count; ++i) {
-    const int x = 38 + plot.points[i].x * 164 / 1000, y = 148 + plot.points[i].y * 30 / 1000;
+    const int x = left + plot.points[i].x * width / 1000, y = 148 + plot.points[i].y * 30 / 1000;
     if (i && !plot.points[i].start)
-      display.drawLine(38 + plot.points[i-1].x * 164 / 1000, 148 + plot.points[i-1].y * 30 / 1000, x, y, color);
+      display.drawLine(left + plot.points[i-1].x * width / 1000, 148 + plot.points[i-1].y * 30 / 1000, x, y, color);
     display.fillCircle(x, y, 1, color);
   }
   if (!plot.count) display.drawString(device_clock::plausible(now) ? L("Esperando historial") : L("Hora sin sincronizar"), 120, 163, 1);
 }
+#endif
 
 void drawStartupStage(startup_view::Stage stage, int y) {
   const auto colors = view_appearance::palette(appearance);
@@ -1197,7 +1286,11 @@ void renderWelcome() {
   const uint16_t background = screenColor(colors.background);
   const uint16_t accent = screenColor(colors.accent);
   display.fillScreen(background);
+#ifdef SD_PRO_SQUARE_DISPLAY
+  display.drawRect(4, 4, 232, 232, accent);
+#else
   display.drawCircle(120, 120, 115, accent);
+#endif
   display.setTextDatum(MC_DATUM);
   display.setTextSize(1);
   display.drawLine(106, 47, 112, 47, accent);
@@ -1210,12 +1303,9 @@ void renderWelcome() {
   drawStartupStage(startup.wifi(connected), 121);
   display.drawString(connected ? L("Wi-Fi conectado") : L("Conectando Wi-Fi"), 67, 121, 2);
   drawStartupStage(startup.server(connected), 147);
-  const bool waitingClock = baseUrl.startsWith("https://") && !device_config::pinnedPublicKey(settings.customCa) &&
-                            !device_clock::plausible(time(nullptr));
   display.drawString(!connected ? L("Esperando Wi-Fi") :
                      startup.responseCode == 200 ? L("Servidor conectado") :
                      startup.responseCode ? L("Error de servidor") :
-                     waitingClock ? L("Esperando hora") :
                      !attemptedFetch ? L("Esperando consulta") : L("Consultando servidor"), 67, 147, 2);
   drawStartupStage(startup.reading(connected), 173);
   display.drawString(startup.parseFailed ? L("Reintentando lectura") : L("Esperando lectura"), 67, 173, 2);
@@ -1234,7 +1324,11 @@ void renderProvisioning() {
   const uint16_t background = screenColor(colors.background);
   const uint16_t accent = screenColor(colors.accent);
   display.fillScreen(background);
+#ifdef SD_PRO_SQUARE_DISPLAY
+  display.drawRect(4, 4, 232, 232, accent);
+#else
   display.drawCircle(120, 120, 115, accent);
+#endif
   display.setTextDatum(MC_DATUM);
   display.setTextSize(1);
   display.setTextColor(accent, background);
@@ -1271,15 +1365,21 @@ String readingAgeText(bool available, int64_t age) {
 }
 
 void render() {
+#ifdef SD_PRO_SQUARE_DISPLAY
+  if (panelPreviewActive) return;
+#endif
+  if (!setupMode && !startup.finished) { renderWelcome(); return; }
   updateScreenIntensity();
   if (setupMode) { renderProvisioning(); return; }
-  if (!startup.finished) { renderWelcome(); return; }
   const time_t now = time(nullptr);
   const int64_t age = reading_ui::ageSeconds(reading.available, reading.dateMs, now);
   const bool stale = reading.available && age >= 600;
   const String ageText = readingAgeText(reading.available, age);
   String frame = String(reading.available) + reading.sgv + reading.direction + ageText +
-                 message + WiFi.localIP().toString() + String(historyVersion) + String(static_cast<uint32_t>(now / 60));
+                 message + WiFi.localIP().toString() + String(static_cast<uint32_t>(now / 60));
+#ifndef SD_PRO_SQUARE_DISPLAY
+  frame += String(historyVersion);
+#endif
   if (frame == lastFrame) return;
   lastFrame = frame;
   const auto tone = reading_ui::tone(reading.available, reading.sgv, age,
@@ -1291,20 +1391,35 @@ void render() {
   const uint16_t accent = tone == reading_ui::Tone::Normal ? screenColor(colors.accent) : statusColor;
   const uint16_t trendColor = tone == reading_ui::Tone::Old ? valueColor : accent;
   display.fillScreen(background);
+#ifdef SD_PRO_SQUARE_DISPLAY
+  display.drawRect(4, 4, 232, 232, accent);
+#else
   display.drawCircle(120, 120, 115, accent);
   display.drawCircle(120, 120, 114, accent);
+#endif
   display.setTextDatum(MC_DATUM);
+#ifdef SD_PRO_SQUARE_DISPLAY
+  drawPatientName(background, 33, 208);
+#else
   drawPatientName(background);
+#endif
   display.setTextColor(valueColor, background);
   const String value = reading.available ? String(reading.sgv) : String(F("---"));
+#ifndef SD_PRO_SQUARE_DISPLAY
   if (appearance.mode == view_appearance::Mode::Graph) {
     drawValue(value, 104, 96, 150, 57);
     if (reading.available) drawTrend(trendColor, 188, 96, 22);
     display.setTextColor(screenColor(0x9AABB0), background);
     display.drawString(F("mg/dL"), 104, 124, 2);
     drawHistory(now, valueColor, background);
-  } else if (appearance.mode == view_appearance::Mode::Lateral) {
+  } else
+#endif
+  if (appearance.mode == view_appearance::Mode::Lateral) {
+#ifdef SD_PRO_SQUARE_DISPLAY
+    drawValue(value, 100, 110, 172, 104);
+#else
     drawValue(value, 100, 118, 164, 90);
+#endif
     if (reading.available) drawTrend(trendColor, 201, 118, 29);
     display.setTextColor(screenColor(0x9AABB0), background);
     display.drawString(F("mg/dL"), 100, 166, 2);
@@ -1344,20 +1459,19 @@ void setup() {
   strlcpy(settings.webUsername, WEB_USERNAME, sizeof(settings.webUsername));
   strlcpy(settings.webPassword, WEB_PASSWORD, sizeof(settings.webPassword));
   strlcpy(settings.token, NIGHTSCOUT_TOKEN, sizeof(settings.token));
-  strncpy_P(settings.customCa, NIGHTSCOUT_ROOT_CA, sizeof(settings.customCa) - 1);
   if (storageReady) {
     EEPROM.get(device_language::OFFSET, languageSettings);
     if (!device_language::valid(languageSettings)) languageSettings = device_language::Settings{};
     EEPROM.get(night_display::OFFSET, nightSettings);
     if (!night_display::valid(nightSettings)) nightSettings = night_display::Settings{};
     EEPROM.get(view_appearance::OFFSET, appearance);
-    if (!view_appearance::valid(appearance)) appearance = view_appearance::Settings{};
+    if (!view_appearance::restore(appearance)) appearance = view_appearance::Settings{};
     EEPROM.get(patient_label::OFFSET, patient);
     if (!patient_label::valid(patient)) patient = patient_label::Label{};
     std::unique_ptr<device_config::Settings> saved(new (std::nothrow) device_config::Settings);
     if (saved) {
       EEPROM.get(0, *saved);
-      if (device_config::validStoredSettings(*saved)) settings = *saved;
+      if (device_config::validStoredSettings(*saved) || device_config::migrateV3OrV4(*saved)) settings = *saved;
       else {
         device_config::V2Settings previous{};
         EEPROM.get(0, previous);
@@ -1369,6 +1483,11 @@ void setup() {
       }
     }
   }
+#ifdef SD_PRO_SQUARE_DISPLAY
+  if (appearance.mode == view_appearance::Mode::Graph) appearance.mode = view_appearance::Mode::Lateral;
+  analogWriteRange(255);
+  applyPanelMode(appearance.panelMode);
+#endif
   setTZ(night_display::timezoneRule(nightSettings.zone));
   baseUrl = settings.url;
   csrf = String(ESP.random(), HEX) + String(ESP.random(), HEX);
@@ -1418,6 +1537,14 @@ void setup() {
 
 void loop() {
   web.handleClient();
+#ifdef SD_PRO_SQUARE_DISPLAY
+  if (panelPreviewActive && millis() - panelPreviewStarted >= PANEL_PREVIEW_MS) {
+    panelPreviewActive = false;
+    applyPanelMode(appearance.panelMode);
+    lastFrame = "";
+    render();
+  }
+#endif
   // Restore the five-second preview before a blocking TLS request can start.
   if (nightPreview.enabled && !nightPreview.active(millis())) {
     updateScreenIntensity(); render(); lastRender = millis();
@@ -1426,19 +1553,24 @@ void loop() {
   if (!setupMode && WiFi.status() == WL_CONNECTED) {
     hasConnected = true;
     // Start/retry DNS and SNTP only after the station has acquired a connection.
-    if (!device_config::pinnedPublicKey(settings.customCa)) {
-      if (clockSchedule.poll(true, device_clock::plausible(time(nullptr)), millis())) startNtp();
-    } else clockSchedule.poll(false, device_clock::plausible(time(nullptr)), millis());
+    if (clockSchedule.poll(true, device_clock::plausible(time(nullptr)), millis())) startNtp();
     static bool mdnsStarted = false;
     if (!mdnsStarted) mdnsStarted = MDNS.begin(DEVICE_HOSTNAME);
     if (mdnsStarted) MDNS.update();
     // Let the browser receive its clock/settings response before starting TLS.
     const bool webIdle = (!webRecentlyUsed || millis() - lastWebActivity >= 3000) &&
-                         !web.client().connected() && !nightPreview.enabled;
+                         !web.client().connected() && !nightPreview.enabled
+#ifdef SD_PRO_SQUARE_DISPLAY
+                         && !panelPreviewActive
+#endif
+                         ;
     if (millis() >= 5000 && webIdle && (!attemptedFetch || millis() - lastFetch >= POLL_MS)) {
       attemptedFetch = true;
       fetchReading();
       lastFetch = millis();
+      // The HTTPS client and response buffers are out of scope here.
+      if (clockSchedule.afterFetch(WiFi.status() == WL_CONNECTED,
+                                   device_clock::plausible(time(nullptr)), lastFetch)) startNtp();
     }
   } else if (!setupMode) {
     clockSchedule.poll(false, device_clock::plausible(time(nullptr)), millis());

@@ -4,16 +4,23 @@
  */
 const assert=require('assert/strict');
 const fs=require('fs');
+const {gunzipSync}=require('zlib');
 const path=require('path');
 const {chromium}=require('playwright');
 const root=path.resolve(__dirname,'..');
+const generated=fs.readFileSync(path.join(root,'include/generated/web_assets.h'),'utf8');
+function squareAsset(symbol){
+  const bytes=generated.match(new RegExp('\\b'+symbol+'\\[\\].*?\\{([\\s\\S]*?)\\};'))[1];
+  return gunzipSync(Buffer.from(bytes.match(/0x[0-9a-f]{2}/g).map(value=>Number(value))));
+}
+const squareMarkup=squareAsset('index_html'), squareScript=squareAsset('app_js');
 const preset=['#74edbc','#ff675e','#699bff','#f69bd1','#72d9f5'];
 const initial=()=>({firmware:'0.6.1',patient_name:'Alex',csrf:'fixture-session-only',available:true,glucose:142,
   reading_date_ms:Date.now()-120000,age_seconds:120,tone:'normal',trend_symbol:'↗',trend_label:'Subiendo',clock_valid:true,
   message:'Conectado',wifi_connected:true,rssi_dbm:-70,ip:'192.0.2.1',checked_seconds_ago:3,
   appearance:{mode:0,theme:0,accent:preset[0],background:'#0b1114',number:preset[0]},
   plot:{low:60,high:200,points:[[0,800,true],[160,750,false],[330,600,false],[500,650,false],[660,500,false],[830,450,false],[1000,400,false]]}});
-const form=`<!doctype html><html lang="es"><meta charset="utf-8"><link rel="stylesheet" href="/assets/ui.css"><script src="/assets/appearance.js" defer></script><main class="settings"><form id="appearance-form"><input name="csrf" type="hidden" value="fixture-session-only"><select name="mode"><option value="0">Gráfica</option><option value="1">Lateral</option><option value="2">Debajo</option></select><select name="theme">${['Menta','Rojo','Azul','Rosado','Celeste','Personalizado'].map((x,i)=>`<option value="${i}">${x}</option>`).join('')}</select><input type="color" name="accent" value="#74edbc"><input type="color" name="background" value="#0b1114"><input type="color" name="number" value="#74edbc"><div id="appearance-preview"><strong>142</strong></div><p id="contrast-feedback"></p><button id="save-appearance">Guardar</button><button id="reset-theme" type="button">Menta</button></form></main></html>`;
+const form=`<!doctype html><html lang="es"><meta charset="utf-8"><link rel="stylesheet" href="/assets/ui.css"><script src="/assets/appearance.js" defer></script><main class="settings"><form id="appearance-form" action="/appearance" method="post"><input name="csrf" type="hidden" value="fixture-session-only"><select name="mode"><option value="0">Gráfica</option><option value="1">Lateral</option><option value="2">Debajo</option></select><select name="theme">${['Menta','Rojo','Azul','Rosado','Celeste','Personalizado'].map((x,i)=>`<option value="${i}">${x}</option>`).join('')}</select><input type="color" name="accent" value="#74edbc"><input type="color" name="background" value="#0b1114"><input type="color" name="number" value="#74edbc"><div id="appearance-preview"><strong>142</strong></div><p id="contrast-feedback"></p><button id="save-appearance">Guardar</button><button id="reset-theme" type="button">Menta</button><select name="panel_mode"><option value="0">RGB</option><option value="3">BGR</option></select><button id="panel-preview" type="submit">Probar</button><p id="panel-feedback"></p></form></main></html>`;
 (async()=>{
   const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||'/usr/bin/chromium',headless:true,args:['--no-sandbox']});
   try {
@@ -28,8 +35,13 @@ const form=`<!doctype html><html lang="es"><meta charset="utf-8"><link rel="styl
         posts.push(Object.fromEntries(fields));
         assert.equal(request.method(),'POST');assert.equal(fields.get('csrf'),'fixture-session-only');
         if(rejectPosts)return route.fulfill({status:403,body:'Session changed'});
+        if(fields.get('panel_preview')==='1')return route.fulfill({json:{ok:true}});
         state.appearance.mode=Number(fields.get('mode'));
         return route.fulfill({json:{ok:true}});
+      }
+      if(state.display_shape==='square'){
+        if(url.pathname==='/') return route.fulfill({contentType:'text/html',body:squareMarkup});
+        if(url.pathname==='/assets/app.js') return route.fulfill({contentType:'application/javascript',body:squareScript});
       }
       if(url.pathname==='/settings-fixture')return route.fulfill({contentType:'text/html',body:form});
       const files={'/':['index.html','text/html'],'/assets/ui.css':['ui.css','text/css'],'/assets/app.js':['app.js','application/javascript'],'/assets/appearance.js':['appearance.js','application/javascript']};
@@ -38,6 +50,24 @@ const form=`<!doctype html><html lang="es"><meta charset="utf-8"><link rel="styl
     });
     async function load(){await page.goto('http://device.test/');await page.waitForFunction(()=>!document.getElementById('view-mode').disabled);}
     async function refresh(){await page.locator('#refresh').click();await page.waitForFunction(()=>!document.getElementById('refresh').disabled);}
+    for(const shape of [undefined,'square']){
+      state=initial();
+      if(shape) { state.display_shape=shape; state.appearance.mode=1; delete state.plot; }
+      await load();
+      assert.equal(await page.locator('#dial').getAttribute('data-shape'),shape||'round');
+      assert.equal(await page.locator('#dial > rect.dial-ring').isVisible(),shape==='square');
+      assert.equal(await page.locator('#dial > circle.dial-ring').isVisible(),shape!=='square');
+      assert.equal(await page.locator('#dial-brand').getAttribute('y'),shape==='square'?'43':'53');
+      assert.equal(await page.locator('#view-mode option[value="0"]').count(),shape==='square'?0:1);
+      assert.equal(await page.locator('#history-group').count(),shape==='square'?0:1);
+      if (!shape) assert.equal(await page.locator('#history-dots circle').first().getAttribute('cx'),'38');
+      assert.doesNotMatch(await page.locator('body').innerText(),/wemos/i);
+      if (shape) {
+        const fontSize=()=>page.locator('#glucose').evaluate(e=>parseFloat(getComputedStyle(e).fontSize));
+        state.appearance.number_size=2; await refresh(); const medium=await fontSize();
+        state.appearance.number_size=4; await refresh(); assert((await fontSize())>medium);
+      }
+    }
     for(const viewport of [{width:1365,height:1050},{width:390,height:844}]){
       await page.setViewportSize(viewport);
       for(let mode=0;mode<3;mode++)for(let theme=0;theme<5;theme++){
@@ -125,6 +155,13 @@ const form=`<!doctype html><html lang="es"><meta charset="utf-8"><link rel="styl
     const fields=await page.locator('#appearance-form').evaluate(e=>Object.fromEntries(new FormData(e)));
     assert.equal(fields.number,'#f2f7f6');assert.equal(fields.theme,'5');assert.equal(fields.csrf,'fixture-session-only');
     await page.locator('#reset-theme').click();assert.equal(await page.locator('[name=theme]').inputValue(),'0');assert(await page.locator('[name=number]').isDisabled());
+    await page.goto('http://device.test/settings-fixture');
+    await page.locator('[name=panel_mode]').selectOption('3');
+    await page.locator('#panel-preview').click();
+    await page.waitForFunction(()=>document.getElementById('panel-feedback').textContent.includes('12 segundos'));
+    assert.equal(posts.at(-1).panel_mode,'3');
+    assert.equal(posts.at(-1).panel_preview,'1');
+    assert.equal(posts.at(-1).quick,'1');
     assert.deepEqual(errors,[]);
     console.log('Browser checks passed: 3 modes × 5 themes × desktop/mobile; warnings, custom contrast, CSRF mode saves, failed save, safe names, offline retention and screenshots.');
   } finally {await browser.close();}
