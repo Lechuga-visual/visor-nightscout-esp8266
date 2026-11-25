@@ -1,215 +1,44 @@
 {
-  "version": "0.8.1",
-  "file": "nightscout-d1-mini-v0.8.1.bin",
-  "sha256": "c057c01fc77944049626ad330141554b6745061870d57c11f516a83533f26587",
-  "size_bytes": 744400,
-  "source_commit": "c9281f817b40d731205979dcdc98af6e404378bf",
+  "version": "0.9.0",
   "board": "d1_mini",
+  "display": "GC9A01 240 × 240",
+  "file": "nightscout-d1-mini-v0.9.0.bin",
+  "sha256": "60bf73250516870dbefa49b90badc9000e8c06df2e5af7a199b49cab2796bf0d",
+  "size_bytes": 745808,
+  "memory": {
+    "static_ram_bytes": 38028,
+    "application_flash_bytes": 741651
+  },
+  "sd_pro": {
+    "board": "sd_pro",
+    "display": "ST7789 240 × 240 square",
+    "file": "nightscout-sd-pro-v0.9.0.bin",
+    "sha256": "22490935e9b505b9aa609c00979cec526625fd27036ee4730512e45be1ef9224",
+    "size_bytes": 745616,
+    "memory": {
+      "static_ram_bytes": 38028,
+      "application_flash_bytes": 741459
+    }
+  },
+  "source_commit": "d7d7b0b1db4fb05d3b11d7382ccffbc8dbd9dd5d",
   "mcu": "ESP8266",
   "flash_size_bytes": 4194304,
   "flash_mode": "dio",
+  "flash_frequency_hz": 40000000,
   "flash_offset": "0x00000",
   "build": {
-    "platformio": "6.1.18",
+    "platformio": "6.2.0",
     "platform": "espressif8266 4.2.1",
     "arduino_core": "3.1.2",
-    "compiler": "xtensa-lx106-elf GCC 10.3",
-    "scons": "4.8.1",
+    "compiler": "xtensa-lx106-elf GCC 10.3.0",
+    "scons": "4.4.1",
     "TFT_eSPI": "2.5.43",
-    "ArduinoJson": "6.21.5",
-    "method": "Original PlatformIO builder with verified upstream packages and local cloud overrides"
-  },
-  "memory": {
-    "static_ram_bytes": 38012,
-    "application_flash_bytes": 740247,
-    "request_stack_frame_bytes": 336,
-    "json_parser_wrapper_stack_frame_bytes": 112,
-    "json_parser_core_stack_frame_bytes": 448,
-    "dashboard_state_stack_frame_bytes": 576,
-    "display_stack_frame_bytes": 320,
-    "static_ram_saved_from_v051_bytes": 2708,
-    "dashboard_document_capacity_bytes": 2048,
-    "appearance_save_stack_frame_bytes": 208,
-    "static_ram_increase_from_v052_bytes": 380,
-    "static_ram_increase_from_v061_bytes": 248,
-    "welcome_stack_frame_bytes": 144,
-    "setup_page_stack_frame_bytes": 64,
-    "static_ram_increase_from_v070_bytes": 200,
-    "night_save_stack_frame_bytes": 192,
-    "local_minute_stack_frame_bytes": 64,
-    "intensity_update_stack_frame_bytes": 16,
-    "static_ram_change_from_v071_bytes": -72,
-    "language_save_stack_frame_bytes": 64,
-    "language_controls_stack_frame_bytes": 16,
-    "application_flash_increase_from_v071_bytes": 33936,
-    "application_flash_change_from_v080_bytes": 4,
-    "static_ram_change_from_v080_bytes": 0
+    "ArduinoJson": "6.21.5"
   },
   "private_compile_time_configuration": false,
   "validation": {
-    "tests_passed": 23,
-    "tests_skipped": 0,
-    "boot_checksum": "valid",
-    "arduino_full_image_crc": "valid",
-    "application_segment_checksum_before_arduino_crc_metadata": "valid",
-    "hardware_tested": false,
-    "public_root_decoding_and_dn_indexes": "120 verified with BearSSL",
-    "certificate_checks": "RSA/ECC accepted; wrong hostname, expired, untrusted and tampered certificates rejected in native BearSSL tests",
-    "clock_checks": "6 native groups: Wi-Fi startup, retry intervals, reconnect/manual retry, millis wraparound, browser epoch validation, HTTP Date validation",
-    "pinned_tls": "Real OpenSSL/BearSSL TLS 1.2 handshakes: matching RSA, P-256, P-384 and P-521 keys accepted without clock/CA despite expired self-signed certificates; different keys rejected",
-    "pin_export": "Verified TLS export succeeds; expired, untrusted and wrong-host certificates rejected",
-    "request_stack": "Compiled Xtensa prologues inspected: request 336 bytes, streamed parser core 448 plus 112-byte wrapper, dashboard state 576, render 320, appearance save 208, welcome 144, setup page 64, night save 192, local minute 64, intensity update 16, language save 64 and language form 16; no framebuffer",
-    "browser_flow": "Request interception without HTTP server: 3 modes x 5 themes on desktop/mobile; all seven trend directions and unknown, low/high/old/no-clock/empty/error, custom contrast, authenticated CSRF mode-save payloads and rejected-session handling, safe name text, large-name width limits/ellipsis and offline retention; actual ESP8266 HTTP/EEPROM/SPI/OTA checks pending",
-    "reading_history": "6 native groups updated for 30 minutes: freshness, 7-point sorted/bucketed history, plot boundaries and gaps, streamed 31-entry JSON with large ignored fields, invalid/empty readings, newest entry/trends",
-    "web_assets": "Checked-in gzip flash assets verified against HTML/CSS/JS sources",
-    "external_api_smoke_test": "Last live API check in v0.5.2: count=31 returned HTTP 200, 9492 bytes accepted by native body/JSON decoder with identity and re-framed chunked transport. TLS authentication, UTC clock and streaming decoding rules retained; local timezone configured through core POSIX-TZ API. Poll deferred during temporary preview until display restoration; no glucose values retained",
-    "http_body": "5 native groups: identity/content length, chunked framing/extensions/trailers, fragmented and short reads, truncation/trailing data, malformed chunks/body limits, raw-chunk regression and precise parser stages",
-    "patient_name": "Original 3732-byte settings layout and trust-key offset unchanged; tagged EEPROM name extension, erased storage rejection, bounded UTF-8 validation and Spanish display transliteration tested",
-    "appearance": "3 native groups: tagged 20-byte extension at EEPROM offset 3836, old server/token/key/name preserved, erased storage defaults, partial mode updates, atomic rejection, presets/custom colors and contrast after RGB565 quantization",
-    "browser_suites_passed": 0,
-    "startup": "Native stage checks: Wi-Fi pending/connected, HTTP and network errors, rejected JSON, valid empty response, first valid reading, non-200 cannot finish startup, live view retained after later failures",
-    "browser_setup": "Actual C++ setup page renderer with host String/flash/send adaptations; request interception without HTTP server: mobile/desktop steps, UTF-8 SSID byte limit, Wi-Fi/URL/token/PEM/admin validation, hidden-details error focus, back/Enter without early POST, text-safe secret-free summary, CSRF payload, 400/401/403/500 and network failures retaining fields, duplicate-save guard, success clearing secrets, no-JavaScript fallback",
-    "startup_layout": "Representative longest labels, AP SSID/key/IP and footer checked against TFT_eSPI font 2 widths and 240x240 circular bounds; physical SPI output pending",
-    "night_schedule": "Native checks: tagged 16-byte EEPROM extension preserves old prefix/tail, erased-storage defaults, atomic field rejection, start-inclusive/end-exclusive intervals including midnight, disabled/no-clock daytime fallback, all 65536 RGB565 values unchanged at 100 percent with channel monotonicity when dimmed, five-second preview rollover/restart, Santiago and Madrid winter/summer and Santiago DST boundaries",
-    "browser_night": "Production C++ form and local assets with intercepted requests, no HTTP server: mobile/desktop, disabled upgrade defaults, sliders, equal-time rejection, CSRF preview payload, five-second UI expiry, 400/403/500 and network errors, duplicate-preview guard, native save excluding preview flags, no-JavaScript form; physical SPI/EEPROM/clock integration pending",
-    "language": "Actual saveLanguage C++ handler tested with host EEPROM/HTTP adapters: strict es/en, erased/corrupt default, auth and CSRF rejection, exact 8-byte extension preserving all earlier bytes/tail, idempotence, commit failure buffer rollback and restart persistence; generated translation catalog verified",
-    "browser_languages": "Production C++ setup and night forms and generated ES/EN dashboard/scripts at 390/1365px: language-only CSRF POST without secrets, localized steps/errors/age/trends/low/high/old/offline, safe UTF-8 name, modes and night preview, no-JavaScript forms and English screenshots",
-    "language_tft_layout": "English startup rows and bilingual setup title checked against actual TFT_eSPI Font 2 widths and circular screen bounds; physical SPI verification pending",
-    "key_tools_languages": "English shell and Windows launchers tested against valid RSA/P-256/P-384/P-521 and rejected expired/future/untrusted/wrong-host TLS fixtures; no application data, no overwrites; package sources and permissions checked; native OS CI checks separately",
-    "browser_baseline": {
-      "version": "0.8.0",
-      "suites_passed": 4,
-      "web_sources_and_embedded_assets_identical": true,
-      "rerun_for_this_patch": false
-    },
-    "physical_reading_age": "Actual C++ TFT formatter tested: English 0/1/2/9 min ago, OLD at 600 seconds and a day-old reading, Spanish Hace/ANTIGUA wording unchanged, missing clock and missing readings; shared by all three display modes"
-  },
-  "setup": {
-    "ssid": "glucosa-XXXXXX",
-    "password": "Generated on-device and shown on the display",
-    "url": "http://192.168.4.1/"
-  },
-  "public_trust_store": {
-    "source": "certifi 2026.10.19",
-    "count": 120,
-    "der_bytes": 128549,
-    "der_sha256": "5b514908dffc8ca992522417ab2da71cf7be9ada2ea59a037bed57850e21871a",
-    "pem_sha256": "50f79f98dac192b20dbf73f35c56f0b0c557ab267ff5199d1117cc1180b70785"
-  },
-  "tls_authentication": {
-    "default": "Public CA chain, hostname and certificate date validation; requires a valid clock",
-    "optional": "Explicit server public-key pin; TLS proof of key possession without CA chain/hostname/certificate date checks",
-    "server_pin_embedded": false,
-    "clock_bootstrap": "Fresh HTTP Date after a successful pinned HTTPS request only; never from a glucose reading or unverified HTTP"
-  },
-  "interface": {
-    "style": "dark high contrast",
-    "history_hours": 0.5,
-    "source_entries_max": 31,
-    "history_points_max": 7,
-    "history_bucket_minutes": 5,
-    "web_refresh_seconds": 5,
-    "nightscout_poll_seconds": 30,
-    "web_authentication": "Administrator Basic authentication; per-boot CSRF nonce for configuration changes including POST /language",
-    "assets": "Eleven gzip flash assets (shared CSS, five resources per language), eight setup fragments per language, generated flash-only English C++ strings; no framebuffer, FileSystem upload or external dependencies",
-    "patient_name_characters_max": 24,
-    "patient_name_storage": "Tagged 104-byte EEPROM extension after the unchanged v3 settings; empty label uses NIGHTSCOUT",
-    "history_minutes": 30,
-    "view_modes": [
-      "30-minute graph",
-      "large number with lateral arrow",
-      "centered large number with lower arrow"
-    ],
-    "themes": [
-      "mint",
-      "red",
-      "blue",
-      "pink",
-      "cyan",
-      "custom"
-    ],
-    "custom_colors": [
-      "accent and arrow",
-      "display background",
-      "normal reading number"
-    ],
-    "appearance_storage": {
-      "offset": 3836,
-      "bytes": 20,
-      "tagged": true,
-      "existing_settings_layout_unchanged": true
-    },
-    "patient_name_header": "Named patient: TFT font 2 size 2 (32px) centered at y=43, width cap 120px; web 28px at baseline y=53, width cap 128px; ellipsis preserves large text and full stored name; empty-name fallback unchanged",
-    "startup": {
-      "design": "B: actual Wi-Fi, HTTP 200 and first-reading stages",
-      "theme": "saved palette",
-      "patient_name": "same large font, centered at y=82, width cap 170px",
-      "exit": "first successfully decoded available reading; later errors keep live display"
-    },
-    "initial_setup": {
-      "design": "B: Wi-Fi, Nightscout/person, administrator/review",
-      "navigation": "retains fields within current visit; no persistent browser storage",
-      "save": "single final authenticated/CSRF-protected POST; encrypted setup AP with on-screen generated password before initial credentials exist",
-      "summary": "network, patient and base URL only; no passwords, token or PEM contents",
-      "no_javascript": "all three sections visible; original native form POST with CSRF",
-      "storage_layout_changed": false
-    },
-    "night_schedule": {
-      "implemented": true,
-      "control": "RGB565 content attenuation only; LED backlight not controlled",
-      "enabled_by_default": false,
-      "start": "22:00",
-      "end": "07:00",
-      "day_percent_default": 100,
-      "night_percent_default": 25,
-      "percent_range": [
-        10,
-        100
-      ],
-      "timezone_default": "America/Santiago",
-      "timezone_options": 8,
-      "daylight_saving": "POSIX rules for Santiago and Madrid; other listed zones fixed offsets",
-      "clock_missing": "day intensity with settings notice",
-      "preview": "five seconds, millis rollover safe, no flash writes; restored before blocking Nightscout TLS can start",
-      "setup_screen": "100 percent",
-      "web_dashboard": "unchanged intensity",
-      "storage": {
-        "offset": 3856,
-        "bytes": 16,
-        "tagged": true,
-        "old_settings_unchanged": true
-      },
-      "authentication": "administrator Basic authentication and current boot CSRF nonce for saving and preview"
-    },
-    "languages": [
-      "es",
-      "en"
-    ],
-    "default_language": "es",
-    "language_storage": {
-      "offset": 3872,
-      "bytes": 8,
-      "tagged": true,
-      "old_settings_layout_unchanged": true
-    },
-    "language_selection": "Initial setup and Settings, device-wide, persisted without restart; defaults to Spanish after upgrade; units/time zone/credentials unchanged; language form reloads the page and does not retain other unsaved inputs",
-    "physical_reading_age": {
-      "english": "2 min ago",
-      "english_old": "OLD 10 min ago",
-      "spanish": "Hace 2 min",
-      "spanish_old": "ANTIGUA 10 min",
-      "old_threshold_seconds": 600
-    }
-  },
-  "http_body": {
-    "buffer_bytes": 512,
-    "maximum_decoded_bytes": 262144,
-    "transfer_encodings": [
-      "identity",
-      "chunked"
-    ],
-    "content_encoding": "identity",
-    "fallback": "After full-history decode failure, poll latest-reading API every 30 seconds and retry full history after 5 minutes; keep old history and mark partial",
-    "minimum_heap_before_json_bytes": 3072
+    "settings_test_groups_passed": 11,
+    "web_asset_tests_passed": 2,
+    "hardware_tested_this_version": false
   }
 }
