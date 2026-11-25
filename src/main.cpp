@@ -15,6 +15,7 @@
 #include <sntp.h>
 #include "device_clock.h"
 #include "device_settings.h"
+#include "setup_wifi.h"
 #include "reading_json.h"
 #include "http_body.h"
 #include "patient_label.h"
@@ -32,7 +33,7 @@
 #endif
 
 namespace {
-constexpr char VERSION[] = "0.9.1";
+constexpr char VERSION[] = "0.9.2";
 constexpr uint32_t POLL_MS = 30000;
 TFT_eSPI display;
 ESP8266WebServer web(80);
@@ -53,8 +54,7 @@ bool setupMode = false;
 bool hasConnected = false;
 bool restartPending = false;
 uint32_t restartRequestedAt = 0;
-String setupSsid;
-String setupPassword;
+char setupSsid[setup_wifi::SSID_SIZE];
 device_clock::SyncSchedule clockSchedule;
 constexpr const char* NTP_SERVERS[] = {"pool.ntp.org", "time.google.com", "time.cloudflare.com"};
 uint32_t ntpAttempts = 0;
@@ -203,6 +203,10 @@ bool authenticated(bool interactive = true) {
 }
 
 bool currentForm() {
+  if (restartPending) {
+    web.send(409, "text/plain; charset=utf-8", L("El dispositivo se está reiniciando."));
+    return false;
+  }
   if (web.hasArg("csrf") && web.arg("csrf") == csrf) return true;
   lastOperation = "stale_form";
   Serial.printf_P(PSTR("Formulario rechazado: sesion=%08x uptime=%lu\n"),
@@ -670,7 +674,7 @@ void saveConfiguration() {
     web.send(400, "text/plain; charset=utf-8", L("Revisa la URL y la longitud de los campos."));
     return;
   }
-  // CA settings are several KB; allocate candidates on the heap, not the ESP's 4 KB stack.
+  // Keep settings candidates off the ESP's 4 KB stack.
   std::unique_ptr<device_config::Settings> candidate(new (std::nothrow) device_config::Settings);
   if (!candidate) { web.send(503, "text/plain", L("Memoria insuficiente. Intenta nuevamente.")); return; }
   if (!serverFields(*candidate, url)) {
@@ -707,16 +711,10 @@ void saveConfiguration() {
 
 void startProvisioning() {
   WiFi.mode(WIFI_AP);
-  char suffix[7];
-  snprintf(suffix, sizeof(suffix), "%06lx", static_cast<unsigned long>(ESP.getChipId() & 0xffffff));
-  char password[13];
-  snprintf(password, sizeof(password), "%08lx%04lx", static_cast<unsigned long>(ESP.random()),
-           static_cast<unsigned long>(ESP.random() & 0xffff));
-  setupSsid = "glucosa-" + String(suffix);
-  setupPassword = password;
+  setup_wifi::makeSsid(setupSsid, ESP.random());
   const IPAddress setupIp(192, 168, 4, 1);
   if (!WiFi.softAPConfig(setupIp, setupIp, IPAddress(255, 255, 255, 0)) ||
-      !WiFi.softAP(setupSsid.c_str(), setupPassword.c_str())) {
+      !WiFi.softAP(setupSsid, setup_wifi::PASSWORD)) {
     setupMode = false;
     message = F("Error al crear Wi-Fi");
     return;
@@ -758,8 +756,90 @@ void settingsPage() {
             "<a class='button secondary' href='/configure'>Wi-Fi y contraseñas</a>"
             "<a class='button secondary' href='/firmware'>Actualizar firmware</a>"
             "<a class='button secondary' href='/diagnostics'>Diagnóstico</a></div>"
-            "<p>Utiliza la administración y las actualizaciones en tu red local de confianza.</p></section></main></html>");
+            "<p>Utiliza la administración y las actualizaciones en tu red local de confianza.</p>"
+            "<details><summary>Cambiar clave de administración</summary>"
+            "<form method='post' action='/admin-password'><input type='hidden' name='csrf' value='");
+  page += csrf;
+  page += L("'><label>Clave actual<input type='password' name='current_password' maxlength='64' autocomplete='current-password' required></label>"
+            "<label>Nueva clave<input type='password' name='new_password' minlength='12' maxlength='64' autocomplete='new-password' required></label>"
+            "<label>Repite la nueva clave<input type='password' name='confirm_password' minlength='12' maxlength='64' autocomplete='new-password' required></label>"
+            "<button type='submit'>Guardar nueva clave</button></form></details>"
+            "<details><summary>Restablecer de fábrica</summary>"
+            "<p>Se borrarán el Wi-Fi, la cuenta de administración, la URL y el token de Nightscout, y las preferencias guardadas. "
+            "Al reiniciar, vuelve a configurar el dispositivo desde su red temporal.</p>"
+            "<form method='post' action='/factory-reset'><input type='hidden' name='csrf' value='");
+  page += csrf;
+  page += L("'><label><input type='checkbox' name='confirm_reset' value='1' required style='width:auto'> "
+            "Confirmo que quiero borrar todos los ajustes</label>"
+            "<button type='submit' class='secondary'>Borrar ajustes y reiniciar</button>"
+            "</form></details></section></main></html>");
   web.send(200, "text/html; charset=utf-8", page);
+}
+
+void changeAdminPassword() {
+  if (!authenticated() || !currentForm()) return;
+  if (web.arg("current_password") != settings.webPassword) {
+    web.send(400, "text/plain; charset=utf-8", L("La clave actual es incorrecta."));
+    return;
+  }
+  const String password = web.arg("new_password");
+  if (password.length() < 12 || password.length() > 64 ||
+      strlen(password.c_str()) != password.length() || password != web.arg("confirm_password")) {
+    web.send(400, "text/plain; charset=utf-8", L("Usa entre 12 y 64 caracteres y repite la misma clave."));
+    return;
+  }
+  std::unique_ptr<device_config::Settings> candidate(new (std::nothrow) device_config::Settings(settings));
+  if (!candidate) {
+    web.send(503, "text/plain; charset=utf-8", L("Memoria insuficiente. Intenta nuevamente."));
+    return;
+  }
+  memset(candidate->webPassword, 0, sizeof(candidate->webPassword));
+  password.toCharArray(candidate->webPassword, sizeof(candidate->webPassword));
+  if (!persistSettings(*candidate, patient)) {
+    web.send(500, "text/plain; charset=utf-8", L("No se pudo guardar la nueva clave."));
+    return;
+  }
+  updater.updateCredentials(settings.webUsername, settings.webPassword);
+  csrf = String(ESP.random(), HEX) + String(ESP.random(), HEX);
+  web.send_P(200, PSTR("text/html; charset=utf-8"),
+             reinterpret_cast<const char*>(L("<!doctype html><meta charset='utf-8'>"
+               "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+               "<h1>Clave cambiada</h1><p>Usa la nueva clave para administrar y actualizar el dispositivo.</p>"
+               "<p><a href='/settings'>Volver a Ajustes</a></p>")));
+}
+
+void factoryReset() {
+  if (!authenticated() || !currentForm()) return;
+  if (web.arg("confirm_reset") != "1") {
+    web.send(400, "text/plain; charset=utf-8", L("Confirma el restablecimiento de fábrica antes de continuar."));
+    return;
+  }
+  if (!storageReady) {
+    web.send(503, "text/plain; charset=utf-8", L("La memoria de ajustes no está disponible."));
+    return;
+  }
+  const size_t size = EEPROM.length();
+  std::unique_ptr<uint8_t[]> previous(new (std::nothrow) uint8_t[size]);
+  if (!previous) {
+    web.send(503, "text/plain; charset=utf-8", L("Memoria insuficiente. Intenta nuevamente."));
+    return;
+  }
+  uint8_t* data = EEPROM.getDataPtr();
+  memcpy(previous.get(), data, size);
+  memset(data, 0xFF, size);
+  if (!EEPROM.commit()) {
+    memcpy(data, previous.get(), size);
+    EEPROM.commit();
+    web.send(500, "text/plain; charset=utf-8", L("No se pudo completar el restablecimiento."));
+    return;
+  }
+  lastOperation = "factory_reset";
+  restartPending = true;
+  restartRequestedAt = millis();
+  web.send_P(200, PSTR("text/html; charset=utf-8"),
+             reinterpret_cast<const char*>(L("<!doctype html><meta charset='utf-8'>"
+               "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+               "<h1>Ajustes borrados</h1><p>Al reiniciar, conéctate a la red que muestra la pantalla para configurar el dispositivo.</p>")));
 }
 
 void saveSettings() {
@@ -1346,7 +1426,7 @@ void renderProvisioning() {
   display.drawString(L("Abre en el navegador"), 60, 163, 1);
   display.setTextColor(screenColor(0xD3E0DD), background);
   display.drawString(setupSsid, 60, 80, 2);
-  display.drawString(setupPassword, 60, 130, 2);
+  display.drawString(setup_wifi::PASSWORD, 60, 130, 2);
   display.drawString(WiFi.softAPIP().toString(), 60, 180, 2);
   display.setTextDatum(MC_DATUM);
   display.setTextColor(screenColor(0x9AABB0), background);
@@ -1525,6 +1605,8 @@ void setup() {
   web.on("/configure", HTTP_POST, saveConfiguration);
   web.on("/settings", HTTP_POST, saveSettings);
   web.on("/settings", HTTP_GET, settingsPage);
+  web.on("/admin-password", HTTP_POST, changeAdminPassword);
+  web.on("/factory-reset", HTTP_POST, factoryReset);
   web.on("/appearance", HTTP_POST, saveAppearance);
   web.on("/firmware", HTTP_GET, firmwarePage);
   web.on("/clock/retry", HTTP_POST, retryNtp);
